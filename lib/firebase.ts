@@ -1,8 +1,8 @@
 // Import Firebase core
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-// Import Firestore
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // (Optional) Analytics – chỉ dùng khi cần
 // import { getAnalytics } from "firebase/analytics";
@@ -23,5 +23,6 @@ const app = !getApps().length
   : getApp();
 // 🔐 Auth
 export const auth = getAuth(app);
-// 📦 Firestore
+export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
+export const storage = getStorage(app);

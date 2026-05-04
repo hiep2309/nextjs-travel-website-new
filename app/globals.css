@@ -5,13 +5,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* =========================
-   FONTS
-========================= */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=Inter:wght@400;600;700&display=swap');
+/* Không dùng @import Google Fonts ở đây — chặn parse CSS và gây FOUC (HTML hiện trước, Tailwind sau).
+   Font tải qua next/font trong app/layout.tsx (DM Sans, Bebas Neue). */
 
 /* =========================
-   RESET
+   RESET (bổ sung ngoài Tailwind preflight)
 ========================= */
 * {
   margin: 0;
@@ -20,7 +18,7 @@
 }
 
 body {
-  font-family: 'DM Sans', 'Inter', sans-serif;
+  font-family: var(--font-dm), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* =========================
@@ -72,6 +70,10 @@ body {
     @apply btn border border-gray-300 text-gray-700 hover:bg-gray-100;
   }
 
+  .btn_dark_green {
+    @apply btn rounded-full border-transparent bg-emerald-700 text-white shadow-md hover:bg-emerald-800 hover:shadow-lg active:scale-[0.99];
+  }
+
   /* LAYOUT */
   .container-max {
     @apply mx-auto max-w-[1440px];
@@ -103,6 +105,14 @@ body {
    UTILITIES
 ========================= */
 @layer utilities {
+
+  .flexCenter {
+    @apply flex items-center justify-center;
+  }
+
+  .bold-16 {
+    @apply text-base font-bold leading-snug;
+  }
 
   /* TYPOGRAPHY SYSTEM */
   .text-64 { @apply text-[64px] font-normal leading-[120%]; }

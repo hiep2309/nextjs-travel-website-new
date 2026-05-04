@@ -1,25 +1,28 @@
 import Image from "next/image";
 
 type ButtonProps = {
-  type: 'button' | 'submit';
+  type: "button" | "submit";
   title: string;
   icon?: string;
   variant: string;
   full?: boolean;
-  disabled?: boolean; // Thêm dòng này để sửa lỗi Property 'disabled' does not exist
-}
+  disabled?: boolean;
+  className?: string;
+};
 
-const Button = ({ type, title, icon, variant, full, disabled }: ButtonProps) => {
+const Button = ({ type, title, icon, variant, full, disabled, className = "" }: ButtonProps) => {
   return (
     <button
       type={type}
       disabled={disabled}
-      className={`flexCenter gap-3 rounded-full border ${variant} ${full && 'w-full'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`flexCenter min-h-[48px] gap-3 touch-manipulation ${variant} ${full ? "w-full" : ""} ${
+        disabled ? "pointer-events-none cursor-not-allowed opacity-50" : ""
+      } ${className}`}
     >
-      {icon && <Image src={icon} alt={title} width={24} height={24} />}
-      <label className="bold-16 whitespace-nowrap cursor-pointer">{title}</label>
+      {icon ? <Image src={icon} alt="" width={24} height={24} className="shrink-0" /> : null}
+      <span className="bold-16 whitespace-nowrap">{title}</span>
     </button>
-  )
-}
+  );
+};
 
 export default Button;

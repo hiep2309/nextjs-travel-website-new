@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Footer from "@/components/sections/Footer";
 import "leaflet/dist/leaflet.css";
 
 
@@ -12,12 +12,16 @@ const bebas = Bebas_Neue({
   subsets: ["latin"],
   weight: "400",
   variable: "--font-bebas",
+  display: "swap",
+  adjustFontFallback: true,
 });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
   variable: "--font-dm",
+  display: "swap",
+  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {
@@ -32,7 +36,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${bebas.variable} ${dmSans.variable}`}>
+      <body
+        className={`${bebas.variable} ${dmSans.variable} ${dmSans.className} font-sans antialiased`}
+      >
         <Navbar />
         <main className="relative overflow-hidden">{children}</main>
         <Footer />

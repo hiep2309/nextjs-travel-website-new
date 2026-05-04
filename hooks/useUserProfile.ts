@@ -1,28 +1,65 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore"; // ✅ phải có getDoc
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 
-export function useUserProfile() {
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+export type MergedProfile = {
+  uid: string;
+  email: string | null;
+  name: string;
+  photoURL: string | null;
+  role: string;
+};
+
+export function useUserProfile(): { profile: MergedProfile | null; loading: boolean } {
+  const { user, role, loading: authLoading } = useAuth();
+  const [firestoreName, setFirestoreName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+    if (!user) {
+      setFirestoreName(null);
+      return;
+    }
 
-    const fetchProfile = async () => {
-      const ref = doc(db, "users", user.uid);
-      const snap = await getDoc(ref);
-
-      if (snap.exists()) {
-        setProfile(snap.data());
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (cancelled) return;
+        if (snap.exists()) {
+          const d = snap.data();
+          setFirestoreName(typeof d.name === "string" ? d.name : null);
+        } else {
+          setFirestoreName(null);
+        }
+      } catch {
+        if (!cancelled) setFirestoreName(null);
       }
+    })();
+
+    return () => {
+      cancelled = true;
     };
+  }, [user, authLoading]);
 
-    fetchProfile();
-  }, [user]);
+  if (authLoading) {
+    return { profile: null, loading: true };
+  }
 
-  return profile;
+  if (!user) {
+    return { profile: null, loading: false };
+  }
+
+  const profile: MergedProfile = {
+    uid: user.uid,
+    email: user.email,
+    name: firestoreName || user.displayName || "Thành viên",
+    photoURL: user.photoURL,
+    role: role || "user",
+  };
+
+  return { profile, loading: false };
 }
