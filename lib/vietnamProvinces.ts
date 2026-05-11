@@ -72,5 +72,7 @@ export const VIETNAM_PROVINCES: ProvinceDef[] = RAW.map(([name, region], index) 
   image:
     name === "Đà Nẵng"
       ? TRAVEL_IMAGE_URLS.tentLake
-      : IMAGE_POOL[index % IMAGE_POOL.length],
+      : name === "Quảng Nam"
+        ? "https://media.vietravel.com/images/Content/du-lich-hoi-an-ve-dem-4.jpg"
+        : IMAGE_POOL[index % IMAGE_POOL.length],
 }));

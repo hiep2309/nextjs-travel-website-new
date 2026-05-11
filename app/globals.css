@@ -5,20 +5,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Không dùng @import Google Fonts ở đây — chặn parse CSS và gây FOUC (HTML hiện trước, Tailwind sau).
-   Font tải qua next/font trong app/layout.tsx (DM Sans, Bebas Neue). */
+/* Không dùng @import Google Fonts — chặn parse CSS và gây FOUC.
+   Font: app/fonts.ts → next/font, chỉ load từ Server Components. */
 
-/* =========================
-   RESET (bổ sung ngoài Tailwind preflight)
-========================= */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: var(--font-dm), ui-sans-serif, system-ui, sans-serif;
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    font-family: var(--font-dm), ui-sans-serif, system-ui, sans-serif;
+  }
 }
 
 /* =========================

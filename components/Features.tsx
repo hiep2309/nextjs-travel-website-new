@@ -1,5 +1,14 @@
-import React from "react";
-import ImageSlider from "./ImageSlider";
+import dynamic from "next/dynamic";
+
+const ImageSlider = dynamic(() => import("./ImageSlider"), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="relative h-[260px] w-full max-w-full overflow-hidden rounded-2xl bg-white/10 shadow-2xl sm:h-[360px] lg:h-[520px] lg:rounded-3xl"
+      aria-hidden
+    />
+  ),
+});
 
 const Features = () => {
   return (

@@ -5,9 +5,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
+import { TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
+import { provinceNameToSlug } from "@/lib/provinceSlug";
 
 const provinces = VIETNAM_PROVINCES;
 const defaultIndex = Math.max(0, provinces.findIndex((p) => p.name === "Đà Nẵng"));
+const IMG_FALLBACK = TRAVEL_IMAGE_URLS.beach;
 
 const FLY_MS = 560;
 
@@ -16,6 +19,25 @@ type FlyState = {
   from: { left: number; top: number; width: number; height: number };
   to: { left: number; top: number; width: number; height: number };
 };
+
+function ThumbImage({ src, eager }: { src: string; eager: boolean }) {
+  const [current, setCurrent] = useState(src);
+  useEffect(() => {
+    setCurrent(src);
+  }, [src]);
+  return (
+    <Image
+      src={current}
+      alt=""
+      fill
+      className="object-cover transition duration-300 group-hover:scale-105"
+      sizes="130px"
+      loading={eager ? "eager" : "lazy"}
+      unoptimized
+      onError={() => setCurrent(IMG_FALLBACK)}
+    />
+  );
+}
 
 function rectRelativeTo(root: DOMRect, inner: DOMRect) {
   return {
@@ -176,6 +198,8 @@ export default function ProvinceShowcase() {
               className="object-cover"
               sizes="(max-width: 1200px) 100vw, 1200px"
               priority={activeIndex === defaultIndex}
+              unoptimized
+              onError={() => setHeroSrc(IMG_FALLBACK)}
             />
 
             {fly ? (
@@ -184,7 +208,15 @@ export default function ProvinceShowcase() {
                 className="pointer-events-none absolute z-[12] overflow-hidden shadow-2xl ring-1 ring-white/25"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fly.src} alt="" className="h-full w-full object-cover" draggable={false} />
+                <img
+                  src={fly.src}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  draggable={false}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = IMG_FALLBACK;
+                  }}
+                />
               </div>
             ) : null}
 
@@ -202,7 +234,7 @@ export default function ProvinceShowcase() {
                 {activeProvince.summary}
               </p>
               <Link
-                href={`/explore?province=${encodeURIComponent(activeProvince.name)}`}
+                href={`/destinations/${provinceNameToSlug(activeProvince.name)}`}
                 className="inline-flex items-center rounded-full bg-black/50 px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-black/60"
               >
                 Xem bài viết địa điểm
@@ -252,14 +284,7 @@ export default function ProvinceShowcase() {
                       }}
                       className="relative min-h-0 w-full flex-1 bg-slate-800"
                     >
-                      <Image
-                        src={province.image}
-                        alt=""
-                        fill
-                        className="object-cover transition duration-300 group-hover:scale-105"
-                        sizes="130px"
-                        loading={index < 12 ? "eager" : "lazy"}
-                      />
+                      <ThumbImage src={province.image} eager={index < 12} />
                     </div>
                     <div className="shrink-0 border-t border-white/10 bg-black/85 px-1.5 py-2 backdrop-blur-md">
                       <p className="line-clamp-1 text-[7px] font-semibold uppercase leading-tight tracking-wide text-white/65">

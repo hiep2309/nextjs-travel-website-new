@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Caveat } from "next/font/google";
 import {
   ArrowRight,
   ArrowUp,
@@ -19,8 +18,6 @@ import {
   Twitter,
   Youtube,
 } from "lucide-react";
-
-const caveat = Caveat({ subsets: ["latin"], weight: ["600"] });
 
 const EXPLORE_LINKS = [
   { label: "Destinations", href: "/explore" },
@@ -129,7 +126,7 @@ const Footer = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-6">
-                <p className={`${caveat.className} text-2xl text-amber-400 sm:text-3xl`}>Discover Vietnam</p>
+                <p className="font-caveat text-2xl text-amber-400 sm:text-3xl">Discover Vietnam</p>
                 <p className="mt-2 text-lg font-bold leading-snug text-white">
                   Timeless beauty.
                   <br />

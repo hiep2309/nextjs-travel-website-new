@@ -11,30 +11,30 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        
-        // --- ĐOẠN CODE CẦN THÊM VÀO ---
-        try {
-          const userRef = doc(db, "users", currentUser.uid);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            setRole(userSnap.data().role || 'user');
-          } else {
-            setRole('user'); // Mặc định nếu không tìm thấy doc
+        // Bật UI ngay — không chờ Firestore (tránh "Loading..." kẹt vĩnh viễn nếu getDoc treo/lỗi mạng)
+        setLoading(false);
+        void (async () => {
+          try {
+            const userRef = doc(db, "users", currentUser.uid);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              setRole(userSnap.data().role || "user");
+            } else {
+              setRole("user");
+            }
+          } catch (error) {
+            console.error("Lỗi lấy role:", error);
+            setRole("user");
           }
-        } catch (error) {
-          console.error("Lỗi lấy role:", error);
-          setRole('user');
-        }
-        // ------------------------------
-
+        })();
       } else {
         setUser(null);
         setRole(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();

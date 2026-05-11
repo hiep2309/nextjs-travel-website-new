@@ -1,28 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/sections/Footer";
-import "leaflet/dist/leaflet.css";
-
-
-// ✅ Import font chuẩn Next.js
-import { Bebas_Neue, DM_Sans } from "next/font/google";
-
-const bebas = Bebas_Neue({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-bebas",
-  display: "swap",
-  adjustFontFallback: true,
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-dm",
-  display: "swap",
-  adjustFontFallback: true,
-});
+import { bodyFontClassName } from "./fonts";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Travel",
@@ -35,13 +14,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body
-        className={`${bebas.variable} ${dmSans.variable} ${dmSans.className} font-sans antialiased`}
-      >
-        <Navbar />
-        <main className="relative overflow-hidden">{children}</main>
-        <Footer />
+    <html lang="vi" suppressHydrationWarning>
+      <body className={`${bodyFontClassName} flex min-h-screen flex-col`}>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

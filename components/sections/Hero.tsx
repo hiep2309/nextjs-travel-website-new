@@ -7,7 +7,14 @@ import dynamic from "next/dynamic";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
+const RouteMap = dynamic(() => import("@/components/RouteMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full min-h-[200px] w-full items-center justify-center bg-black/25 px-4 text-center text-xs text-white/55">
+      Đang tải bản đồ…
+    </div>
+  ),
+});
 
 type Place = {
   title: string;

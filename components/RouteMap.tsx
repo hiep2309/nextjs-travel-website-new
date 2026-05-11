@@ -1,5 +1,6 @@
 "use client";
 
+import "leaflet/dist/leaflet.css";
 import {
   MapContainer,
   TileLayer,
@@ -44,7 +45,12 @@ type Props = {
 };
 
 const RouteMap = ({ userLocation, place }: Props) => {
+  const [mounted, setMounted] = useState(false);
   const [coords, setCoords] = useState<[number, number][]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +73,14 @@ const RouteMap = ({ userLocation, place }: Props) => {
       cancelled = true;
     };
   }, [userLocation, place]);
+
+  if (!mounted) {
+    return (
+      <div className="flex h-full min-h-[220px] w-full items-center justify-center bg-black/25 px-4 text-center text-xs text-white/55">
+        Đang tải bản đồ…
+      </div>
+    );
+  }
 
   return (
     <MapContainer

@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { label: "Destinations", href: "/explore" },
   { label: "Tours", href: "/tours" },
   { label: "Guides", href: "/guides" },
+  { label: "Blog", href: "/explore" },
 ];
 
 const Navbar = () => {

@@ -1,5 +1,5 @@
+import dynamic from "next/dynamic";
 import { Suspense } from "react";
-import ExploreClient from "./ExploreClient";
 
 function ExploreFallback() {
   return (
@@ -10,6 +10,11 @@ function ExploreFallback() {
     </div>
   );
 }
+
+const ExploreClient = dynamic(() => import("./ExploreClient"), {
+  ssr: false,
+  loading: () => <ExploreFallback />,
+});
 
 export default function ExplorePage() {
   return (

@@ -7,6 +7,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        caveat: ["var(--font-caveat)", "cursive"],
+      },
       colors: {
         green: {
           50: '#30AF5B',
