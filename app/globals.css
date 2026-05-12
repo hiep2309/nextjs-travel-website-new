@@ -97,6 +97,37 @@
   .flex-end {
     @apply flex items-center justify-end;
   }
+
+  /* Post detail — HTML từ TipTap */
+  .post-body-html a {
+    color: rgb(253 224 71 / 0.95);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .post-body-html p {
+    margin-bottom: 0.75rem;
+  }
+  .post-body-html ul {
+    list-style: disc;
+    margin: 0.5rem 0 0.75rem 1.25rem;
+    padding-left: 0.25rem;
+  }
+  .post-body-html ol {
+    list-style: decimal;
+    margin: 0.5rem 0 0.75rem 1.25rem;
+    padding-left: 0.25rem;
+  }
+  .post-body-html blockquote {
+    border-left: 3px solid rgb(139 92 246 / 0.55);
+    margin: 0.75rem 0;
+    padding-left: 1rem;
+    font-style: italic;
+    color: rgb(255 255 255 / 0.82);
+  }
+  .post-body-html strong {
+    font-weight: 700;
+    color: rgb(255 255 255 / 0.95);
+  }
 }
 
 /* =========================

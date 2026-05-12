@@ -226,7 +226,7 @@ export default function DashboardPage() {
   if (!isAdmin) {
     return (
       <div className="min-h-[calc(100vh-4rem)] bg-[#f4f6f9] px-4 py-10 text-slate-800 lg:px-8">
-        <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
           <h1 className="text-xl font-bold">Trang thành viên</h1>
           <p className="mt-2 text-sm text-slate-600">
             Chỉ quản trị viên mới xem được bảng điều khiển đầy đủ.
@@ -411,7 +411,7 @@ export default function DashboardPage() {
           </header>
 
           <div className="space-y-6 p-4 lg:px-8 lg:py-6">
-            <div className="flex gap-2 overflow-x-auto pb-2 lg:hidden">
+            <div className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
               <Link
                 href="/explore"
                 className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium shadow-sm ring-1 ring-slate-200"
@@ -425,11 +425,24 @@ export default function DashboardPage() {
                 Thêm bài
               </Link>
               <Link
+                href="/profile"
+                className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium shadow-sm ring-1 ring-slate-200"
+              >
+                Hồ sơ
+              </Link>
+              <Link
                 href="/"
                 className="shrink-0 rounded-lg bg-[#1e2a3a] px-3 py-2 text-xs font-medium text-white"
               >
                 Website
               </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+              >
+                Đăng xuất
+              </button>
             </div>
             {banner ? (
               <div
@@ -459,7 +472,8 @@ export default function DashboardPage() {
                       <p
                         className={`mt-1 text-xs font-medium ${s.up ? "text-emerald-600" : "text-amber-600"}`}
                       >
-                        {s.delta} <span className="text-slate-400">so với tháng trước (minh họa)</span>
+                        {s.delta}{" "}
+                        <span className="text-slate-400 max-[420px]:hidden">so với tháng trước (minh họa)</span>
                       </p>
                     </div>
                   ))}
@@ -493,8 +507,9 @@ export default function DashboardPage() {
                           return (
                             <li
                               key={post.id}
-                              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3"
+                              className="flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3 sm:flex-row sm:items-center"
                             >
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
                               <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-slate-200">
                                 {post.image ? (
                                   <Image
@@ -513,7 +528,8 @@ export default function DashboardPage() {
                                   {author} · {formatRelativeTime(post.createdAt?.seconds)}
                                 </p>
                               </div>
-                              <div className="flex shrink-0 gap-1">
+                              </div>
+                              <div className="flex shrink-0 justify-end gap-1 sm:justify-start">
                                 <button
                                   type="button"
                                   onClick={() => handleApprove(post.id)}

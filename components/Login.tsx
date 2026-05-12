@@ -41,15 +41,15 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-6">
-      <div className="flex w-full max-w-6xl rounded-[40px] overflow-hidden shadow-2xl bg-white h-[85vh]">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 px-4 py-8 sm:p-6">
+      <div className="flex w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl md:h-[min(85vh,880px)] md:flex-row md:rounded-[40px]">
         
         {/* LEFT SIDE: FORM (Đồng bộ UI VietNam Insight) */}
-        <div className="w-full md:w-1/2 p-16 flex flex-col justify-center">
+        <div className="flex w-full flex-col justify-center overflow-y-auto md:w-1/2 md:min-h-0 p-6 sm:p-10 md:p-12 lg:p-16">
           
           {/* Logo Section */}
-          <div className="flex items-center gap-3 mb-10">
-            <div className="relative w-14 h-14"> {/* Bạn có thể chỉnh w-12 h-12 nếu muốn logo to hơn */}
+          <div className="mb-8 flex items-center gap-3 sm:mb-10">
+            <div className="relative h-12 w-12 shrink-0 sm:h-14 sm:w-14">
   <Image
     src="/VN_insight_logo.png"          // Đường dẫn ảnh trong thư mục public
     alt="VietNam Insight Logo"
@@ -58,48 +58,48 @@ const Login = () => {
     priority                 // Ưu tiên tải logo trước
   />
 </div>
-            <span className="font-bold text-xl text-slate-900">VietNam Insight.</span>
+            <span className="text-lg font-bold text-slate-900 sm:text-xl">VietNam Insight.</span>
           </div>
 
           {/* Header Section */}
-          <p className="text-sm text-gray-400 mb-2 font-medium tracking-wide">WELCOME BACK</p>
-          <h1 className="text-5xl font-bold mb-4 text-slate-950">
+          <p className="mb-2 text-xs font-medium tracking-wide text-gray-400 sm:text-sm">WELCOME BACK</p>
+          <h1 className="mb-4 text-3xl font-bold text-slate-950 sm:text-4xl lg:text-5xl">
             Login to account<span className="text-blue-500">.</span>
           </h1>
-          <p className="text-sm text-gray-400 mb-10">
+          <p className="mb-8 text-sm text-gray-400 sm:mb-10">
             Don&apos;t have an account?{" "}
             <Link href="/register" className="text-blue-600 font-bold hover:underline">
               Sign Up
             </Link>
           </p>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-5 max-w-md">
+          <form onSubmit={handleLogin} className="flex max-w-md flex-col gap-4 sm:gap-5">
             
             {/* Email Field (Dùng background gray nhạt giống mẫu) */}
             <div className="relative">
-              <Mail className="absolute left-4 top-4 text-gray-400" size={20}/>
+              <Mail className="absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-gray-400 sm:left-4 sm:size-5" />
               <input
                 type="email" placeholder="Email" required
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-12 p-4 bg-gray-100 rounded-2xl border-none outline-none focus:ring-2 focus:ring-blue-300 transition-all text-sm"
+                className="w-full rounded-2xl border-none bg-gray-100 p-3 pl-11 text-sm outline-none transition-all focus:ring-2 focus:ring-blue-300 sm:p-4 sm:pl-12"
               />
             </div>
 
             {/* Password Field (Dùng background trắng, viền xanh đè bóng như mẫu) */}
             <div className="relative">
-              <Lock className="absolute left-4 top-4 text-gray-400" size={20}/>
+              <Lock className="absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-gray-400 sm:left-4 sm:size-5" />
               <input
                 type={show ? "text" : "password"}
                 placeholder="Password" required
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-12 p-4 bg-white border-2 border-blue-400 rounded-2xl outline-none shadow-lg shadow-blue-50 text-sm"
+                className="w-full rounded-2xl border-2 border-blue-400 bg-white p-3 pl-11 pr-11 text-sm shadow-lg shadow-blue-50 outline-none sm:p-4 sm:pl-12 sm:pr-12"
               />
               <button
                 type="button"
                 onClick={() => setShow(!show)}
-                className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 sm:right-4"
               >
-                {show ? <EyeOff size={20}/> : <Eye size={20}/>}
+                {show ? <EyeOff className="size-[18px] sm:size-5" /> : <Eye className="size-[18px] sm:size-5" />}
               </button>
             </div>
 
@@ -111,19 +111,19 @@ const Login = () => {
             </div>
 
             {/* BUTTONS (Dồng bộ giao diện VietNam Insight) */}
-            <div className="flex gap-4 pt-2">
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:gap-4">
               <button 
                 type="button" 
                 onClick={handleGoogle}
-                className="flex-1 flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-600 py-3 rounded-full font-bold text-sm hover:bg-gray-50 transition active:scale-95"
+                className="flex w-full flex-1 items-center justify-center gap-2 rounded-full border-2 border-gray-200 py-3 text-sm font-bold text-gray-600 transition hover:bg-gray-50 active:scale-95 sm:w-auto"
               >
-                <Chrome size={20} className="text-red-500" />
+                <Chrome className="size-5 text-red-500" />
                 Google
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-full font-bold shadow-xl shadow-blue-100 hover:bg-blue-700 transition disabled:bg-gray-300 active:scale-95"
+                className="w-full flex-1 rounded-full bg-blue-600 py-3 text-sm font-bold text-white shadow-xl shadow-blue-100 transition hover:bg-blue-700 active:scale-95 disabled:bg-gray-300 sm:w-auto"
               >
                 {loading ? "Processing..." : "Login"}
               </button>
@@ -132,7 +132,7 @@ const Login = () => {
         </div>
 
         {/* RIGHT SIDE: IMAGE (Đồng bộ hoàn toàn với Register - Hoi An Night) */}
-        <div className="relative w-1/2 hidden md:block rounded-r-[40px] overflow-hidden bg-slate-100">
+        <div className="relative hidden min-h-0 overflow-hidden bg-slate-100 md:block md:h-full md:w-1/2 md:rounded-r-[40px]">
           <Image
             src="/login_pic.jpg" // Đảm bảo bạn có ảnh này trong folder public
             alt="SonDoong Cave"

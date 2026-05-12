@@ -19,8 +19,11 @@ type Post = {
   title?: string;
   name?: string;
   description?: string;
+  contentHtml?: string;
   image?: string;
   region?: string;
+  category?: string;
+  tags?: string[];
 };
 
 export default function PostDetailPage() {
@@ -117,8 +120,16 @@ export default function PostDetailPage() {
                 sizes="100vw"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm text-white/60">{post.region || "Việt Nam"}</p>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <p className="text-white/60">{post.region || "Việt Nam"}</p>
+              {post.category ? (
+                <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-200/90">
+                  {post.category}
+                </span>
+              ) : null}
+              {post.tags?.length ? (
+                <span className="text-white/45">{post.tags.slice(0, 6).join(" · ")}</span>
+              ) : null}
               <button
                 type="button"
                 onClick={handleToggleSave}
@@ -129,7 +140,14 @@ export default function PostDetailPage() {
               </button>
             </div>
             <h1 className="mt-2 text-3xl font-bold">{post.title || post.name}</h1>
-            <p className="mt-4 whitespace-pre-wrap leading-relaxed text-white/85">{post.description || ""}</p>
+            {post.contentHtml ? (
+              <div
+                className="post-body-html mt-4 text-[15px] leading-relaxed text-white/[0.88]"
+                dangerouslySetInnerHTML={{ __html: post.contentHtml }}
+              />
+            ) : (
+              <p className="mt-4 whitespace-pre-wrap leading-relaxed text-white/85">{post.description || ""}</p>
+            )}
 
             <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.05] p-5">
               <p className="text-xs font-bold uppercase tracking-wider text-amber-400/90">Đánh giá của bạn</p>

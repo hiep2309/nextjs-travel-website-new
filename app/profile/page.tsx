@@ -17,8 +17,13 @@ export default function ProfilePage() {
 
   if (loading || !profile) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0b0e14] pt-20 text-white">
-        <p className="text-sm text-white/60">Đang tải hồ sơ…</p>
+      <div className="relative flex min-h-screen items-center justify-center pt-20 text-white">
+        <div
+          className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/signup_pic.jpg')" }}
+        />
+        <div className="fixed inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/35 to-black/70" />
+        <p className="relative text-sm text-white/80">Đang tải hồ sơ…</p>
       </div>
     );
   }

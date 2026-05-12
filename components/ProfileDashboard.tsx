@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bookmark,
   BookOpen,
+  Camera,
   ChevronRight,
   Clock,
   Compass,
@@ -20,6 +21,10 @@ import {
   Star,
   User,
 } from "lucide-react";
+import { doc, setDoc } from "firebase/firestore";
+import { reload, updateProfile } from "firebase/auth";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { auth, db, storage } from "@/lib/firebase";
 import { buildDestinationPageModel } from "@/lib/destinationPageModel";
 import { getProvinceBySlug } from "@/lib/provinceSlug";
 import { useAuth } from "@/hooks/useAuth";
@@ -104,9 +109,14 @@ function buildActivityFeed(): ActivityItem[] {
   return items.sort((a, b) => b.at - a.at).slice(0, 6);
 }
 
+const AVATAR_MAX_MB = 5;
+
 export default function ProfileDashboard({ profile }: { profile: MergedProfile }) {
   const router = useRouter();
   const { logout } = useAuth();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarLocalUrl, setAvatarLocalUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [tick, setTick] = useState(0);
   const [tab, setTab] = useState<TabId>("saved");
   const [filter, setFilter] = useState<FilterId>("all");
@@ -134,7 +144,50 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
   }, []);
 
   const avatarSrc =
-    profile.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}`;
+    avatarLocalUrl ||
+    profile.photoURL ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}`;
+
+  const handleAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Vui lòng chọn một file ảnh.");
+      return;
+    }
+    if (file.size > AVATAR_MAX_MB * 1024 * 1024) {
+      alert(`Ảnh tối đa ${AVATAR_MAX_MB}MB.`);
+      return;
+    }
+
+    const cur = auth.currentUser;
+    if (!cur) return;
+
+    setAvatarUploading(true);
+    try {
+      const rawExt = (file.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "");
+      const ext = rawExt.slice(0, 6) || "jpg";
+      const path = `avatars/${cur.uid}/${Date.now()}.${ext}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, file, { contentType: file.type || "image/jpeg" });
+      const url = await getDownloadURL(storageRef);
+      await updateProfile(cur, { photoURL: url });
+      await reload(cur);
+      await setDoc(
+        doc(db, "users", cur.uid),
+        { photoURL: url },
+        { merge: true },
+      );
+      setAvatarLocalUrl(url);
+    } catch (err) {
+      console.error(err);
+      alert("Không đổi được ảnh. Kiểm tra kết nối và quyền Storage của dự án Firebase.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
   const isAdmin = profile.role === "admin";
 
   useEffect(() => {
@@ -286,10 +339,14 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
   ];
 
   return (
-    <div className="min-h-screen bg-[#0b0e14] pb-16 pt-24 text-white">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.14),transparent)]" />
+    <div className="relative min-h-screen pb-16 pt-24 text-white">
+      <div
+        className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/signup_pic.jpg')" }}
+      />
+      <div className="fixed inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/35 to-black/70" />
 
-      <div className="mx-auto max-w-7xl gap-8 px-4 lg:flex lg:px-8">
+      <div className="relative mx-auto max-w-7xl gap-8 px-4 lg:flex lg:px-8">
         {/* Sidebar */}
         <aside className="mb-8 shrink-0 lg:mb-0 lg:w-64 lg:pt-2">
           <div className={`${glass} p-4`}>
@@ -363,8 +420,36 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
             {/* Profile header */}
             <div className={`${glass} mt-8 p-6 sm:p-8`}>
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                <div className="relative mx-auto h-28 w-28 shrink-0 overflow-hidden rounded-full ring-2 ring-white/25 sm:mx-0">
-                  <Image src={avatarSrc} alt="" fill className="object-cover" sizes="112px" unoptimized />
+                <div className="relative mx-auto shrink-0 sm:mx-0">
+                  <div className="relative h-28 w-28 overflow-hidden rounded-full ring-2 ring-white/25">
+                    <Image
+                      src={avatarSrc}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="112px"
+                      unoptimized
+                    />
+                  </div>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarPick}
+                  />
+                  <button
+                    type="button"
+                    disabled={avatarUploading}
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 flex size-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-2 ring-black/50 transition hover:bg-blue-500 disabled:opacity-60"
+                    aria-label="Đổi ảnh đại diện"
+                  >
+                    <Camera className="size-4" aria-hidden />
+                  </button>
+                  <p className="mt-2 text-center text-[11px] text-white/45 sm:text-left">
+                    {avatarUploading ? "Đang tải ảnh…" : "Chọn ảnh từ thư viện thiết bị"}
+                  </p>
                 </div>
                 <div className="min-w-0 flex-1 text-center sm:text-left">
                   <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">

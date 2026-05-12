@@ -9,7 +9,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Navbar />
-      <main className="relative min-h-0 flex-1 overflow-hidden">{children}</main>
+      <main className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
       <Footer />
     </>
   );

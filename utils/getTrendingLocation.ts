@@ -1,8 +1,9 @@
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export async function getTrendingLocation() {
-  const snapshot = await getDocs(collection(db, "posts"));
+  const q = query(collection(db, "posts"), where("status", "==", "approved"));
+  const snapshot = await getDocs(q);
 
   const map: any = {};
 
