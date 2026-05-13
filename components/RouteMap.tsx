@@ -1,3 +1,8 @@
+/**
+ * Bản đồ tương tác (Leaflet + react-leaflet) — tuyến đường và marker minh họa trên Hero.
+ *
+ * `ResizeMap`: ép Leaflet tính lại kích thước sau khi khối hero hiển thị (tránh map xám).
+ */
 "use client";
 
 import "leaflet/dist/leaflet.css";

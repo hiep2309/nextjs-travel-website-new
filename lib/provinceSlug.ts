@@ -1,3 +1,6 @@
+/**
+ * Ánh xạ tên tỉnh ↔ slug URL và tra cứu ngược từ slug (dùng cho `/destinations/[slug]`).
+ */
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
 import { VIETNAM_PROVINCES, type ProvinceDef } from "@/lib/vietnamProvinces";
 

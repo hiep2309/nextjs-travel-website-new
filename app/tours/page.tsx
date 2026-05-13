@@ -1,3 +1,8 @@
+/**
+ * Trang Tours — danh sách tour mẫu (dữ liệu tĩnh `MOCK_TOURS`), lọc theo miền/chủ đề.
+ *
+ * Không gọi API; dùng để demo UI và CTA.
+ */
 "use client";
 
 import Image from "next/image";

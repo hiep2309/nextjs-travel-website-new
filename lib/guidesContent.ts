@@ -1,3 +1,8 @@
+/**
+ * Nội dung tĩnh cho trang Guides — chip danh mục và danh sách bài mẫu (`MOCK_GUIDES`).
+ *
+ * Bài từ Firestore được map sang `GuideEntry` trong `app/guides/page.tsx`.
+ */
 import { TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
 
 export type GuideCategory = "all" | "dest" | "food" | "culture" | "tips";
@@ -12,6 +17,7 @@ export type GuideEntry = {
   dateDisplay: string;
   image: string;
   href: string;
+  viewCount?: number;
 };
 
 export const MOCK_GUIDES: GuideEntry[] = [

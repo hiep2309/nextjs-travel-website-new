@@ -1,8 +1,14 @@
+/**
+ * Trang Guides / Cẩm nang — gộp bài Firestore đã duyệt với `MOCK_GUIDES`, lọc theo chip danh mục.
+ *
+ * Hiển thị excerpt, lượt xem (bài từ Firestore), liên kết tới `/posts/[id]`.
+ */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Eye } from "lucide-react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -20,6 +26,7 @@ type TravelPost = {
   description?: string;
   image?: string;
   createdAt?: { seconds?: number };
+  viewCount?: number;
 };
 
 function postsToGuides(posts: TravelPost[]): GuideEntry[] {
@@ -37,6 +44,7 @@ function postsToGuides(posts: TravelPost[]): GuideEntry[] {
       : "—",
     image: p.image || "/signup_pic.jpg",
     href: `/posts/${p.id}`,
+    viewCount: typeof p.viewCount === "number" ? p.viewCount : 0,
   }));
 }
 
@@ -130,8 +138,16 @@ export default function GuidesPage() {
                     </span>
                     <h2 className="mt-3 text-xl font-bold sm:text-2xl">{g.title}</h2>
                     <p className="mt-2 line-clamp-2 text-sm text-[#b4bfce]">{g.excerpt}</p>
-                    <p className="mt-4 text-xs text-[#8892a8]">
-                      {g.readMinutes} phút đọc · {g.dateDisplay}
+                    <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#8892a8]">
+                      <span>
+                        {g.readMinutes} phút đọc · {g.dateDisplay}
+                      </span>
+                      {g.source === "firestore" ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Eye className="size-3.5" aria-hidden />
+                          {(g.viewCount ?? 0).toLocaleString("vi-VN")} lượt xem
+                        </span>
+                      ) : null}
                     </p>
                   </div>
                 </Link>

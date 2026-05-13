@@ -1,3 +1,8 @@
+/**
+ * Editor rich text (TipTap) dùng trong đăng bài — đậm, nghiêng, list, link, trích dẫn.
+ *
+ * Giới hạn độ dài nội dung thuần `MAX_CHARS`; đồng bộ HTML ra parent qua `onDocChange` / `onCreate`.
+ */
 "use client";
 
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -49,6 +54,10 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
           class:
             "min-h-[220px] px-4 py-3 text-sm text-white/90 outline-none focus:outline-none sm:min-h-[280px] sm:text-[15px]",
         },
+      },
+      onCreate: ({ editor: ed }) => {
+        const plain = ed.getText();
+        onDocChange({ html: ed.getHTML(), plain, plainLength: plain.length });
       },
       onUpdate: ({ editor: ed }) => {
         const plain = ed.getText();

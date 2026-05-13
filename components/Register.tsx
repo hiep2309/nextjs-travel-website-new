@@ -1,3 +1,8 @@
+/**
+ * Form đăng ký — tạo tài khoản Firebase Auth + document `users/{uid}` qua `createUserProfile`.
+ *
+ * Hiển thị modal chào mừng sau khi đăng ký thành công.
+ */
 "use client";
 import React, { useEffect, useState } from "react";
 import Image from "next/image";

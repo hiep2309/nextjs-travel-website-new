@@ -1,3 +1,8 @@
+/**
+ * Tính điểm “xu hướng” theo field `location` trên collection `posts` (đã duyệt).
+ *
+ * Lưu ý: schema bài viết hiện có thể dùng `region` thay `location` — hàm này giữ tương thích dữ liệu cũ/minh họa.
+ */
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 

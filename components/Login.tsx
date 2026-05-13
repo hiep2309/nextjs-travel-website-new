@@ -1,12 +1,17 @@
+/**
+ * Form đăng nhập — email/mật khẩu và đăng nhập Google (`signInWithPopup`).
+ *
+ * Sau khi thành công chuyển hướng (thường tới `/dashboard`).
+ */
 "use client";
 
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { auth, googleProvider } from "@/lib/firebase"; // Đảm bảo googleProvider đã được export ở lib/firebase
+import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, Chrome } from "lucide-react"; // Dùng icons hiện đại
+import { Eye, EyeOff, Mail, Lock, Chrome } from "lucide-react";
 
 const Login = () => {
   const [show, setShow] = useState(false);

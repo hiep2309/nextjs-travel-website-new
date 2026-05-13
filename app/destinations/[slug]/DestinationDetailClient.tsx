@@ -1,3 +1,10 @@
+/**
+ * UI chi tiết địa điểm (theo tỉnh) — ảnh, giới thiệu, hoạt động gợi ý, ẩm thực, CTA.
+ *
+ * Chức năng:
+ * - Nhận `slug` và resolve province; có thể đánh dấu đã lưu / đánh giá (localStorage).
+ * - Liên kết tới `/explore` với filter tỉnh và các tour/guides liên quan.
+ */
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";

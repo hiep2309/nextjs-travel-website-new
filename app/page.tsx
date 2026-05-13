@@ -1,3 +1,12 @@
+/**
+ * Trang chủ — điểm vào chính của ứng dụng du lịch VN Insight.
+ *
+ * Chức năng:
+ * - Hero giới thiệu / tìm kiếm gợi ý.
+ * - ProvinceShowcase: carousel 53 tỉnh thành (client-only, dynamic import).
+ * - Guide, Features: cẩm nang và điểm nhấn sản phẩm.
+ * - Nền cố định ảnh + lớp gradient.
+ */
 import dynamic from "next/dynamic";
 import Hero from "@/components/sections/Hero";
 import Features from "@/components/Features";

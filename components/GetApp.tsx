@@ -1,3 +1,6 @@
+/**
+ * Banner kêu gọi tải app (iOS/Android) — nội dung tiếng Anh mẫu, nút qua component `Button`.
+ */
 import React from 'react'
 import Button from './Button'
 import Image from 'next/image'

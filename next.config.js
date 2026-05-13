@@ -1,4 +1,8 @@
- /** @type {import('next').NextConfig} */
+/**
+ * Cấu hình Next.js — chủ yếu whitelist ảnh remote (`next/image`).
+ *
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   images: {
     domains: [

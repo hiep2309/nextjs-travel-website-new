@@ -1,4 +1,13 @@
-// Import Firebase core
+/**
+ * Khởi tạo Firebase (Auth, Firestore, Storage) — singleton app để tránh lặp `initializeApp`.
+ *
+ * Chức năng:
+ * - `auth`: đăng nhập email/Google.
+ * - `db`: đọc/ghi bài viết, người dùng.
+ * - `storage`: upload ảnh bài đăng.
+ *
+ * Lưu ý: cấu hình project công khai trên client; quyền thật sự do Security Rules trên Console.
+ */
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -17,11 +26,8 @@ const firebaseConfig = {
   measurementId: "G-9XH0GS9DDY",
 };
 
-// 🔥 Fix lỗi initialize nhiều lần
-const app = !getApps().length
-  ? initializeApp(firebaseConfig)
-  : getApp();
-// 🔐 Auth
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);

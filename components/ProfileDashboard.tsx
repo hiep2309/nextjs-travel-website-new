@@ -1,3 +1,8 @@
+/**
+ * Trang hồ sơ đầy đủ — avatar, thống kê, tab Đã lưu / Đã xem / Đánh giá / Blog của tôi.
+ *
+ * Gộp dữ liệu local (`userActivityStorage`) và Firestore (role, ảnh Google…).
+ */
 "use client";
 
 import { useEffect, useRef, useState } from "react";

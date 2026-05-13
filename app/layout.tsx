@@ -1,3 +1,10 @@
+/**
+ * Layout gốc (App Router) — áp dụng cho mọi route.
+ *
+ * Chức năng:
+ * - Đặt ngôn ngữ HTML, metadata mặc định.
+ * - Áp dụng font toàn cục và bọc nội dung trong AppShell (điều hướng + footer).
+ */
 import type { Metadata } from "next";
 import "./globals.css";
 import { bodyFontClassName } from "./fonts";

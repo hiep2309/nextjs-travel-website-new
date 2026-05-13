@@ -1,8 +1,15 @@
+/**
+ * Thao tác profile người dùng trên Firestore — tạo document khi đăng ký lần đầu.
+ */
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import { User } from "firebase/auth";
 
-// Trong lib/user.ts
+/**
+ * Tạo document `users/{uid}` nếu chưa tồn tại (idempotent — không ghi đè user cũ).
+ *
+ * @param customName — tên từ form đăng ký, ưu tiên hơn `displayName` của OAuth.
+ */
 export const createUserProfile = async (user: User, customName?: string) => {
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
@@ -11,7 +18,7 @@ export const createUserProfile = async (user: User, customName?: string) => {
     await setDoc(ref, {
       uid: user.uid,
       email: user.email,
-      name: customName || user.displayName || "User", // Ưu tiên tên từ form
+      name: customName || user.displayName || "User",
       role: "user",
       createdAt: serverTimestamp(),
     });

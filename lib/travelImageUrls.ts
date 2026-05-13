@@ -1,4 +1,8 @@
-/** CDN ảnh (images.unsplash.com đã khai trong next.config.js) */
+/**
+ * URL ảnh du lịch dùng chung (Unsplash) — hostname đã khai trong `next.config.js`.
+ *
+ * `TRAVEL_IMAGE_ROTATION`: luân phiên ảnh mặc định cho các tỉnh chưa có ảnh trong `public/`.
+ */
 export const TRAVEL_IMAGE_URLS = {
   terraces: "https://images.unsplash.com/photo-1528181304800-259b08848526?auto=format&fit=crop&w=900&q=80",
   landscape: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=900&q=80",

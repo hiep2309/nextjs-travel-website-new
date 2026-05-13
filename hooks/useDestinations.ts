@@ -1,3 +1,8 @@
+/**
+ * Hook tải danh sách điểm đến từ Firestore — các bài `posts` đã duyệt, sắp xếp theo `number`.
+ *
+ * Dùng cho các section cần danh sách “địa điểm” xây từ bài viết (legacy field `number`).
+ */
 "use client";
 import { useEffect, useState } from "react";
 import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
@@ -11,15 +16,15 @@ export function useDestinations() {
     const fetchDestinations = async () => {
       try {
         const q = query(
-          collection(db, "posts"), 
+          collection(db, "posts"),
           where("status", "==", "approved"),
-          orderBy("number", "asc") // Sắp xếp theo số thứ tự
+          orderBy("number", "asc"),
         );
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          number: Number(doc.data().number ?? 0) // Ép kiểu về number ở đây
+          number: Number(doc.data().number ?? 0),
         }));
         setDestinations(data);
       } finally {

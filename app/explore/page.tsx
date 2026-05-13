@@ -1,3 +1,8 @@
+/**
+ * Trang Khám phá / Blog — liệt kê bài viết Firestore đã duyệt (`status === "approved"`).
+ *
+ * Hỗ trợ lọc theo query `?province=`; client-only để tránh flash khi dùng `useSearchParams`.
+ */
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 

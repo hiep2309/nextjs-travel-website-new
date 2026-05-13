@@ -1,3 +1,6 @@
+/**
+ * Section “Các tour được đặt nhiều nhất” — carousel card giả lập với ảnh cố định, nút điều hướng.
+ */
 "use client";
 
 import Image from "next/image";

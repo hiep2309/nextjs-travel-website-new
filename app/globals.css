@@ -1,4 +1,8 @@
 /* =========================
+   GLOBAL STYLES — app/globals.css
+   Toàn cục Tailwind + utility/component cho UI VN Insight (nút, typography, .post-body-html).
+========================= */
+/* =========================
    TAILWIND BASE
 ========================= */
 @tailwind base;

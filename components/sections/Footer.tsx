@@ -1,3 +1,8 @@
+/**
+ * Chân trang website — logo, liên kết nhanh, mạng xã hội, nút “về đầu trang”.
+ *
+ * Client component để xử lý cuộn mượt và tương tác nhỏ.
+ */
 "use client";
 
 import Image from "next/image";

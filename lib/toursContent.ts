@@ -1,3 +1,6 @@
+/**
+ * Dữ liệu tour mẫu cho trang `/tours` — lọc theo miền và chip chủ đề.
+ */
 import { TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
 
 export type TourRegion = "north" | "central" | "south";

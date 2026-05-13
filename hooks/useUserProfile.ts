@@ -1,3 +1,6 @@
+/**
+ * Gộp thông tin hiển thị hồ sơ: Firebase Auth (`useAuth`) + field `name` trong Firestore `users/{uid}`.
+ */
 "use client";
 
 import { useEffect, useState } from "react";

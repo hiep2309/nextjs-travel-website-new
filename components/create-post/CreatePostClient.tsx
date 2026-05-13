@@ -1,3 +1,11 @@
+/**
+ * Luồng đăng bài đầy đủ — form, editor TipTap, upload ảnh Storage, ghi document `posts`.
+ *
+ * Chức năng:
+ * - Kiểm tra đăng nhập; nháp trong `localStorage` theo uid.
+ * - User thường: `status: pending`; admin (đọc `users/{uid}.role`): `approved`.
+ * - Hiển thị lỗi Firebase chi tiết qua `describeSubmitError`.
+ */
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,8 +27,9 @@ import {
   Star,
   X,
 } from "lucide-react";
+import { FirebaseError } from "firebase/app";
 import { auth, db, storage } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
@@ -46,9 +55,29 @@ function sanitizeBasicHtml(html: string): string {
   return s;
 }
 
+function describeSubmitError(err: unknown): string {
+  if (err instanceof FirebaseError) {
+    switch (err.code) {
+      case "permission-denied":
+        return "Firestore từ chối ghi bài (permission-denied). Cập nhật Firestore Rules: cho phép user đã đăng nhập tạo bài với authorId = uid và status = pending — xem file firestore.rules trong repo.";
+      case "storage/unauthorized":
+        return "Storage từ chối tải ảnh (storage/unauthorized). Thêm rule cho path posts/{userId}/... — xem storage.rules trong repo.";
+      case "storage/unauthenticated":
+        return "Chưa đăng nhập Storage — đăng nhập lại.";
+      case "unauthenticated":
+        return "Phiên đăng nhập hết hạn — đăng nhập lại.";
+      case "failed-precondition":
+        return "Firestore báo failed-precondition (thiếu composite index hoặc query không khớp rules). Xem Console → Firestore → Indexes.";
+      default:
+        return `${err.message} (${err.code})`;
+    }
+  }
+  return "Gửi bài thất bại. Kiểm tra mạng và console trình duyệt (F12).";
+}
+
 export default function CreatePostClient() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
 
   const [title, setTitle] = useState("");
   const [destination, setDestination] = useState("");
@@ -58,7 +87,6 @@ export default function CreatePostClient() {
   const [travelTime, setTravelTime] = useState("");
   const [tagsRaw, setTagsRaw] = useState("");
   const [docHtml, setDocHtml] = useState("");
-  const [plainLen, setPlainLen] = useState(0);
   const initialHtmlRef = useRef<string>("");
   const destRootRef = useRef<HTMLDivElement>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -125,13 +153,9 @@ export default function CreatePostClient() {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const onDocChange = useCallback(
-    ({ html, plainLength }: { html: string; plain: string; plainLength: number }) => {
-      setDocHtml(html);
-      setPlainLen(plainLength);
-    },
-    [],
-  );
+  const onDocChange = useCallback(({ html }: { html: string; plain: string; plainLength: number }) => {
+    setDocHtml(html);
+  }, []);
 
   const pickProvince = (name: string) => {
     setDestination(name);
@@ -217,10 +241,11 @@ export default function CreatePostClient() {
       return;
     }
     const plainText = docHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    if (!plainText || plainLen > MAX_CHARS) {
+    const contentLen = plainText.length;
+    if (!plainText || contentLen > MAX_CHARS) {
       setBanner({
         kind: "err",
-        text: plainLen > MAX_CHARS ? `Nội dung vượt ${MAX_CHARS} ký tự.` : "Vui lòng viết nội dung bài viết.",
+        text: contentLen > MAX_CHARS ? `Nội dung vượt ${MAX_CHARS} ký tự.` : "Vui lòng viết nội dung bài viết.",
       });
       return;
     }
@@ -232,6 +257,16 @@ export default function CreatePostClient() {
     setBusy(true);
     setBanner(null);
     try {
+      let isAdminPoster = false;
+      try {
+        const userSnap = await getDoc(doc(db, "users", cur.uid));
+        if (userSnap.exists() && userSnap.data().role === "admin") {
+          isAdminPoster = true;
+        }
+      } catch {
+        isAdminPoster = role === "admin";
+      }
+
       const urls: string[] = [];
       let i = 0;
       for (const slot of files) {
@@ -245,6 +280,7 @@ export default function CreatePostClient() {
 
       const primary = urls[0]!;
       const slugSafe = `${t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-")}-${Date.now()}`.replace(/-+/g, "-");
+      const status = isAdminPoster ? "approved" : "pending";
 
       await addDoc(collection(db, "posts"), {
         name: t,
@@ -259,12 +295,13 @@ export default function CreatePostClient() {
         images: urls,
         image: primary,
         thumb: primary,
-        status: "pending",
+        status,
         authorId: cur.uid,
         authorName: cur.displayName || cur.email?.split("@")[0] || "Thành viên",
         createdAt: serverTimestamp(),
         slug: slugSafe,
         number: 0,
+        viewCount: 0,
       });
 
       try {
@@ -273,11 +310,16 @@ export default function CreatePostClient() {
         /* */
       }
 
-      alert("Đã gửi bài! Vui lòng chờ admin duyệt.");
-      router.push("/dashboard");
+      if (isAdminPoster) {
+        alert("Đã đăng bài! Bài đã được đăng công khai.");
+        router.push("/explore");
+      } else {
+        alert("Đã gửi bài! Vui lòng chờ admin duyệt.");
+        router.push("/dashboard");
+      }
     } catch (err) {
       console.error(err);
-      setBanner({ kind: "err", text: "Gửi bài thất bại. Kiểm tra đăng nhập và quyền Storage/Firestore." });
+      setBanner({ kind: "err", text: describeSubmitError(err) });
     } finally {
       setBusy(false);
     }

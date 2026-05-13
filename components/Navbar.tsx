@@ -1,3 +1,11 @@
+/**
+ * Thanh điều hướng chính — logo, menu, ngôn ngữ (UI), trạng thái đăng nhập.
+ *
+ * Chức năng:
+ * - Liên kết tới Home, Explore (Destinations), Tours, Guides, Đăng bài (khi đã đăng nhập).
+ * - Dropdown ngôn ngữ và menu mobile.
+ * - Hiển thị avatar / nút đăng nhập dựa trên `useAuth`.
+ */
 "use client";
 
 import Image from "next/image";

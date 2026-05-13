@@ -1,3 +1,6 @@
+/**
+ * Section “Why choose us” trên trang chủ — cột text + carousel ảnh (`ImageSlider`, không SSR).
+ */
 import dynamic from "next/dynamic";
 
 const ImageSlider = dynamic(() => import("./ImageSlider"), {

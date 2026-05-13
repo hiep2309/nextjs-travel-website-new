@@ -1,11 +1,20 @@
+/**
+ * Chi tiết một bài viết — `/posts/[id]`.
+ *
+ * Chức năng:
+ * - Đọc document Firestore `posts/{id}`, hiển thị HTML TipTap (`contentHtml`).
+ * - Bài `approved`: tăng `viewCount` (increment) sau khi tải xong.
+ * - Lưu cục bộ: bookmark / đánh giá sao qua `userActivityStorage`.
+ * - Banner khác nhau khi bài `pending` (tác giả / admin xem trước).
+ */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Bookmark, Star } from "lucide-react";
-import { doc, getDoc } from "firebase/firestore";
+import { Bookmark, Eye, Star } from "lucide-react";
+import { doc, getDoc, increment, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   getUserPostRating,
@@ -14,6 +23,8 @@ import {
   setUserPostRating,
   toggleSavedPost,
 } from "@/lib/userActivityStorage";
+
+import { useAuth } from "@/hooks/useAuth";
 
 type Post = {
   title?: string;
@@ -24,11 +35,14 @@ type Post = {
   region?: string;
   category?: string;
   tags?: string[];
+  status?: string;
+  viewCount?: number;
 };
 
 export default function PostDetailPage() {
   const params = useParams();
   const id = typeof params?.id === "string" ? params.id : "";
+  const { role } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -54,12 +68,29 @@ export default function PostDetailPage() {
           setPost(null);
         } else {
           const data = snap.data() as Post;
-          setPost(data);
-          const title = data.title || data.name || "Bài viết";
-          const image = data.image || null;
+          const normalized: Post = {
+            ...data,
+            viewCount: typeof data.viewCount === "number" ? data.viewCount : 0,
+          };
+          setPost(normalized);
+          const title = normalized.title || normalized.name || "Bài viết";
+          const image = normalized.image || null;
           recordPostView({ id, title, image });
           setSaved(isPostSaved(id));
           setMyStars(getUserPostRating(id));
+
+          if (normalized.status === "approved") {
+            void (async () => {
+              try {
+                await updateDoc(doc(db, "posts", id), { viewCount: increment(1) });
+                setPost((prev) =>
+                  prev ? { ...prev, viewCount: (prev.viewCount ?? 0) + 1 } : prev,
+                );
+              } catch {
+                /* ignore — đếm lượt xem không chặn đọc bài */
+              }
+            })();
+          }
         }
       } catch {
         setErr("Lỗi tải bài viết.");
@@ -111,6 +142,26 @@ export default function PostDetailPage() {
         {err && <p className="text-red-300">{err}</p>}
         {!loading && post && (
           <>
+            {post.status === "pending" ? (
+              <div
+                className="mb-4 rounded-xl border border-amber-500/45 bg-amber-500/15 px-4 py-3 text-sm leading-relaxed text-amber-50"
+                role="status"
+              >
+                {role === "admin"
+                  ? (
+                    <>
+                      <p>Bản xem trước — bài đang chờ duyệt. Kiểm tra nội dung rồi quay lại dashboard để duyệt hoặc từ chối.</p>
+                      <Link
+                        href="/dashboard#pending-posts"
+                        className="mt-2 inline-block text-sm font-semibold text-amber-200 underline hover:text-white"
+                      >
+                        ← Về dashboard (bài chờ duyệt)
+                      </Link>
+                    </>
+                  )
+                  : "Bài viết đang chờ admin duyệt. Sau khi được duyệt, bài sẽ hiển thị trên trang Khám phá."}
+              </div>
+            ) : null}
             <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-2xl border border-white/15">
               <Image
                 src={post.image || "/signup_pic.jpg"}
@@ -122,6 +173,10 @@ export default function PostDetailPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <p className="text-white/60">{post.region || "Việt Nam"}</p>
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-xs font-medium text-white/70">
+                <Eye className="size-3.5 opacity-80" aria-hidden />
+                {(post.viewCount ?? 0).toLocaleString("vi-VN")} lượt xem
+              </span>
               {post.category ? (
                 <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-200/90">
                   {post.category}

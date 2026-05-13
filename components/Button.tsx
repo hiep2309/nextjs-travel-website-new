@@ -1,3 +1,8 @@
+/**
+ * Nút bấm tái sử dụng — icon + tiêu đề, hỗ trợ variant CSS và trạng thái disabled.
+ *
+ * Dùng trong các section/marketing khi cần nút đồng bộ style `flexCenter`, `bold-16`.
+ */
 import Image from "next/image";
 
 type ButtonProps = {

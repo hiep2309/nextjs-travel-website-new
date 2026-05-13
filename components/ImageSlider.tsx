@@ -1,3 +1,6 @@
+/**
+ * Carousel ảnh du lịch — luân phiên `TRAVEL_IMAGE_ROTATION`, có nút prev/next và autoplay nhẹ.
+ */
 "use client";
 
 import Image from "next/image";

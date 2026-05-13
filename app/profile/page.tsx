@@ -1,3 +1,8 @@
+/**
+ * Trang hồ sơ người dùng — bảo vệ route (chưa đăng nhập thì chuyển sang `/login`).
+ *
+ * Hiển thị ProfileDashboard: thông tin tài khoản, hoạt động đã lưu / đã xem / đánh giá (local + Firestore).
+ */
 "use client";
 
 import { useEffect } from "react";

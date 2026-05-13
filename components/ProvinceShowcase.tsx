@@ -1,3 +1,10 @@
+/**
+ * Showcase 53 tỉnh thành trên trang chủ — hero ảnh lớn + thanh carousel thẻ tỉnh.
+ *
+ * Chức năng:
+ * - Chọn tỉnh: đồng bộ ảnh hero, hiệu ứng “bay” từ thumbnail (tùy layout).
+ * - CTA dẫn tới `/destinations/[slug]` theo `provinceNameToSlug`.
+ */
 "use client";
 
 import Image from "next/image";

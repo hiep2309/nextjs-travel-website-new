@@ -1,4 +1,8 @@
-/** @type {import('tailwindcss').Config} */
+/**
+ * Cấu hình Tailwind — quét class trong `app/`, `components/`, `pages/`; mở rộng font và palette dự án.
+ *
+ * @type {import('tailwindcss').Config}
+ */
 module.exports = {
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',

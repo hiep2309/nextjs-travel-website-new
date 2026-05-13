@@ -1,3 +1,11 @@
+/**
+ * Dashboard quản trị — chỉ dùng cho user có `role === "admin"` trong Firestore.
+ *
+ * Chức năng:
+ * - Thống kê minh họa, danh sách bài chờ duyệt (duyệt / xóa).
+ * - Bảng bài mới nhất, người dùng; liên kết xem trước bài trước khi duyệt.
+ * - User thường chỉ thấy giao diện “không có quyền” hoặc được hướng dẫn.
+ */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -18,6 +26,7 @@ import {
   Bell,
   Check,
   ChevronRight,
+  Eye,
   ExternalLink,
   FileText,
   FolderOpen,
@@ -490,12 +499,12 @@ export default function DashboardPage() {
                     <TrafficSparkline />
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-                    <div className="mb-4 flex items-center justify-between">
+                  <div id="pending-posts" className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm scroll-mt-24">
+                    <div className="mb-4 flex items-center justify-between gap-2">
                       <h2 className="font-bold text-slate-900">Bài viết chờ duyệt</h2>
-                      <Link href="/explore" className="text-xs font-semibold text-blue-600 hover:underline">
-                        Xem tất cả
-                      </Link>
+                      {pendingPosts.length > 0 ? (
+                        <span className="text-xs font-medium text-slate-500">{pendingPosts.length} bài</span>
+                      ) : null}
                     </div>
                     {pendingPreview.length === 0 ? (
                       <p className="py-8 text-center text-sm text-slate-500">Không có bài chờ.</p>
@@ -523,13 +532,28 @@ export default function DashboardPage() {
                                 ) : null}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
+                                <Link
+                                  href={`/posts/${post.id}`}
+                                  className="block truncate text-sm font-semibold text-slate-900 hover:text-blue-600 hover:underline"
+                                >
+                                  {title}
+                                </Link>
                                 <p className="text-xs text-slate-500">
                                   {author} · {formatRelativeTime(post.createdAt?.seconds)}
                                 </p>
                               </div>
                               </div>
                               <div className="flex shrink-0 justify-end gap-1 sm:justify-start">
+                                <Link
+                                  href={`/posts/${post.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100"
+                                  aria-label="Xem trước bài viết"
+                                  title="Xem trước"
+                                >
+                                  <Eye className="size-4" />
+                                </Link>
                                 <button
                                   type="button"
                                   onClick={() => handleApprove(post.id)}

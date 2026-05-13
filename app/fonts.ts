@@ -1,9 +1,12 @@
+/**
+ * Cấu hình font Google qua `next/font` (tối ưu load, không FOUC).
+ *
+ * Chức năng:
+ * - Xuất `bodyFontClassName` để gắn vào `<body>` trong layout.
+ * - Chỉ khởi tạo font ở Server Components (layout); không import file này trong `"use client"` — tránh lệch CSS khi hard reload.
+ */
 import { Bebas_Neue, Caveat, DM_Sans } from "next/font/google";
 
-/**
- * Mọi `next/font` chỉ khởi tạo ở đây và import từ Server Components (layout).
- * Không gọi `next/font` trong file `"use client"` — dễ lệch inject CSS khi hard reload.
- */
 const bebas = Bebas_Neue({
   subsets: ["latin"],
   weight: "400",

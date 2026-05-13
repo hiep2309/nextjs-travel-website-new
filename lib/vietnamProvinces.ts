@@ -1,3 +1,8 @@
+/**
+ * Danh sách 53 tỉnh/thành — dùng cho ProvinceShowcase, Explore filter, static routes destinations.
+ *
+ * Mỗi tỉnh có: tên, vùng miền, mô tả ngắn, ảnh (ưu tiên file `public/` trong `LOCAL_PROVINCE_IMAGE_BY_NAME`).
+ */
 import { TRAVEL_IMAGE_ROTATION, TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
 
 export type ProvinceDef = {
@@ -8,6 +13,16 @@ export type ProvinceDef = {
 };
 
 const IMAGE_POOL = TRAVEL_IMAGE_ROTATION;
+
+/** Ảnh trong thư mục `public/` đặt tên theo địa điểm — dùng cho carousel / trang địa điểm */
+const LOCAL_PROVINCE_IMAGE_BY_NAME: Record<string, string> = {
+  "Hà Giang": "/Hà Giang – Cao nguyên đá Đồng Văn.jpg",
+  "Cao Bằng": "/Cao Bằng – Thác Bản Giốc.jpg",
+  "Bắc Kạn": "/Bắc Kạn – Hồ Ba Bể.jpg",
+  "Tuyên Quang": "/Tuyên Quang – Hồ Na Hang.png",
+  /** Hạ Long — Quảng Ninh */
+  "Quảng Ninh": "/halong_background.jpg",
+};
 
 const RAW: [string, string][] = [
   ["Hà Giang", "Bắc Bộ"],
@@ -70,9 +85,10 @@ export const VIETNAM_PROVINCES: ProvinceDef[] = RAW.map(([name, region], index) 
   region,
   summary: `Khám phá điểm đến, văn hóa và bài viết du lịch gợi ý tại ${name}.`,
   image:
-    name === "Đà Nẵng"
+    LOCAL_PROVINCE_IMAGE_BY_NAME[name] ??
+    (name === "Đà Nẵng"
       ? TRAVEL_IMAGE_URLS.tentLake
       : name === "Quảng Nam"
         ? "https://media.vietravel.com/images/Content/du-lich-hoi-an-ve-dem-4.jpg"
-        : IMAGE_POOL[index % IMAGE_POOL.length],
+        : IMAGE_POOL[index % IMAGE_POOL.length]),
 }));

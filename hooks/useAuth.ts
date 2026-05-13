@@ -1,13 +1,19 @@
-// hooks/useAuth.ts
+/**
+ * Hook theo dõi phiên đăng nhập Firebase + vai trò trong Firestore (`users/{uid}.role`).
+ *
+ * Chức năng:
+ * - `loading`: chờ lần đầu `onAuthStateChanged`.
+ * - Sau khi có user, `role` được nạp bất đồng bộ; UI không khóa chờ role (tránh kẹt loading).
+ */
 import { useEffect, useState } from 'react';
-import { auth, db } from '@/lib/firebase'; // Đảm bảo đường dẫn này đúng
+import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { logout } from '@/lib/auth';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<string | null>(null); // Thêm dòng này
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -1,3 +1,9 @@
+/**
+ * Hero trang chủ — headline, ô gợi ý điểm đến, bản đồ Leaflet (dynamic), gọi Firestore lấy bài nổi bật.
+ *
+ * Chức năng:
+ * - Hiển thị nút/link đặt tour và teaser blog ngẫu nhiên từ bài đã duyệt.
+ */
 "use client";
 
 import Link from "next/link";

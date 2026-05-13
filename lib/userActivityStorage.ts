@@ -1,4 +1,10 @@
-/** Lưu hoạt động người dùng trên trình duyệt (đã lưu / lịch sử / đánh giá). Chỉ gọi từ client. */
+/**
+ * Tiện ích `localStorage` cho hoạt động cá nhân không đồng bộ server:
+ *
+ * - Địa điểm / bài viết đã lưu, đã xem, đánh giá sao.
+ * - Key được gom trong `ACTIVITY_KEYS`; có giới hạn độ dài lịch sử (`MAX_HISTORY`).
+ * Chỉ gọi từ client (guard `typeof window`).
+ */
 
 const MAX_HISTORY = 50;
 

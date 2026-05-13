@@ -1,3 +1,11 @@
+/**
+ * Route động chi tiết địa điểm theo tỉnh — `/destinations/[slug]`.
+ *
+ * Chức năng:
+ * - `generateStaticParams`: pre-render 53 tỉnh từ `VIETNAM_PROVINCES`.
+ * - `generateMetadata`: SEO title/description.
+ * - Render `DestinationDetailClient` với model xây từ `buildDestinationPageModel`.
+ */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";

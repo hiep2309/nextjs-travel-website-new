@@ -1,3 +1,8 @@
+/**
+ * Xây “model” hiển thị cho trang chi tiết địa điểm — headline, why cards, food, chi phí, TOC, điểm liên quan.
+ *
+ * Kết hợp dữ liệu `ProvinceDef` + ảnh luân phiên để tránh trang trống.
+ */
 import type { ProvinceDef } from "@/lib/vietnamProvinces";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 import { TRAVEL_IMAGE_ROTATION } from "@/lib/travelImageUrls";

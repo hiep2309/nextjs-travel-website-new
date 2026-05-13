@@ -1,9 +1,17 @@
+/**
+ * Phần client của trang Explore — tải và hiển thị lưới bài đã duyệt.
+ *
+ * Chức năng:
+ * - Query Firestore `posts` với `status == approved`, sắp xếp theo `createdAt`.
+ * - Lọc theo `?province=` (chuẩn hóa không dấu).
+ */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { Eye } from "lucide-react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
@@ -17,6 +25,7 @@ type TravelPost = {
   region?: string;
   country?: string;
   createdAt?: { seconds?: number };
+  viewCount?: number;
 };
 
 export default function ExploreClient() {
@@ -102,6 +111,10 @@ export default function ExploreClient() {
                     </p>
                     <h3 className="mb-2 line-clamp-2 text-lg font-semibold">{post.title || post.name || "Untitled"}</h3>
                     <p className="line-clamp-3 text-sm text-white/75">{post.description || "Chưa có mô tả."}</p>
+                    <p className="mt-3 inline-flex items-center gap-1 text-xs text-white/55">
+                      <Eye className="size-3.5 shrink-0" aria-hidden />
+                      {(post.viewCount ?? 0).toLocaleString("vi-VN")} lượt xem
+                    </p>
                   </div>
                 </article>
               </Link>
