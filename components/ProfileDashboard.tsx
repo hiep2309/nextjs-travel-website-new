@@ -31,6 +31,7 @@ import { reload, updateProfile } from "firebase/auth";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
 import { buildDestinationPageModel } from "@/lib/destinationPageModel";
+import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { getProvinceBySlug } from "@/lib/provinceSlug";
 import { useAuth } from "@/hooks/useAuth";
 import type { MergedProfile } from "@/hooks/useUserProfile";
@@ -67,9 +68,9 @@ function defaultPostImage() {
 
 type ActivityItem = { label: string; title: string; href: string; at: number; thumb: string };
 
-function buildActivityFeed(): ActivityItem[] {
+function buildActivityFeed(uid: string): ActivityItem[] {
   const items: ActivityItem[] = [];
-  for (const { slug, at } of getDestinationHistory().slice(0, 12)) {
+  for (const { slug, at } of getDestinationHistory(uid).slice(0, 12)) {
     const p = getProvinceBySlug(slug);
     if (!p) continue;
     const m = buildDestinationPageModel(p);
@@ -81,7 +82,7 @@ function buildActivityFeed(): ActivityItem[] {
       thumb: m.heroImage,
     });
   }
-  for (const s of getSavedPosts()) {
+  for (const s of getSavedPosts(uid)) {
     items.push({
       label: "Bài đã lưu",
       title: s.title,
@@ -90,7 +91,7 @@ function buildActivityFeed(): ActivityItem[] {
       thumb: s.image || defaultPostImage(),
     });
   }
-  for (const { slug, stars, at } of getUserDestinationRatings()) {
+  for (const { slug, stars, at } of getUserDestinationRatings(uid)) {
     const p = getProvinceBySlug(slug);
     if (!p) continue;
     const m = buildDestinationPageModel(p);
@@ -102,7 +103,7 @@ function buildActivityFeed(): ActivityItem[] {
       thumb: m.heroImage,
     });
   }
-  for (const r of getUserPostRatings()) {
+  for (const r of getUserPostRatings(uid)) {
     items.push({
       label: `Đánh giá ${r.stars}★`,
       title: r.title,
@@ -196,12 +197,13 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
   const isAdmin = profile.role === "admin";
 
   useEffect(() => {
-    const savedSlugs = getSavedDestinationSlugs();
-    const savedPosts = getSavedPosts();
-    const destHistory = getDestinationHistory();
-    const postHistory = getPostHistory();
-    const destReviews = getUserDestinationRatings();
-    const postReviews = getUserPostRatings();
+    const uid = profile.uid;
+    const savedSlugs = getSavedDestinationSlugs(uid);
+    const savedPosts = getSavedPosts(uid);
+    const destHistory = getDestinationHistory(uid);
+    const postHistory = getPostHistory(uid);
+    const destReviews = getUserDestinationRatings(uid);
+    const postReviews = getUserPostRatings(uid);
 
     const destRowsForSlugs = (slugs: string[], subLine: (slug: string) => string) => {
       const out: ContentRow[] = [];
@@ -326,11 +328,11 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
       reviews: destReviews.length + postReviews.length,
       places: uniqDest.size,
     });
-  }, [tab, filter, sort, tick]);
+  }, [tab, filter, sort, tick, profile.uid]);
 
   useEffect(() => {
-    setActivityFeed(buildActivityFeed());
-  }, [tick]);
+    setActivityFeed(buildActivityFeed(profile.uid));
+  }, [tick, profile.uid]);
 
   const handleLogout = async () => {
     await logout();
@@ -345,12 +347,6 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
 
   return (
     <div className="relative min-h-screen pb-16 pt-24 text-white">
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/signup_pic.jpg')" }}
-      />
-      <div className="fixed inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/35 to-black/70" />
-
       <div className="relative mx-auto max-w-7xl gap-8 px-4 lg:flex lg:px-8">
         {/* Sidebar */}
         <aside className="mb-8 shrink-0 lg:mb-0 lg:w-64 lg:pt-2">
@@ -415,7 +411,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         </aside>
 
         <div className="min-w-0 flex-1 lg:flex lg:gap-8">
-          <main className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">VN Insight</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Trang cá nhân</h1>
             <p className="mt-2 max-w-xl text-sm text-white/55">
@@ -433,7 +429,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                       fill
                       className="object-cover"
                       sizes="112px"
-                      unoptimized
+                      placeholder="blur"
+                      blurDataURL={BLUR_DATA_URL_LIGHT}
                     />
                   </div>
                   <input
@@ -584,14 +581,19 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                     className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] transition hover:border-amber-400/35 hover:bg-white/[0.07]"
                   >
                     <div className="relative aspect-[16/11] w-full">
-                      <Image
-                        src={row.image}
-                        alt=""
-                        fill
-                        className="object-cover transition duration-500 group-hover:scale-105"
-                        sizes="(max-width:640px)100vw,360px"
-                        unoptimized
-                      />
+                      {row.image.trim() ? (
+                        <Image
+                          src={row.image}
+                          alt=""
+                          fill
+                          className="object-cover transition duration-500 group-hover:scale-105"
+                          sizes="(max-width:640px)100vw,360px"
+                          placeholder="blur"
+                          blurDataURL={BLUR_DATA_URL_LIGHT}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-white/[0.08]" aria-hidden />
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e14] via-[#0b0e14]/50 to-transparent" />
                       <span className="absolute left-3 top-3 rounded-md bg-black/55 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white/90 backdrop-blur-sm">
                         {row.chip}
@@ -625,7 +627,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
               <LogOut className="size-4" aria-hidden />
               Đăng xuất
             </button>
-          </main>
+          </div>
 
           {/* Right column */}
           <aside className="mt-12 w-full shrink-0 space-y-6 lg:mt-8 lg:w-72 xl:w-80">
@@ -639,7 +641,19 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                     <li key={`${a.href}-${a.at}-${i}`}>
                       <Link href={a.href} className="flex gap-3 rounded-xl p-1 transition hover:bg-white/5">
                         <div className="relative h-14 w-16 shrink-0 overflow-hidden rounded-lg">
-                          <Image src={a.thumb} alt="" fill className="object-cover" sizes="64px" unoptimized />
+                          {a.thumb.trim() ? (
+                            <Image
+                              src={a.thumb}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="64px"
+                              placeholder="blur"
+                              blurDataURL={BLUR_DATA_URL_LIGHT}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 bg-white/10" aria-hidden />
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-violet-300/90">{a.label}</p>

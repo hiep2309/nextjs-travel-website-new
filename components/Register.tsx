@@ -127,7 +127,7 @@ const Register = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-8 sm:p-6">
+    <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:p-6">
       {successOpen ? <RegisterSuccessModal onClose={goAfterSuccess} /> : null}
       <div className="flex h-auto w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl md:h-[min(85vh,880px)] md:flex-row md:rounded-[40px]">
         

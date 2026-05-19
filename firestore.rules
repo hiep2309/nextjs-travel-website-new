@@ -12,14 +12,22 @@ service cloud.firestore {
     }
 
     function prevPostViews() {
-      return resource.data.viewCount is int ? resource.data.viewCount : 0;
+      return resource.data.keys().hasAny(["viewCount"])
+        && (resource.data.viewCount is int || resource.data.viewCount is float)
+        ? resource.data.viewCount
+        : 0;
     }
 
+    // Chỉ cho phép cộng đúng +1 trên viewCount (increment client), không sửa field khác.
+    // Cho cả bài approved (công khai) và pending (chỉ tác giả/admin đọc) — tránh "0 lượt xem" khi bài chưa duyệt.
+    // Cho phép int hoặc float vì Firestore/SDK đôi khi thể hiện số khác kiểu; rule `is int` từng chặn update im lặng.
     function viewCountOnlyBump() {
-      return resource.data.status == "approved"
+      let prev = prevPostViews();
+      let next = request.resource.data.viewCount;
+      return (resource.data.status == "approved" || resource.data.status == "pending")
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["viewCount"])
-        && request.resource.data.viewCount is int
-        && request.resource.data.viewCount == prevPostViews() + 1;
+        && (next is int || next is float)
+        && next == prev + 1;
     }
 
     match /users/{userId} {

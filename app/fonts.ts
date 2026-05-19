@@ -5,15 +5,7 @@
  * - Xuất `bodyFontClassName` để gắn vào `<body>` trong layout.
  * - Chỉ khởi tạo font ở Server Components (layout); không import file này trong `"use client"` — tránh lệch CSS khi hard reload.
  */
-import { Bebas_Neue, Caveat, DM_Sans } from "next/font/google";
-
-const bebas = Bebas_Neue({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-bebas",
-  display: "swap",
-  adjustFontFallback: true,
-});
+import { Caveat, DM_Sans } from "next/font/google";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -33,7 +25,6 @@ const caveat = Caveat({
 
 /** Chuỗi class gắn <body> — dùng trong app/layout.tsx */
 export const bodyFontClassName = [
-  bebas.variable,
   dmSans.variable,
   caveat.variable,
   dmSans.className,

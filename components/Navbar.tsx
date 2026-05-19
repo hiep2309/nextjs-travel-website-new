@@ -1,73 +1,77 @@
 /**
- * Thanh điều hướng chính — logo, menu, ngôn ngữ (UI), trạng thái đăng nhập.
- *
- * Chức năng:
- * - Liên kết tới Home, Explore (Destinations), Tours, Guides, Đăng bài (khi đã đăng nhập).
- * - Dropdown ngôn ngữ và menu mobile.
- * - Hiển thị avatar / nút đăng nhập dựa trên `useAuth`.
+ * Thanh điều hướng chính — i18n via next-intl, LocaleSwitcher, auth menu.
  */
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { Globe, ChevronDown, LogIn, Menu } from "lucide-react";
+import { LogIn, Menu, Settings, Compass, LogOut, LayoutDashboard } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import type { User } from "firebase/auth";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 
-type LangCode = "vi" | "en" | "ko" | "ru" | "ja";
-type LangOption = { code: LangCode; label: string };
+function userInitials(user: User) {
+  const raw = user.displayName?.trim() || user.email?.split("@")[0] || "U";
+  const parts = raw.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
+  return raw.slice(0, 2).toUpperCase();
+}
 
-const LANGUAGES: LangOption[] = [
-  { code: "vi", label: "Tiếng Việt" },
-  { code: "en", label: "English" },
-  { code: "ko", label: "Korean" },
-  { code: "ru", label: "Russian" },
-  { code: "ja", label: "Japanese" },
-];
+function roleLabel(role: string | null, t: (key: string) => string) {
+  if (role === "admin") return t("admin");
+  return t("member");
+}
+
+function UserAvatar({
+  user,
+  className = "h-9 w-9 text-xs",
+}: {
+  user: User;
+  className?: string;
+}) {
+  if (user.photoURL) {
+    return (
+      <Image
+        src={user.photoURL}
+        alt=""
+        width={40}
+        height={40}
+        className={`rounded-full border border-white/20 object-cover ${className}`}
+      />
+    );
+  }
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-600 font-bold text-white ${className}`}
+    >
+      {userInitials(user)}
+    </span>
+  );
+}
 
 const NAV_ITEMS = [
-  { label: "Home", href: "/" },
-  { label: "Destinations", href: "/explore" },
-  { label: "Tours", href: "/tours" },
-  { label: "Guides", href: "/guides" },
-  { label: "Blog", href: "/explore" },
-];
+  { key: "home", href: "/" },
+  { key: "destinations", href: "/explore" },
+  { key: "tours", href: "/tours" },
+  { key: "guides", href: "/guides" },
+  { key: "blog", href: "/explore" },
+] as const;
 
 const Navbar = () => {
+  const t = useTranslations("Nav");
   const [open, setOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState(false);
-  const [openLanguage, setOpenLanguage] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState<LangCode>("vi");
   const menuRef = useRef<HTMLDivElement>(null);
-  const languageRef = useRef<HTMLDivElement>(null);
 
   const closeMobile = () => setOpen(false);
-
   const { user, role, loading, logout } = useAuth();
 
   useEffect(() => {
-    const code = localStorage.getItem("preferred_lang") as LangCode | null;
-    if (code && LANGUAGES.some((l) => l.code === code)) setCurrentLanguage(code);
-  }, []);
-
-  const handleLanguageChange = (code: LangCode) => {
-    setCurrentLanguage(code);
-    setOpenLanguage(false);
-    localStorage.setItem("preferred_lang", code);
-    if (code === "vi") {
-      window.location.href = `${window.location.origin}${window.location.pathname}${window.location.search}`;
-      return;
-    }
-    window.location.href = `https://translate.google.com/translate?sl=auto&tl=${code}&u=${encodeURIComponent(
-      window.location.href,
-    )}`;
-  };
-
-  useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (menuRef.current && !menuRef.current.contains(t)) setOpenMenu(false);
-      if (languageRef.current && !languageRef.current.contains(t)) setOpenLanguage(false);
+      const target = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)) setOpenMenu(false);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -84,7 +88,7 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="fixed top-0 left-0 z-50 w-full border-b border-white/5 bg-slate-900/80 backdrop-blur-md">
+      <header className="fixed top-0 left-0 z-[1000] w-full border-b border-white/10 bg-slate-950 shadow-lg shadow-black/40">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
             <div className="relative h-10 w-10 md:h-12 md:w-12">
@@ -96,114 +100,101 @@ const Navbar = () => {
           <nav className="hidden items-center gap-8 lg:flex">
             {NAV_ITEMS.map((item) => (
               <Link
-                key={item.label}
+                key={item.key}
                 href={item.href}
                 className="text-sm font-semibold text-gray-300 transition hover:text-blue-400"
               >
-                {item.label}
+                {t(item.key)}
               </Link>
             ))}
             {!loading && user && role === "admin" && (
               <Link href="/dashboard" className="text-sm font-semibold text-amber-300 hover:text-amber-200">
-                Dashboard
+                {t("dashboard")}
               </Link>
             )}
           </nav>
 
           <div className="flex items-center gap-3 md:gap-5">
-            <div className="relative hidden sm:flex" ref={languageRef}>
-              <button
-                type="button"
-                onClick={() => setOpenLanguage((v) => !v)}
-                className="flex cursor-pointer items-center gap-1 rounded-lg px-2 py-2 text-gray-400 transition hover:text-white touch-manipulation"
-                aria-expanded={openLanguage}
-                aria-haspopup="listbox"
-              >
-                <Globe size={16} aria-hidden />
-                <span className="text-xs font-bold uppercase">{currentLanguage}</span>
-                <ChevronDown size={12} aria-hidden />
-              </button>
-              {openLanguage && (
-                <div className="absolute right-0 top-10 z-50 w-40 rounded-xl border border-white/15 bg-slate-900/95 p-1.5 shadow-xl">
-                  {LANGUAGES.map((lang) => (
-                    <button
-                      key={lang.code}
-                      type="button"
-                      onClick={() => handleLanguageChange(lang.code)}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${
-                        currentLanguage === lang.code
-                          ? "bg-white/20 text-white"
-                          : "text-gray-300 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      {lang.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="hidden sm:flex">
+              <LocaleSwitcher />
             </div>
 
             <div className="hidden items-center gap-4 md:flex">
               {loading ? (
-                <div className="text-sm text-gray-400">Loading...</div>
+                <div className="text-sm text-gray-400">{t("loading")}</div>
               ) : user ? (
-                <div className="relative" ref={menuRef}>
+                <div className="relative z-[1001]" ref={menuRef}>
                   <button
                     type="button"
                     onClick={() => setOpenMenu((v) => !v)}
-                    className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    className="rounded-full transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
                     aria-expanded={openMenu}
                     aria-haspopup="true"
                   >
-                    <Image
-                      src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email ?? "")}`}
-                      alt=""
-                      width={36}
-                      height={36}
-                      className="h-9 w-9 rounded-full border object-cover transition hover:scale-105"
-                      unoptimized
-                    />
+                    <UserAvatar user={user} className="h-9 w-9 text-xs" />
                   </button>
                   {openMenu && (
-                    <div className="absolute right-0 mt-3 w-80 rounded-2xl bg-white p-3 text-black shadow-2xl">
-                      <div className="mb-3 rounded-xl bg-gray-100 p-3">
+                    <div
+                      className="absolute right-0 top-full z-[1001] mt-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/20 bg-slate-950 p-1.5 text-white shadow-2xl shadow-black/60"
+                      role="menu"
+                    >
+                      <div className="rounded-xl bg-slate-900 p-3">
                         <div className="flex items-center gap-3">
-                          <Image
-                            src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email ?? "")}`}
-                            alt=""
-                            width={48}
-                            height={48}
-                            className="h-12 w-12 rounded-full object-cover"
-                            unoptimized
-                          />
-                          <div>
-                            <p className="font-semibold">{user.email}</p>
-                            <p className="text-sm text-gray-500">
-                              {role === "admin" ? "Quản trị viên" : "Guest User"}
-                            </p>
+                          <UserAvatar user={user} className="h-11 w-11 text-sm" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-white">{user.email}</p>
+                            <p className="text-xs text-white/90">{roleLabel(role, t)}</p>
                           </div>
                         </div>
                         <Link
                           href="/profile"
-                          className="mt-3 block rounded-xl bg-gray-200 py-2 text-center text-sm font-medium hover:bg-gray-300"
+                          onClick={() => setOpenMenu(false)}
+                          className="mt-3 block rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-2.5 text-center text-sm font-bold text-white shadow-lg shadow-violet-900/30 transition hover:from-violet-500 hover:to-blue-500"
                         >
-                          Xem trang cá nhân
+                          {t("viewProfile")}
                         </Link>
                       </div>
-                      <div className="space-y-1">
+                      <div className="mt-1 space-y-0.5 px-0.5 py-1">
                         {role === "admin" && (
-                          <Link href="/dashboard" className="menu-item block font-semibold text-blue-700">
-                            Dashboard
+                          <Link
+                            href="/dashboard"
+                            onClick={() => setOpenMenu(false)}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/15"
+                            role="menuitem"
+                          >
+                            <LayoutDashboard className="size-4 shrink-0 text-white" aria-hidden />
+                            {t("dashboard")}
                           </Link>
                         )}
-                        <Link href="/profile" className="menu-item block">
-                          Cài đặt / Hồ sơ
+                        <Link
+                          href="/profile"
+                          onClick={() => setOpenMenu(false)}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-white transition hover:bg-white/10"
+                          role="menuitem"
+                        >
+                          <Settings className="size-4 shrink-0 text-white" aria-hidden />
+                          {t("settings")}
                         </Link>
-                        <Link href="/explore" className="menu-item block">
-                          Khám phá
+                        <Link
+                          href="/explore"
+                          onClick={() => setOpenMenu(false)}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-white transition hover:bg-white/10"
+                          role="menuitem"
+                        >
+                          <Compass className="size-4 shrink-0 text-white" aria-hidden />
+                          {t("explore")}
                         </Link>
-                        <button type="button" onClick={logout} className="menu-item w-full text-left text-red-500">
-                          Đăng xuất
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenu(false);
+                            void logout();
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
+                          role="menuitem"
+                        >
+                          <LogOut className="size-4 shrink-0" aria-hidden />
+                          {t("logout")}
                         </button>
                       </div>
                     </div>
@@ -216,13 +207,13 @@ const Navbar = () => {
                     className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-white"
                   >
                     <LogIn size={16} />
-                    Login
+                    {t("login")}
                   </Link>
                   <Link
                     href="/register"
                     className="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
                   >
-                    Get Started
+                    {t("getStarted")}
                   </Link>
                 </>
               )}
@@ -234,7 +225,7 @@ const Navbar = () => {
               className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-white -mr-2 hover:bg-white/10 touch-manipulation lg:hidden"
               aria-expanded={open}
               aria-controls="mobile-nav-panel"
-              aria-label={open ? "Đóng menu" : "Mở menu"}
+              aria-label={open ? t("closeMenu") : t("openMenu")}
             >
               <Menu size={26} aria-hidden />
             </button>
@@ -248,12 +239,12 @@ const Navbar = () => {
           >
             {NAV_ITEMS.map((item) => (
               <Link
-                key={item.label}
+                key={item.key}
                 href={item.href}
                 onClick={closeMobile}
                 className="block py-2 font-medium text-gray-300 hover:text-blue-400 touch-manipulation"
               >
-                {item.label}
+                {t(item.key)}
               </Link>
             ))}
             {!loading && user && role === "admin" && (
@@ -262,46 +253,29 @@ const Navbar = () => {
                 onClick={closeMobile}
                 className="block py-2 font-semibold text-amber-300 hover:text-amber-200"
               >
-                Dashboard
+                {t("dashboard")}
               </Link>
             )}
 
             <div className="space-y-3 border-t border-white/10 pt-4">
-              <p className="text-[10px] uppercase tracking-[0.15em] text-gray-400">Ngôn ngữ</p>
-              <div className="grid grid-cols-2 gap-2">
-                {LANGUAGES.map((lang) => (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    onClick={() => handleLanguageChange(lang.code)}
-                    className={`min-h-[44px] rounded-lg px-3 py-2 text-left text-xs touch-manipulation ${
-                      currentLanguage === lang.code ? "bg-white/20 text-white" : "bg-white/5 text-gray-300"
-                    }`}
-                  >
-                    {lang.label}
-                  </button>
-                ))}
-              </div>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-gray-400">{t("language")}</p>
+              <LocaleSwitcher />
 
               {user ? (
                 <div className="space-y-2 pt-2">
-                  <div className="flex items-center gap-3 py-1">
-                    <Image
-                      src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email ?? "")}`}
-                      alt=""
-                      width={36}
-                      height={36}
-                      className="h-9 w-9 rounded-full border border-white/20 object-cover"
-                      unoptimized
-                    />
-                    <span className="truncate text-sm text-white">{user.email}</span>
+                  <div className="flex items-center gap-3 rounded-xl bg-white/[0.06] p-3">
+                    <UserAvatar user={user} className="h-10 w-10 text-xs" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">{user.email}</p>
+                      <p className="text-xs text-white/90">{roleLabel(role, t)}</p>
+                    </div>
                   </div>
                   <Link
                     href="/profile"
                     onClick={closeMobile}
-                    className="block w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white/10"
+                    className="block w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 text-center text-sm font-bold text-white shadow-lg shadow-violet-900/30"
                   >
-                    Hồ sơ cá nhân
+                    {t("viewProfile")}
                   </Link>
                   {role === "admin" && (
                     <Link
@@ -309,7 +283,7 @@ const Navbar = () => {
                       onClick={closeMobile}
                       className="block w-full rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-3 text-center text-sm font-semibold text-amber-200"
                     >
-                      Dashboard
+                      {t("dashboard")}
                     </Link>
                   )}
                   <button
@@ -320,20 +294,20 @@ const Navbar = () => {
                     }}
                     className="w-full rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300 hover:bg-red-500/20"
                   >
-                    Đăng xuất
+                    {t("logout")}
                   </button>
                 </div>
               ) : (
                 <>
                   <Link href="/login" onClick={closeMobile} className="block py-2 text-gray-300 hover:text-white">
-                    Login
+                    {t("login")}
                   </Link>
                   <Link
                     href="/register"
                     onClick={closeMobile}
                     className="flex min-h-[48px] items-center justify-center rounded-full bg-blue-600 py-3 text-center font-bold text-white"
                   >
-                    Get Started
+                    {t("getStarted")}
                   </Link>
                 </>
               )}

@@ -6,7 +6,8 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import {
   ArrowRight,
   ArrowUp,
@@ -24,30 +25,6 @@ import {
   Youtube,
 } from "lucide-react";
 
-const EXPLORE_LINKS = [
-  { label: "Destinations", href: "/explore" },
-  { label: "Tours", href: "/tours" },
-  { label: "Travel Guides", href: "/guides" },
-  { label: "Experiences", href: "/explore" },
-  { label: "Best Time to Visit", href: "#" },
-  { label: "Travel Inspiration", href: "#" },
-] as const;
-
-const COMPANY_LINKS = [
-  { label: "About Us", href: "#" },
-  { label: "Careers", href: "#" },
-  { label: "Press & Media", href: "#" },
-  { label: "Contact Us", href: "#" },
-  { label: "Sustainability", href: "#" },
-] as const;
-
-const SUPPORT_LINKS = [
-  { label: "Help Center", href: "#" },
-  { label: "FAQs", href: "#" },
-  { label: "Privacy Policy", href: "#" },
-  { label: "Terms of Service", href: "#" },
-  { label: "Booking Terms", href: "#" },
-] as const;
 
 const SectionHeading = ({
   icon: Icon,
@@ -105,7 +82,25 @@ const VietnamSilhouette = () => (
 );
 
 const Footer = () => {
+  const t = useTranslations("Footer");
   const year = new Date().getFullYear();
+
+  const EXPLORE_LINKS = [
+    { label: t("linkDestinations"), href: "/explore" },
+    { label: t("linkTours"), href: "/tours" },
+    { label: t("linkGuides"), href: "/guides" },
+    { label: t("linkExperiences"), href: "/explore" },
+  ] as const;
+
+  const COMPANY_LINKS = [
+    { label: t("linkAbout"), href: "#" },
+    { label: t("linkContact"), href: "#" },
+  ] as const;
+
+  const SUPPORT_LINKS = [
+    { label: t("linkHelp"), href: "#" },
+    { label: t("linkPrivacy"), href: "#" },
+  ] as const;
 
   const scrollTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -131,14 +126,10 @@ const Footer = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-6">
-                <p className="font-caveat text-2xl text-amber-400 sm:text-3xl">Discover Vietnam</p>
-                <p className="mt-2 text-lg font-bold leading-snug text-white">
-                  Timeless beauty.
-                  <br />
-                  Unforgettable journeys.
-                </p>
+                <p className="font-caveat text-2xl text-amber-400 sm:text-3xl">{t("discoverTitle")}</p>
+                <p className="mt-2 text-lg font-bold leading-snug text-white">{t("discoverDesc")}</p>
                 <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-white transition group-hover:text-amber-400">
-                  EXPLORE NOW
+                  {t("exploreNow")}
                   <span className="text-amber-400">→</span>
                 </span>
               </div>
@@ -147,25 +138,23 @@ const Footer = () => {
 
           <div className="grid grid-cols-1 gap-10 sm:grid-cols-3 lg:col-span-5 lg:gap-6">
             <div>
-              <SectionHeading icon={Compass}>Explore</SectionHeading>
+              <SectionHeading icon={Compass}>{t("explore")}</SectionHeading>
               <FooterLinkList links={EXPLORE_LINKS} />
             </div>
             <div>
-              <SectionHeading icon={Building2}>Company</SectionHeading>
+              <SectionHeading icon={Building2}>{t("company")}</SectionHeading>
               <FooterLinkList links={COMPANY_LINKS} />
             </div>
             <div>
-              <SectionHeading icon={Headphones}>Support</SectionHeading>
+              <SectionHeading icon={Headphones}>{t("support")}</SectionHeading>
               <FooterLinkList links={SUPPORT_LINKS} />
             </div>
           </div>
 
           {/* Newsletter */}
           <div className="lg:col-span-4 xl:col-span-4">
-            <SectionHeading icon={Mail}>Stay inspired</SectionHeading>
-            <p className="mb-5 text-sm leading-relaxed text-gray-400">
-              Subscribe to get travel tips, exclusive offers &amp; inspiration straight to your inbox.
-            </p>
+            <SectionHeading icon={Mail}>{t("stayInspired")}</SectionHeading>
+            <p className="mb-5 text-sm leading-relaxed text-gray-400">{t("newsletterDesc")}</p>
             <form
               className="flex max-w-md"
               onSubmit={(e) => {
@@ -175,13 +164,13 @@ const Footer = () => {
               <input
                 type="email"
                 required
-                placeholder="Your email address"
+                placeholder={t("emailPlaceholder")}
                 className="min-w-0 flex-1 rounded-l-xl border border-white/15 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-gray-500 outline-none ring-amber-400/0 transition focus:ring-2 focus:ring-amber-400/40"
               />
               <button
                 type="submit"
                 className="flex shrink-0 items-center justify-center rounded-r-xl bg-amber-400 px-4 text-amber-950 transition hover:bg-amber-300"
-                aria-label="Subscribe"
+                aria-label={t("subscribe")}
               >
                 <ArrowRight className="h-5 w-5" />
               </button>
@@ -219,23 +208,23 @@ const Footer = () => {
             {[
               {
                 Icon: Shield,
-                title: "Trusted & safe",
-                text: "Your safety is our top priority.",
+                title: t("trustedTitle"),
+                text: t("trustedDesc"),
               },
               {
                 Icon: Headphones,
-                title: "24/7 support",
-                text: "We're here to help anytime, anywhere.",
+                title: t("support247Title"),
+                text: t("support247Desc"),
               },
               {
                 Icon: MapPin,
-                title: "Local expertise",
-                text: "Authentic experiences, local insights.",
+                title: t("localTitle"),
+                text: t("localDesc"),
               },
               {
                 Icon: Heart,
-                title: "Crafted with care",
-                text: "Handpicked journeys just for you.",
+                title: t("craftedTitle"),
+                text: t("craftedDesc"),
               },
             ].map(({ Icon, title, text }) => (
               <div key={title} className="flex gap-4">
@@ -258,19 +247,18 @@ const Footer = () => {
           <div className="flex gap-3">
             <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" strokeWidth={1.75} />
             <div>
-              <p className="text-sm font-bold text-white">Based in Hanoi, Vietnam</p>
-              <p className="mt-1 text-xs text-gray-500">Proudly sharing the beauty of our homeland.</p>
+              <p className="text-sm font-bold text-white">{t("basedIn")}</p>
             </div>
           </div>
           <p className="text-center text-xs text-gray-500 lg:order-none">
-            © {year} Vietnam Travel. All rights reserved.
+            <span suppressHydrationWarning>{t("rights", { year })}</span>
           </p>
           <button
             type="button"
             onClick={scrollTop}
             className="flex items-center justify-center gap-3 self-center text-sm text-gray-400 transition hover:text-white lg:self-auto"
           >
-            <span>Back to top</span>
+            <span>{t("backToTop")}</span>
             <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-white transition hover:border-amber-400 hover:text-amber-400">
               <ArrowUp className="h-4 w-4" strokeWidth={2} />
             </span>

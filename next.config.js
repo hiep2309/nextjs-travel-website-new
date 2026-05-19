@@ -1,10 +1,19 @@
 /**
- * Cấu hình Next.js — chủ yếu whitelist ảnh remote (`next/image`).
+ * Cấu hình Next.js — next-intl plugin + whitelist ảnh remote (`next/image`).
  *
  * @type {import('next').NextConfig}
  */
+const createNextIntlPlugin = require("next-intl/plugin");
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
 const nextConfig = {
+  /** Giảm kích thước bundle khi import nhiều icon từ lucide-react */
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   images: {
+    formats: ["image/avif", "image/webp"],
     domains: [
       "images.unsplash.com",
       "lh3.googleusercontent.com",
@@ -24,4 +33,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withNextIntl(nextConfig);

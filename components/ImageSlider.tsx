@@ -1,28 +1,41 @@
 /**
- * Carousel ảnh du lịch — luân phiên `TRAVEL_IMAGE_ROTATION`, có nút prev/next và autoplay nhẹ.
+ * Carousel ảnh du lịch — luân phiên ảnh trong `public/` (xáo thứ tự khi mở trang), prev/next + autoplay.
  */
 "use client";
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { TRAVEL_IMAGE_ROTATION } from "@/lib/travelImageUrls";
+import { FEATURE_SLIDER_IMAGE_POOL } from "@/lib/homeFeatureSliderImages";
+import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 
-const images = TRAVEL_IMAGE_ROTATION;
+function shufflePick<T>(arr: readonly T[], count: number): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  return a.slice(0, Math.min(count, a.length));
+}
 
 export default function ImageSlider() {
+  const [images] = useState(() => shufflePick(FEATURE_SLIDER_IMAGE_POOL, 6));
   const [index, setIndex] = useState(0);
 
-  const go = useCallback((dir: -1 | 1) => {
-    setIndex((prev) => (prev + dir + images.length) % images.length);
-  }, []);
+  const go = useCallback(
+    (dir: -1 | 1) => {
+      setIndex((prev) => (prev + dir + images.length) % images.length);
+    },
+    [images.length],
+  );
 
   useEffect(() => {
+    if (images.length <= 1) return;
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % images.length);
     }, 4500);
     return () => clearInterval(interval);
-  }, []);
+  }, [images.length]);
 
   return (
     <div className="relative w-full max-w-full overflow-hidden rounded-2xl shadow-2xl lg:rounded-3xl">
@@ -31,14 +44,16 @@ export default function ImageSlider() {
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
         {images.map((img, i) => (
-          <div key={i} className="relative h-[260px] min-w-full sm:h-[360px] lg:h-[520px]">
+          <div key={img} className="relative h-[260px] min-w-full sm:h-[360px] lg:h-[520px]">
             <Image
               src={img}
-              alt="Vietnam travel"
+              alt=""
               fill
               sizes="(max-width: 768px) 100vw, 440px"
               className="object-cover object-center"
               priority={i === 0}
+              placeholder="blur"
+              blurDataURL={BLUR_DATA_URL_LIGHT}
             />
           </div>
         ))}

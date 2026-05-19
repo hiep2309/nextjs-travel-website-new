@@ -1,19 +1,22 @@
 /**
- * Section “Why choose us” trên trang chủ — cột text + carousel ảnh (`ImageSlider`, không SSR).
+ * Section Why choose us on homepage.
  */
+"use client";
+
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 
 const ImageSlider = dynamic(() => import("./ImageSlider"), {
   ssr: false,
   loading: () => (
-    <div
-      className="relative h-[260px] w-full max-w-full overflow-hidden rounded-2xl bg-white/10 shadow-2xl sm:h-[360px] lg:h-[520px] lg:rounded-3xl"
-      aria-hidden
-    />
+    <div className="relative h-[260px] w-full max-w-full overflow-hidden rounded-2xl bg-white/10 shadow-2xl sm:h-[360px] lg:h-[520px] lg:rounded-3xl" aria-hidden />
   ),
 });
 
+const FEATURE_KEYS = ["f1", "f2", "f3", "f4"] as const;
+
 const Features = () => {
+  const t = useTranslations("Features");
   return (
     <section className="relative overflow-hidden py-16 text-white sm:py-20 lg:py-28">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_45%)]" />
@@ -24,35 +27,15 @@ const Features = () => {
               <ImageSlider />
             </div>
             <div>
-              <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/70">Why choose us</p>
-              <h2 className="mb-6 text-2xl font-semibold leading-tight sm:mb-8 sm:text-3xl lg:text-5xl">
-                Explore Vietnam with confidence
-              </h2>
+              <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/70">{t("eyebrow")}</p>
+              <h2 className="mb-6 text-2xl font-semibold leading-tight sm:mb-8 sm:text-3xl lg:text-5xl">{t("title")}</h2>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-7">
-                <div className="space-y-2">
-                  <h3 className="text-base font-semibold sm:text-lg">Explore Vietnam</h3>
-                  <p className="text-sm leading-relaxed text-white/75">
-                    Discover breathtaking landscapes and vibrant cities across Vietnam.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-base font-semibold sm:text-lg">Popular Destinations</h3>
-                  <p className="text-sm leading-relaxed text-white/75">
-                    Visit famous places like Ha Long Bay, Sapa, Hoi An and Phu Quoc.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-base font-semibold sm:text-lg">Travel Guide</h3>
-                  <p className="text-sm leading-relaxed text-white/75">
-                    Get tips about culture, food, transportation and travel planning.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-base font-semibold sm:text-lg">Featured Tours</h3>
-                  <p className="text-sm leading-relaxed text-white/75">
-                    Explore curated tours and unforgettable travel experiences.
-                  </p>
-                </div>
+                {FEATURE_KEYS.map((key) => (
+                  <div key={key} className="space-y-2">
+                    <h3 className="text-base font-semibold sm:text-lg">{t(`${key}Title`)}</h3>
+                    <p className="text-sm leading-relaxed text-white/75">{t(`${key}Desc`)}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

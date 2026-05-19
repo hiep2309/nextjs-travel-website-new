@@ -44,7 +44,8 @@ const FitBounds = ({ coords }: { coords: [number, number][] }) => {
 };
 
 type Props = {
-  userLocation: { lat: number; lon: number };
+  /** Khi null (đang chờ GPS): chỉ hiển thị điểm đến từ bài viết. */
+  userLocation: { lat: number; lon: number } | null;
   place: { lat: number; lon: number };
   transportMode?: string;
 };
@@ -59,6 +60,10 @@ const RouteMap = ({ userLocation, place }: Props) => {
 
   useEffect(() => {
     let cancelled = false;
+    if (!userLocation) {
+      setCoords([]);
+      return;
+    }
     const fetchRoute = async () => {
       try {
         const res = await fetch(
@@ -87,18 +92,22 @@ const RouteMap = ({ userLocation, place }: Props) => {
     );
   }
 
+  const center: [number, number] = userLocation
+    ? [userLocation.lat, userLocation.lon]
+    : [place.lat, place.lon];
+
   return (
     <MapContainer
-      center={[userLocation.lat, userLocation.lon]}
-      zoom={6}
+      center={center}
+      zoom={userLocation ? 6 : 11}
       style={{ height: "100%", minHeight: "220px", width: "100%" }}
       scrollWheelZoom
     >
       <ResizeMap />
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
-      <Marker position={[userLocation.lat, userLocation.lon]} />
+      {userLocation ? <Marker position={[userLocation.lat, userLocation.lon]} /> : null}
       <Marker position={[place.lat, place.lon]} />
-      {coords.length > 0 && (
+      {userLocation && coords.length > 0 ? (
         <>
           <Polyline
             positions={coords}
@@ -106,7 +115,7 @@ const RouteMap = ({ userLocation, place }: Props) => {
           />
           <FitBounds coords={coords} />
         </>
-      )}
+      ) : null}
     </MapContainer>
   );
 };

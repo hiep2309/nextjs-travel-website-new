@@ -1,15 +1,14 @@
 /**
  * Xây “model” hiển thị cho trang chi tiết địa điểm — headline, why cards, food, chi phí, TOC, điểm liên quan.
  *
- * Kết hợp dữ liệu `ProvinceDef` + ảnh luân phiên để tránh trang trống.
+ * Kết hợp dữ liệu `ProvinceDef` — ảnh trải nghiệm/gallery dùng chung ảnh hero của tỉnh.
  */
 import type { ProvinceDef } from "@/lib/vietnamProvinces";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
-import { TRAVEL_IMAGE_ROTATION } from "@/lib/travelImageUrls";
 import { provinceNameToSlug } from "@/lib/provinceSlug";
 
 const TITLE_OVERRIDE: Partial<Record<string, string>> = {
-  "Quảng Nam": "Hội An về đêm",
+  "Huế": "Cố đô Huế — di sản & ẩm thực",
 };
 
 export type WhyCard = {
@@ -65,8 +64,6 @@ function pseudoRand(seed: string, max: number): number {
 export function buildDestinationPageModel(p: ProvinceDef): DestinationPageModel {
   const slug = provinceNameToSlug(p.name);
   const headline = TITLE_OVERRIDE[p.name] ?? `${p.name} — gợi ý du lịch`;
-  const idx = VIETNAM_PROVINCES.findIndex((x) => x.name === p.name);
-  const pool = TRAVEL_IMAGE_ROTATION;
   const heroImage = p.image;
 
   const readMinutes = 8 + (pseudoRand(p.name, 8) || 1);
@@ -103,9 +100,10 @@ export function buildDestinationPageModel(p: ProvinceDef): DestinationPageModel 
     "Chợ đêm & ẩm thực",
     "Góc check-in nổi bật",
   ];
-  const experiences: ExperienceCard[] = expTitles.map((title, i) => ({
+  /** Một địa điểm = một ảnh đại diện (hero), tránh xoay vòng ảnh Unsplash khác nhau gây rối. */
+  const experiences: ExperienceCard[] = expTitles.map((title) => ({
     title,
-    image: pool[(idx + i + 1) % pool.length],
+    image: heroImage,
   }));
 
   const tips = [
@@ -138,7 +136,7 @@ export function buildDestinationPageModel(p: ProvinceDef): DestinationPageModel 
     { id: "hinh-anh", label: "Hình ảnh", num: "06" },
   ];
 
-  const gallery = [0, 1, 2, 3].map((k) => pool[(idx + k) % pool.length]);
+  const gallery = [heroImage, heroImage, heroImage, heroImage];
 
   const sameRegion = VIETNAM_PROVINCES.filter((x) => x.region === p.region && x.name !== p.name);
   const others = VIETNAM_PROVINCES.filter((x) => x.name !== p.name);

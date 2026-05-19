@@ -1,6 +1,6 @@
 /* =========================
    GLOBAL STYLES — app/globals.css
-   Toàn cục Tailwind + utility/component cho UI VN Insight (nút, typography, .post-body-html).
+   Toàn cục Tailwind + `.post-body-html`, `.hide-scrollbar`.
 ========================= */
 /* =========================
    TAILWIND BASE
@@ -24,83 +24,9 @@
 }
 
 /* =========================
-   ANIMATIONS
-========================= */
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes drawPath {
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes moveDot {
-  0% { offset-distance: 0%; }
-  100% { offset-distance: 100%; }
-}
-
-@keyframes move {
-  0% { offset-distance: 0%; opacity: 0; }
-  10% { opacity: 1; }
-  100% { offset-distance: 100%; opacity: 1; }
-}
-
-/* =========================
-   COMPONENTS (REUSABLE)
+   COMPONENTS
 ========================= */
 @layer components {
-
-  /* BUTTON SYSTEM */
-  .btn {
-    @apply px-6 py-3 rounded-lg font-semibold transition-all;
-  }
-
-  .btn-white {
-    @apply btn bg-white text-gray-900 border border-gray-200;
-  }
-
-  .btn-green {
-    @apply btn bg-green-600 text-white hover:bg-green-700;
-  }
-
-  .btn-dark {
-    @apply btn bg-gray-900 text-white hover:bg-black;
-  }
-
-  .btn-outline {
-    @apply btn border border-gray-300 text-gray-700 hover:bg-gray-100;
-  }
-
-  .btn_dark_green {
-    @apply btn rounded-full border-transparent bg-emerald-700 text-white shadow-md hover:bg-emerald-800 hover:shadow-lg active:scale-[0.99];
-  }
-
-  /* LAYOUT */
-  .container-max {
-    @apply mx-auto max-w-[1440px];
-  }
-
-  .container-padding {
-    @apply px-6 lg:px-20;
-  }
-
-  /* FLEX UTIL */
-  .flex-center {
-    @apply flex items-center justify-center;
-  }
-
-  .flex-between {
-    @apply flex items-center justify-between;
-  }
-
-  .flex-start {
-    @apply flex items-center justify-start;
-  }
-
-  .flex-end {
-    @apply flex items-center justify-end;
-  }
 
   /* Post detail — HTML từ TipTap */
   .post-body-html a {
@@ -132,6 +58,19 @@
     font-weight: 700;
     color: rgb(255 255 255 / 0.95);
   }
+  .post-body-html img,
+  .post-inline-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1rem auto;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(255 255 255 / 0.12);
+  }
+
+  .create-post-editor .ProseMirror img.post-inline-image {
+    cursor: default;
+  }
 }
 
 /* =========================
@@ -139,49 +78,6 @@
 ========================= */
 @layer utilities {
 
-  .flexCenter {
-    @apply flex items-center justify-center;
-  }
-
-  .bold-16 {
-    @apply text-base font-bold leading-snug;
-  }
-
-  /* TYPOGRAPHY SYSTEM */
-  .text-64 { @apply text-[64px] font-normal leading-[120%]; }
-  .text-40 { @apply text-[40px] font-normal leading-[120%]; }
-  .text-32 { @apply text-[32px]; }
-  .text-24 { @apply text-[24px]; }
-  .text-20 { @apply text-[20px]; }
-  .text-18 { @apply text-[18px]; }
-  .text-16 { @apply text-[16px]; }
-  .text-14 { @apply text-[14px]; }
-
-  .font-medium-14 { @apply text-[14px] font-semibold; }
-
-  .bold-88 { @apply text-[88px] font-bold leading-[120%]; }
-  .bold-64 { @apply text-[64px] font-bold leading-[120%]; }
-  .bold-52 { @apply text-[52px] font-bold leading-[120%]; }
-  .bold-40 { @apply text-[40px] font-bold leading-[120%]; }
-  .bold-32 { @apply text-[32px] font-bold; }
-  .bold-20 { @apply text-[20px] font-bold; }
-
-  /* HERO */
-  .hero-map {
-    @apply absolute right-0 top-0 h-screen w-screen bg-cover bg-center;
-  }
-
-  /* FEATURE */
-  .feature-phone {
-    @apply absolute top-[13%] z-10 hidden rotate-[15deg] md:flex;
-  }
-
-  /* GET APP */
-  .get-app {
-    @apply container-max relative flex flex-col gap-12 bg-green-600 text-white px-6 py-12 sm:flex-row lg:px-20 rounded-2xl;
-  }
-
-  /* SCROLLBAR */
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -189,21 +85,6 @@
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
-  }
-
-  /* SVG ANIMATION */
-  .route-path {
-    stroke-dasharray: 1000;
-    stroke-dashoffset: 1000;
-    animation: drawPath 3s ease forwards;
-  }
-
-  .move-dot {
-    animation: moveDot 3s linear infinite;
-  }
-
-  .animate-move {
-    animation: move 3s ease-in-out forwards;
   }
 }
 .menu-item {

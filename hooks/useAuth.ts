@@ -20,8 +20,6 @@ export const useAuth = () => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // Bật UI ngay — không chờ Firestore (tránh "Loading..." kẹt vĩnh viễn nếu getDoc treo/lỗi mạng)
-        setLoading(false);
         void (async () => {
           try {
             const userRef = doc(db, "users", currentUser.uid);
@@ -39,11 +37,23 @@ export const useAuth = () => {
       } else {
         setUser(null);
         setRole(null);
-        setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    let cancelled = false;
+    void Promise.race([
+      auth.authStateReady(),
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 10_000);
+      }),
+    ]).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   return { user, role, loading, logout };

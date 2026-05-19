@@ -1,15 +1,19 @@
 /**
- * Editor rich text (TipTap) dùng trong đăng bài — đậm, nghiêng, list, link, trích dẫn.
+ * Editor rich text (TipTap) dùng trong đăng bài — đậm, nghiêng, list, link, trích dẫn, ảnh inline.
  *
- * Giới hạn độ dài nội dung thuần `MAX_CHARS`; đồng bộ HTML ra parent qua `onDocChange` / `onCreate`.
+ * Giới hạn độ dài nội dung thuần `MAX_CHARS`; đồng bộ HTML ra parent qua `onDocChange`.
+ * Ảnh chèn tại con trỏ qua `onUploadImage` (upload Storage, trả URL).
  */
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
+import Image from "@tiptap/extension-image";
 import {
   Bold,
   Italic,
@@ -19,16 +23,28 @@ import {
   Quote,
   Strikethrough,
   Underline as UnderlineIcon,
+  ImagePlus,
+  Loader2,
 } from "lucide-react";
 
 const MAX_CHARS = 5000;
+const INLINE_IMG_MAX_MB = 10;
 
 type Props = {
   initialHtml?: string;
   onDocChange: (payload: { html: string; plain: string; plainLength: number }) => void;
+  onUploadImage?: (file: File) => Promise<string>;
 };
 
-export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
+export function CreatePostRichEditor({ initialHtml, onDocChange, onUploadImage }: Props) {
+  const te = useTranslations("Editor");
+  const [uploadingInline, setUploadingInline] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const onUploadRef = useRef(onUploadImage);
+  onUploadRef.current = onUploadImage;
+
+  const insertImageRef = useRef<(file: File, pos?: number) => Promise<void>>(async () => {});
+
   const editor = useEditor(
     {
       immediatelyRender: false,
@@ -43,16 +59,40 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
           heading: false,
         }),
         Placeholder.configure({
-          placeholder: "Chia sẻ hành trình, gợi ý lịch trình, chi phí và trải nghiệm của bạn…",
+          placeholder: te("placeholder"),
         }),
         Underline,
         Link.configure({ openOnClick: false, autolink: true, defaultProtocol: "https" }),
+        Image.configure({
+          inline: false,
+          allowBase64: false,
+          HTMLAttributes: {
+            class: "post-inline-image",
+          },
+        }),
       ],
       content: initialHtml || "",
       editorProps: {
         attributes: {
           class:
             "min-h-[220px] px-4 py-3 text-sm text-white/90 outline-none focus:outline-none sm:min-h-[280px] sm:text-[15px]",
+        },
+        handleDrop: (view, event, _slice, moved) => {
+          if (moved || !onUploadRef.current) return false;
+          const file = event.dataTransfer?.files?.[0];
+          if (!file?.type.startsWith("image/")) return false;
+          event.preventDefault();
+          const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          void insertImageRef.current(file, coords?.pos);
+          return true;
+        },
+        handlePaste: (_view, event) => {
+          if (!onUploadRef.current) return false;
+          const file = Array.from(event.clipboardData?.files ?? []).find((f) => f.type.startsWith("image/"));
+          if (!file) return false;
+          event.preventDefault();
+          void insertImageRef.current(file);
+          return true;
         },
       },
       onCreate: ({ editor: ed }) => {
@@ -67,17 +107,47 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
     [],
   );
 
+  useEffect(() => {
+    if (!editor) return;
+    insertImageRef.current = async (file: File, pos?: number) => {
+      const upload = onUploadRef.current;
+      if (!upload) return;
+      if (!file.type.startsWith("image/")) return;
+      if (file.size > INLINE_IMG_MAX_MB * 1024 * 1024) {
+        window.alert(te("imageTooBig", { maxMb: INLINE_IMG_MAX_MB }));
+        return;
+      }
+      setUploadingInline(true);
+      try {
+        const url = await upload(file);
+        const chain = editor.chain().focus();
+        if (pos != null) chain.setTextSelection(pos);
+        chain.setImage({ src: url, alt: "" }).run();
+      } catch {
+        window.alert(te("imageUploadFail"));
+      } finally {
+        setUploadingInline(false);
+      }
+    };
+  }, [editor]);
+
   const setLink = () => {
     if (!editor) return;
     const prev = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("Đường dẫn (URL)", prev || "https://");
+    const url = window.prompt(te("linkPrompt"), prev || "https://");
     if (url === null) return;
-    const t = url.trim();
-    if (t === "") {
+    const href = url.trim();
+    if (href === "") {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
       return;
     }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: t }).run();
+    editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+  };
+
+  const onInlineImageChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) await insertImageRef.current(file);
   };
 
   const tb = "rounded-lg p-2 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-35";
@@ -86,14 +156,21 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
   const plainLen = editor ? editor.getText().length : 0;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/35">
+    <div className="create-post-editor overflow-hidden rounded-2xl border border-white/10 bg-black/35">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        className="hidden"
+        onChange={(e) => void onInlineImageChosen(e)}
+      />
       {editor ? (
         <div className="flex flex-wrap gap-1 border-b border-white/10 bg-black/25 px-2 py-2">
           <button
             type="button"
             className={`${tb} ${editor.isActive("bold") ? tbActive : ""}`}
             onClick={() => editor.chain().focus().toggleBold().run()}
-            aria-label="Đậm"
+            aria-label={te("bold")}
           >
             <Bold className="size-4" />
           </button>
@@ -101,7 +178,7 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
             type="button"
             className={`${tb} ${editor.isActive("italic") ? tbActive : ""}`}
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            aria-label="Nghiêng"
+            aria-label={te("italic")}
           >
             <Italic className="size-4" />
           </button>
@@ -109,7 +186,7 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
             type="button"
             className={`${tb} ${editor.isActive("underline") ? tbActive : ""}`}
             onClick={() => editor.chain().focus().toggleUnderline().run()}
-            aria-label="Gạch chân"
+            aria-label={te("underline")}
           >
             <UnderlineIcon className="size-4" />
           </button>
@@ -117,7 +194,7 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
             type="button"
             className={`${tb} ${editor.isActive("strike") ? tbActive : ""}`}
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            aria-label="Gạch ngang"
+            aria-label={te("strike")}
           >
             <Strikethrough className="size-4" />
           </button>
@@ -125,7 +202,7 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
             type="button"
             className={`${tb} ${editor.isActive("bulletList") ? tbActive : ""}`}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            aria-label="Danh sách bullet"
+            aria-label={te("bullet")}
           >
             <List className="size-4" />
           </button>
@@ -133,7 +210,7 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
             type="button"
             className={`${tb} ${editor.isActive("orderedList") ? tbActive : ""}`}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            aria-label="Danh sách số"
+            aria-label={te("ordered")}
           >
             <ListOrdered className="size-4" />
           </button>
@@ -141,17 +218,34 @@ export function CreatePostRichEditor({ initialHtml, onDocChange }: Props) {
             type="button"
             className={`${tb} ${editor.isActive("blockquote") ? tbActive : ""}`}
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            aria-label="Trích dẫn"
+            aria-label={te("quote")}
           >
             <Quote className="size-4" />
           </button>
-          <button type="button" className={`${tb} ${editor.isActive("link") ? tbActive : ""}`} onClick={setLink} aria-label="Liên kết">
+          <button type="button" className={`${tb} ${editor.isActive("link") ? tbActive : ""}`} onClick={setLink} aria-label={te("link")}>
             <Link2 className="size-4" />
           </button>
+          {onUploadImage ? (
+            <button
+              type="button"
+              className={`${tb} ${uploadingInline ? "opacity-60" : ""}`}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingInline}
+              aria-label={te("image")}
+              title={te("imageTitle")}
+            >
+              {uploadingInline ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+            </button>
+          ) : null}
         </div>
       ) : null}
       <EditorContent editor={editor} />
-      <div className="flex justify-end border-t border-white/10 px-3 py-2 text-xs text-white/45">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-3 py-2 text-xs text-white/45">
+        {onUploadImage ? (
+          <span className="text-white/40">{te("imageHint")}</span>
+        ) : (
+          <span />
+        )}
         <span className={plainLen > MAX_CHARS ? "font-semibold text-amber-400" : ""}>
           {plainLen}/{MAX_CHARS}
         </span>

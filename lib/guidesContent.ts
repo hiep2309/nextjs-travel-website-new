@@ -1,11 +1,12 @@
 /**
- * Nội dung tĩnh cho trang Guides — chip danh mục và danh sách bài mẫu (`MOCK_GUIDES`).
+ * Nội dung tĩnh cho trang Guides — chip danh mục và bài mẫu.
  *
- * Bài từ Firestore được map sang `GuideEntry` trong `app/guides/page.tsx`.
+ * Bài Firestore được map trong `app/guides/page.tsx` theo `postType` (guide_*).
  */
 import { TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
+import { GUIDE_CATEGORY_CHIPS, type GuideChipKey } from "@/lib/postCategories";
 
-export type GuideCategory = "all" | "dest" | "food" | "culture" | "tips";
+export type GuideCategory = GuideChipKey;
 
 export type GuideEntry = {
   id: string;
@@ -24,9 +25,9 @@ export const MOCK_GUIDES: GuideEntry[] = [
   {
     id: "g1",
     source: "mock",
-    title: "Mùa vàng Mù Cang Chải",
-    excerpt: "Thời điểm đẹp nhất và lộ trình gợi ý trong 2–3 ngày.",
-    category: "dest",
+    title: "Pù Luông & Thanh Hóa",
+    excerpt: "Ruộng bậc thang, bản làng và gợi ý lịch trình 2 ngày.",
+    category: "handbook",
     readMinutes: 12,
     dateDisplay: "20/05/2026",
     image: TRAVEL_IMAGE_URLS.terraces,
@@ -35,34 +36,50 @@ export const MOCK_GUIDES: GuideEntry[] = [
   {
     id: "g2",
     source: "mock",
-    title: "Ăn uống Hội An",
-    excerpt: "Quán vỉa hè, cao lầu, và cách tránh đông vào tối cuối tuần.",
-    category: "food",
+    title: "Mẹo đặt homestay Hội An",
+    excerpt: "So sánh khu phố cổ và biển An Bàng, thời điểm đặt phòng rẻ hơn.",
+    category: "hotel",
     readMinutes: 8,
     dateDisplay: "12/05/2026",
     image: TRAVEL_IMAGE_URLS.oldTown,
-    href: "/explore",
+    href: "/guides",
   },
   {
     id: "g3",
     source: "mock",
     title: "Huế trong một ngày",
     excerpt: "Đại Nội, lăng tẩm và đồ ăn dân dã.",
-    category: "dest",
+    category: "handbook",
     readMinutes: 10,
     dateDisplay: "02/05/2026",
     image: TRAVEL_IMAGE_URLS.landscape,
     href: "/explore",
   },
+  {
+    id: "g4",
+    source: "mock",
+    title: "Đi Sapa mùa đông — lưu ý sức khỏe",
+    excerpt: "Trang phục, độ cao và cách tránh say xe trên đèo.",
+    category: "notes",
+    readMinutes: 7,
+    dateDisplay: "28/04/2026",
+    image: TRAVEL_IMAGE_URLS.mountains,
+    href: "/guides",
+  },
+  {
+    id: "g5",
+    source: "mock",
+    title: "Di chuyển Hà Nội — Ninh Bình",
+    excerpt: "Tàu, xe khách và thuê xe máy — ưu nhược từng cách.",
+    category: "transport",
+    readMinutes: 9,
+    dateDisplay: "15/04/2026",
+    image: TRAVEL_IMAGE_URLS.boats,
+    href: "/guides",
+  },
 ];
 
-export const CATEGORY_CHIPS: { key: GuideCategory; label: string }[] = [
-  { key: "all", label: "Tất cả" },
-  { key: "dest", label: "Điểm đến" },
-  { key: "food", label: "Ẩm thực" },
-  { key: "culture", label: "Văn hóa" },
-  { key: "tips", label: "Mẹo đi đường" },
-];
+export const CATEGORY_CHIPS = GUIDE_CATEGORY_CHIPS;
 
 export function labelForCategory(c: GuideCategory): string {
   const f = CATEGORY_CHIPS.find((x) => x.key === c);

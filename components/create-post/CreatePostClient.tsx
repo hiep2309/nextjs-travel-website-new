@@ -9,9 +9,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Link, useRouter } from "@/i18n/navigation";
+import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
+import { useTravelTimeLabels } from "@/hooks/useTravelTimeLabels";
+import { buildLocalizedHtml, buildLocalizedString } from "@/lib/i18n/buildPostLocales";
 import {
   Bookmark,
   ChevronRight,
@@ -34,16 +36,17 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
 import { useAuth } from "@/hooks/useAuth";
+import { prepareImageForUpload } from "@/lib/imageUploadPrep";
 import { CreatePostRichEditor, MAX_CHARS } from "./CreatePostRichEditor";
+import { publicPageForPostType, sectionForPostType, type PostType } from "@/lib/postCategories";
+import PostTypePicker from "./PostTypePicker";
+import MyPostsPanel from "./MyPostsPanel";
 
 const glass = "rounded-2xl border border-white/12 bg-white/[0.06] shadow-xl backdrop-blur-xl";
 
 const TITLE_MAX = 100;
 const IMG_MAX_MB = 10;
 const IMG_MAX_FILES = 4;
-
-const CATEGORIES = ["Khám phá", "Ẩm thực", "Nghỉ dưỡng", "Văn hóa", "Sinh thái", "Phiêu lưu", "Khác"];
-const TRAVEL_TIMES = ["Trong ngày", "1–3 ngày", "4–7 ngày", "1–2 tuần", "Trên 2 tuần"];
 
 function draftKey(uid: string) {
   return `vninsight_create_post_draft:${uid}`;
@@ -55,27 +58,34 @@ function sanitizeBasicHtml(html: string): string {
   return s;
 }
 
-function describeSubmitError(err: unknown): string {
-  if (err instanceof FirebaseError) {
-    switch (err.code) {
-      case "permission-denied":
-        return "Firestore từ chối ghi bài (permission-denied). Cập nhật Firestore Rules: cho phép user đã đăng nhập tạo bài với authorId = uid và status = pending — xem file firestore.rules trong repo.";
-      case "storage/unauthorized":
-        return "Storage từ chối tải ảnh (storage/unauthorized). Thêm rule cho path posts/{userId}/... — xem storage.rules trong repo.";
-      case "storage/unauthenticated":
-        return "Chưa đăng nhập Storage — đăng nhập lại.";
-      case "unauthenticated":
-        return "Phiên đăng nhập hết hạn — đăng nhập lại.";
-      case "failed-precondition":
-        return "Firestore báo failed-precondition (thiếu composite index hoặc query không khớp rules). Xem Console → Firestore → Indexes.";
-      default:
-        return `${err.message} (${err.code})`;
-    }
-  }
-  return "Gửi bài thất bại. Kiểm tra mạng và console trình duyệt (F12).";
-}
-
 export default function CreatePostClient() {
+  const t = useTranslations("CreatePost");
+  const tn = useTranslations("Nav");
+  const tc = useTranslations("Common");
+  const { label: labelForPostType, sectionLabel } = usePostTypeLabels();
+  const travelTimes = useTravelTimeLabels();
+
+  const describeSubmitError = (err: unknown): string => {
+    if (err instanceof FirebaseError) {
+      switch (err.code) {
+        case "permission-denied":
+          return t("errPermission");
+        case "storage/unauthorized":
+          return t("errStorage");
+        case "storage/unauthenticated":
+          return t("errStorageAuth");
+        case "unauthenticated":
+          return t("errUnauth");
+        case "failed-precondition":
+          return t("errPrecondition");
+        default:
+          return `${err.message} (${err.code})`;
+      }
+    }
+    if (err instanceof Error) return err.message;
+    return t("errSubmit");
+  };
+
   const router = useRouter();
   const { user, loading, role } = useAuth();
 
@@ -83,7 +93,7 @@ export default function CreatePostClient() {
   const [destination, setDestination] = useState("");
   const [destQuery, setDestQuery] = useState("");
   const [destOpen, setDestOpen] = useState(false);
-  const [category, setCategory] = useState("");
+  const [postType, setPostType] = useState<PostType | "">("");
   const [travelTime, setTravelTime] = useState("");
   const [tagsRaw, setTagsRaw] = useState("");
   const [docHtml, setDocHtml] = useState("");
@@ -94,7 +104,9 @@ export default function CreatePostClient() {
   const [files, setFiles] = useState<{ id: string; file: File; preview: string }[]>([]);
 
   const [busy, setBusy] = useState(false);
+  const [compressingImages, setCompressingImages] = useState(false);
   const [banner, setBanner] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [myPostsRefresh, setMyPostsRefresh] = useState(0);
 
   const provincesFiltered = useMemo(() => {
     const q = normalizeVietnameseText(destQuery.trim());
@@ -116,7 +128,7 @@ export default function CreatePostClient() {
         const d = JSON.parse(raw) as {
           title?: string;
           destination?: string;
-          category?: string;
+          postType?: PostType;
           travelTime?: string;
           tagsRaw?: string;
           html?: string;
@@ -124,7 +136,7 @@ export default function CreatePostClient() {
         setTitle(d.title ?? "");
         setDestination(d.destination ?? "");
         setDestQuery(d.destination ?? "");
-        setCategory(d.category ?? "");
+        setPostType(d.postType ?? "");
         setTravelTime(d.travelTime ?? "");
         setTagsRaw(d.tagsRaw ?? "");
         initialHtmlRef.current = d.html ?? "";
@@ -140,8 +152,8 @@ export default function CreatePostClient() {
 
   useEffect(() => {
     if (!banner) return;
-    const t = window.setTimeout(() => setBanner(null), 3800);
-    return () => clearTimeout(t);
+    const timer = window.setTimeout(() => setBanner(null), 3800);
+    return () => clearTimeout(timer);
   }, [banner]);
 
   useEffect(() => {
@@ -185,15 +197,15 @@ export default function CreatePostClient() {
         JSON.stringify({
           title,
           destination,
-          category,
+          postType,
           travelTime,
           tagsRaw,
           html: docHtml,
         }),
       );
-      setBanner({ kind: "ok", text: "Đã lưu nháp vào trình duyệt của bạn." });
+      setBanner({ kind: "ok", text: t("draftSaved") });
     } catch {
-      setBanner({ kind: "err", text: "Không lưu được nháp." });
+      setBanner({ kind: "err", text: t("draftFailed") });
     }
   };
 
@@ -204,21 +216,43 @@ export default function CreatePostClient() {
       return prev.filter((x) => x.id !== id);
     });
 
-  const onFilesChosen = (list: FileList | null) => {
-    if (!list?.length) return;
-    const next = [...files];
-    for (let i = 0; i < list.length; i++) {
-      if (next.length >= IMG_MAX_FILES) break;
-      const file = list[i];
-      if (!file.type.startsWith("image/")) continue;
-      if (file.size > IMG_MAX_MB * 1024 * 1024) continue;
-      next.push({
-        id: `${Date.now()}_${i}_${file.name}`,
-        file,
-        preview: URL.createObjectURL(file),
-      });
+  const uploadInlineImage = useCallback(async (file: File) => {
+    const cur = auth.currentUser;
+    if (!cur) throw new Error(t("notLoggedIn"));
+    const prepared = await prepareImageForUpload(file);
+    if (prepared.size > IMG_MAX_MB * 1024 * 1024) {
+      throw new Error(t("imageTooBig", { maxMb: IMG_MAX_MB }));
     }
-    setFiles(next);
+    const ext = prepared.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "").slice(0, 8) || "jpg";
+    const path = `posts/${cur.uid}/inline/${Date.now()}_${Math.random().toString(36).slice(2, 9)}.${ext}`;
+    const sref = ref(storage, path);
+    await uploadBytes(sref, prepared, { contentType: prepared.type });
+    return getDownloadURL(sref);
+  }, []);
+
+  const onFilesChosen = async (list: FileList | null) => {
+    if (!list?.length) return;
+    setCompressingImages(true);
+    try {
+      const additions: { id: string; file: File; preview: string }[] = [];
+      for (let i = 0; i < list.length; i++) {
+        const raw = list[i];
+        if (!raw.type.startsWith("image/")) continue;
+        if (raw.size > IMG_MAX_MB * 1024 * 1024) continue;
+
+        const file = await prepareImageForUpload(raw);
+        if (file.size > IMG_MAX_MB * 1024 * 1024) continue;
+
+        additions.push({
+          id: `${Date.now()}_${i}_${file.name}`,
+          file,
+          preview: URL.createObjectURL(file),
+        });
+      }
+      setFiles((prev) => [...prev, ...additions].slice(0, IMG_MAX_FILES));
+    } finally {
+      setCompressingImages(false);
+    }
   };
 
   const submitPost = async (e: React.FormEvent) => {
@@ -226,18 +260,18 @@ export default function CreatePostClient() {
     const cur = auth.currentUser;
     if (!cur) return;
 
-    const t = title.trim();
-    if (!t || t.length > TITLE_MAX) {
-      setBanner({ kind: "err", text: `Tiêu đề bắt buộc, tối đa ${TITLE_MAX} ký tự.` });
+    const titleTrim = title.trim();
+    if (!titleTrim || titleTrim.length > TITLE_MAX) {
+      setBanner({ kind: "err", text: t("errTitle", { max: TITLE_MAX }) });
       return;
     }
     const dest = destination.trim();
     if (!dest) {
-      setBanner({ kind: "err", text: "Vui lòng chọn điểm đến." });
+      setBanner({ kind: "err", text: t("errDest") });
       return;
     }
-    if (!category || !travelTime) {
-      setBanner({ kind: "err", text: "Chọn đủ danh mục và thời gian đi." });
+    if (!postType || !travelTime) {
+      setBanner({ kind: "err", text: t("errTypeTime") });
       return;
     }
     const plainText = docHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -245,12 +279,12 @@ export default function CreatePostClient() {
     if (!plainText || contentLen > MAX_CHARS) {
       setBanner({
         kind: "err",
-        text: contentLen > MAX_CHARS ? `Nội dung vượt ${MAX_CHARS} ký tự.` : "Vui lòng viết nội dung bài viết.",
+        text: contentLen > MAX_CHARS ? t("errContentMax", { max: MAX_CHARS }) : t("errContent"),
       });
       return;
     }
     if (files.length === 0) {
-      setBanner({ kind: "err", text: "Thêm ít nhất một ảnh minh họa (PNG/JPG)." });
+      setBanner({ kind: "err", text: t("errImages") });
       return;
     }
 
@@ -279,17 +313,27 @@ export default function CreatePostClient() {
       }
 
       const primary = urls[0]!;
-      const slugSafe = `${t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-")}-${Date.now()}`.replace(/-+/g, "-");
+      const slugSafe = `${titleTrim.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-")}-${Date.now()}`.replace(/-+/g, "-");
       const status = isAdminPoster ? "approved" : "pending";
 
+      setBanner({ kind: "ok", text: t("translating") });
+      const [titleLocales, descriptionLocales, contentHtmlLocales] = await Promise.all([
+        buildLocalizedString(titleTrim, "vi"),
+        buildLocalizedString(plainText, "vi"),
+        buildLocalizedHtml(sanitizeBasicHtml(docHtml), "vi"),
+      ]);
+
       await addDoc(collection(db, "posts"), {
-        name: t,
-        title: t,
-        description: plainText,
-        contentHtml: sanitizeBasicHtml(docHtml),
+        name: titleTrim,
+        title: titleLocales,
+        description: descriptionLocales,
+        contentHtml: contentHtmlLocales,
+        sourceLocale: "vi",
+        translationStatus: { vi: "published", en: "machine", ko: "machine" },
         region: dest,
-        country: "Việt Nam",
-        category,
+        country: tc("vietnam"),
+        postType,
+        category: labelForPostType(postType),
         travelTime,
         tags: tagsArray,
         images: urls,
@@ -297,7 +341,7 @@ export default function CreatePostClient() {
         thumb: primary,
         status,
         authorId: cur.uid,
-        authorName: cur.displayName || cur.email?.split("@")[0] || "Thành viên",
+        authorName: cur.displayName || cur.email?.split("@")[0] || tn("member"),
         createdAt: serverTimestamp(),
         slug: slugSafe,
         number: 0,
@@ -310,12 +354,25 @@ export default function CreatePostClient() {
         /* */
       }
 
+      setMyPostsRefresh((n) => n + 1);
+
       if (isAdminPoster) {
-        alert("Đã đăng bài! Bài đã được đăng công khai.");
-        router.push("/explore");
+        alert(t("alertPublished"));
+        router.push(publicPageForPostType(postType).href);
       } else {
-        alert("Đã gửi bài! Vui lòng chờ admin duyệt.");
-        router.push("/dashboard");
+        alert(t("alertPending"));
+        setTitle("");
+        setDestination("");
+        setDestQuery("");
+        setPostType("");
+        setTravelTime("");
+        setTagsRaw("");
+        setDocHtml("");
+        initialHtmlRef.current = "";
+        setFiles((prev) => {
+          prev.forEach((x) => URL.revokeObjectURL(x.preview));
+          return [];
+        });
       }
     } catch (err) {
       console.error(err);
@@ -328,11 +385,6 @@ export default function CreatePostClient() {
   if (loading || !user) {
     return (
       <div className="relative flex min-h-[50vh] items-center justify-center pt-24 text-white">
-        <div
-          className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('/signup_pic.jpg')" }}
-        />
-        <div className="fixed inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/35 to-black/70" />
         <Loader2 className="size-8 animate-spin text-violet-400" aria-hidden />
       </div>
     );
@@ -340,12 +392,6 @@ export default function CreatePostClient() {
 
   return (
     <div className="relative min-h-screen pb-20 pt-24 text-white">
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/signup_pic.jpg')" }}
-      />
-      <div className="fixed inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/35 to-black/70" />
-
       {banner ? (
         <div
           className={`fixed bottom-6 left-1/2 z-[90] max-w-[min(90vw,420px)] -translate-x-1/2 rounded-xl border px-4 py-3 text-sm shadow-xl ${
@@ -361,61 +407,61 @@ export default function CreatePostClient() {
 
       <div className="mx-auto max-w-[1400px] gap-8 px-4 lg:flex lg:px-8">
         <aside className={`${glass} mb-8 shrink-0 p-4 lg:mb-0 lg:w-56 xl:w-60`}>
-          <p className="px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Menu</p>
+          <p className="px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">{t("menu")}</p>
           <nav className="mt-3 space-y-1">
             <Link
               href="/profile"
               className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/65 hover:bg-white/10"
             >
               <Bookmark className="size-4 opacity-80" />
-              Đã lưu
+              {t("saved")}
             </Link>
             <span className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/35">
               <History className="size-4 opacity-80" />
-              Đã xem
+              {t("viewed")}
             </span>
             <span className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/35">
               <Star className="size-4 opacity-80" />
-              Đánh giá
+              {t("reviews")}
             </span>
             <Link
               href="/explore"
               className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/65 hover:bg-white/10"
             >
               <Compass className="size-4" />
-              Khám phá
+              {tn("explore")}
             </Link>
             <div className="flex items-center gap-3 rounded-xl bg-violet-600/35 px-3 py-2.5 text-sm font-bold text-white ring-1 ring-violet-400/40">
               <Plane className="size-4" />
-              Đăng bài
+              {t("publish")}
             </div>
           </nav>
           <div className={`${glass} relative mt-4 overflow-hidden border-white/10 p-4`}>
             <Sparkles className="absolute right-2 top-2 size-7 text-violet-400/30" aria-hidden />
-            <p className="text-sm font-bold">Chia sẻ hành trình</p>
-            <p className="mt-2 text-xs text-white/55">Viết kinh nghiệm và gợi ý cho cộng đồng VN Insight.</p>
+            <p className="text-sm font-bold">{t("shareJourney")}</p>
+            <p className="mt-2 text-xs text-white/55">{t("shareDesc")}</p>
             <Link
               href="/explore"
               className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-violet-600 py-2.5 text-xs font-bold text-white hover:bg-violet-500"
             >
-              Khám phá ngay
+              {t("exploreNow")}
               <ChevronRight className="size-3.5" />
             </Link>
           </div>
         </aside>
 
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300/70">Đăng bài mới</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Chia sẻ trải nghiệm du lịch</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300/70">{t("title")}</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{t("headline")}</h1>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
-            Điền tiêu đề, điểm đến, ảnh và nội dung — bài sẽ ở trạng thái chờ duyệt trước khi hiển thị công khai.
+            {t("intro")}
           </p>
 
           <form onSubmit={submitPost} className="mt-8 space-y-6">
             <div className={`${glass} space-y-6 p-5 sm:p-7`}>
               <div>
                 <label className="flex items-center justify-between text-sm font-semibold text-white/80">
-                  Tiêu đề bài viết
+                  {t("fieldTitle")}
                   <span className={`text-xs font-medium ${title.length > TITLE_MAX ? "text-amber-400" : "text-white/45"}`}>
                     {title.length}/{TITLE_MAX}
                   </span>
@@ -425,7 +471,7 @@ export default function CreatePostClient() {
                   maxLength={TITLE_MAX}
                   onChange={(e) => setTitle(e.target.value)}
                   className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/30"
-                  placeholder="Ví dụ: Săn mây Sapa trong 3 ngày 2 đêm"
+                  placeholder={t("titlePlaceholder")}
                   required
                 />
               </div>
@@ -437,7 +483,7 @@ export default function CreatePostClient() {
                 onKeyDown={(e) => e.stopPropagation()}
                 role="presentation"
               >
-                <label className="text-sm font-semibold text-white/80">Điểm đến</label>
+                <label className="text-sm font-semibold text-white/80">{t("fieldDest")}</label>
                 <div className="relative mt-2">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/35" />
                   <input
@@ -448,7 +494,7 @@ export default function CreatePostClient() {
                     }}
                     onFocus={() => setDestOpen(true)}
                     className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-500/50"
-                    placeholder="Tìm tỉnh / thành phố…"
+                    placeholder={t("destSearch")}
                     autoComplete="off"
                   />
                 </div>
@@ -467,56 +513,43 @@ export default function CreatePostClient() {
                       </li>
                     ))}
                     {provincesFiltered.length === 0 ? (
-                      <li className="px-4 py-3 text-white/45">Không thấy kết quả</li>
+                      <li className="px-4 py-3 text-white/45">{t("noResults")}</li>
                     ) : null}
                   </ul>
                 ) : null}
-                {destination ? <p className="mt-1.5 text-xs text-violet-300/80">Đã chọn: {destination}</p> : null}
+                {destination ? <p className="mt-1.5 text-xs text-violet-300/80">{t("destSelected", { name: destination })}</p> : null}
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-sm font-semibold text-white/80">Danh mục</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-violet-500/50"
-                    required
-                  >
-                    <option value="">— Chọn —</option>
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-white/80">Thời gian đi</label>
-                  <select
-                    value={travelTime}
-                    onChange={(e) => setTravelTime(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-violet-500/50"
-                    required
-                  >
-                    <option value="">— Chọn —</option>
-                    {TRAVEL_TIMES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <PostTypePicker value={postType} onChange={setPostType} />
+
+              <div>
+                <label className="text-sm font-semibold text-white/80">{t("travelTime")}</label>
+                <select
+                  value={travelTime}
+                  onChange={(e) => setTravelTime(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-violet-500/50"
+                  required
+                >
+                  <option value="">{t("select")}</option>
+                  {travelTimes.map(({ value: c, label }) => (
+                    <option key={c} value={c}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-white/80">Nội dung bài viết</label>
-                <p className="mb-2 mt-1 text-xs text-white/45">Định dạng đậm, nghiêng, danh sách, trích dẫn và liên kết.</p>
+                <label className="text-sm font-semibold text-white/80">{t("fieldContent")}</label>
+                <p className="mb-2 mt-1 text-xs text-white/45">
+                  {t("contentHint")}
+                </p>
                 {hydrated ? (
                   <CreatePostRichEditor
                     key={`editor-${user.uid}`}
                     initialHtml={initialHtmlRef.current}
                     onDocChange={onDocChange}
+                    onUploadImage={uploadInlineImage}
                   />
                 ) : (
                   <div className="h-64 animate-pulse rounded-2xl bg-white/5" />
@@ -524,9 +557,9 @@ export default function CreatePostClient() {
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-white/80">Hình ảnh</label>
+                <label className="text-sm font-semibold text-white/80">{t("fieldImages")}</label>
                 <p className="mt-1 text-xs text-white/45">
-                  Kéo thả hoặc bấm chọn — PNG, JPG, JPEG · tối đa {IMG_MAX_MB}MB/ảnh · tối đa {IMG_MAX_FILES} ảnh.
+                  {t("imagesHint", { maxMb: IMG_MAX_MB, maxFiles: IMG_MAX_FILES })}
                 </p>
                 <label
                   htmlFor="post-images"
@@ -536,31 +569,37 @@ export default function CreatePostClient() {
                   }}
                   onDrop={(e) => {
                     e.preventDefault();
-                    onFilesChosen(e.dataTransfer.files);
+                    void onFilesChosen(e.dataTransfer.files);
                   }}
                   className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-violet-500/35 bg-violet-500/[0.07] px-4 py-10 transition hover:border-violet-400/55 hover:bg-violet-500/10"
                 >
                   <ImagePlus className="size-10 text-violet-300/80" />
-                  <span className="mt-2 text-sm font-medium text-white/70">Thêm ảnh từ thiết bị</span>
+                  <span className="mt-2 text-sm font-medium text-white/70">
+                    {compressingImages ? t("compressing") : t("addImages")}
+                  </span>
                   <input
                     id="post-images"
                     type="file"
                     accept="image/png,image/jpeg,image/jpg"
                     multiple
                     className="hidden"
-                    onChange={(e) => onFilesChosen(e.target.files)}
+                    onChange={(e) => {
+                      void onFilesChosen(e.target.files);
+                      e.target.value = "";
+                    }}
                   />
                 </label>
                 {files.length > 0 ? (
                   <div className="mt-4 flex flex-wrap gap-3">
                     {files.map((f) => (
                       <div key={f.id} className="relative size-24 overflow-hidden rounded-xl border border-white/15 sm:size-28">
-                        <Image src={f.preview} alt="" fill className="object-cover" sizes="112px" unoptimized />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={f.preview} alt="" className="size-full object-cover" />
                         <button
                           type="button"
                           onClick={() => removeFile(f.id)}
                           className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black"
-                          aria-label="Xóa ảnh"
+                          aria-label={t("removeImage")}
                         >
                           <X className="size-3.5" />
                         </button>
@@ -571,12 +610,12 @@ export default function CreatePostClient() {
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-white/80">Thẻ (tags)</label>
+                <label className="text-sm font-semibold text-white/80">{t("fieldTags")}</label>
                 <input
                   value={tagsRaw}
                   onChange={(e) => setTagsRaw(e.target.value)}
                   className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-500/50"
-                  placeholder="biển, núi, ẩm thực (phân tách bằng dấu phẩy)"
+                  placeholder={t("tagsPlaceholder")}
                 />
               </div>
 
@@ -588,7 +627,7 @@ export default function CreatePostClient() {
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
                 >
                   <FolderOpen className="size-4" />
-                  Lưu nháp
+                  {t("saveDraft")}
                 </button>
                 <button
                   type="submit"
@@ -596,7 +635,7 @@ export default function CreatePostClient() {
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-violet-900/40 transition hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50"
                 >
                   {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                  Đăng bài
+                  {t("publish")}
                 </button>
               </div>
             </div>
@@ -605,41 +644,52 @@ export default function CreatePostClient() {
 
         <aside className="mt-10 w-full shrink-0 space-y-6 lg:mt-0 lg:w-72 xl:w-80">
           <div className={`${glass} p-5`}>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-violet-300/90">Mẹo hữu ích</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-violet-300/90">{t("tipsTitle")}</h3>
             <ul className="mt-4 list-inside space-y-3 text-sm text-white/65">
-              <li>Viết tiêu đề rõ ràng, hấp dẫn.</li>
-              <li>Nội dung chi tiết: lịch trình, chi phí, mẹo di chuyển.</li>
-              <li>Ảnh sáng, đúng chủ đề sẽ dễ được duyệt hơn.</li>
-              <li>Thêm thẻ liên quan để người đọc dễ tìm.</li>
+              <li>{t("tip1")}</li>
+              <li>{t("tip2")}</li>
+              <li>{t("tip3")}</li>
+              <li>{t("tip4")}</li>
             </ul>
           </div>
 
           <div className={`${glass} overflow-hidden`}>
             <h3 className="border-b border-white/10 px-5 py-4 text-xs font-bold uppercase tracking-wider text-violet-300/90">
-              Xem trước bài viết
+              {t("preview")}
             </h3>
             <div className="p-5">
               <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/40">
                 {files[0] ? (
-                  <Image src={files[0].preview} alt="" fill className="object-cover" sizes="320px" unoptimized />
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={files[0].preview} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-white/35">Chưa có ảnh bìa</div>
+                  <div className="flex h-full items-center justify-center text-xs text-white/35">{t("noCover")}</div>
                 )}
               </div>
               <p className="mt-3 text-xs font-medium uppercase tracking-wide text-white/45">
-                {destination || "Điểm đến"} · {category || "Danh mục"}
+                {destination || t("destFallback")} · {postType ? labelForPostType(postType) : t("postTypeFallback")}
               </p>
-              <p className="mt-2 line-clamp-2 text-lg font-bold leading-snug">{title || "Tiêu đề bài viết"}</p>
-              <p className="mt-2 line-clamp-3 text-sm text-white/55">{excerptPlain || "Đoạn mở đầu sẽ hiển thị tại đây…"}</p>
+              {postType ? (
+                <p className="mt-2 text-xs text-violet-300/90">
+                  {t("afterApprove")} →{" "}
+                  <Link href={publicPageForPostType(postType).href} className="underline hover:text-violet-200">
+                    {sectionLabel(sectionForPostType(postType))}
+                  </Link>
+                </p>
+              ) : null}
+              <p className="mt-2 line-clamp-2 text-lg font-bold leading-snug">{title || t("previewTitle")}</p>
+              <p className="mt-2 line-clamp-3 text-sm text-white/55">{excerptPlain || t("previewExcerpt")}</p>
               <div className="mt-4 flex items-center gap-4 text-xs text-white/40">
                 <span>👁 0</span>
                 <span>💬 0</span>
               </div>
               <p className="mt-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/50">
-                Chưa đăng
+                {t("draft")}
               </p>
             </div>
           </div>
+
+          <MyPostsPanel authorId={user.uid} refreshKey={myPostsRefresh} />
         </aside>
       </div>
     </div>
