@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import type { ProvinceDef } from "@/lib/vietnamProvinces";
 import { TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
+import { DestinationRelatedCard } from "@/components/cards";
+import { relatedDestinationToCard } from "@/lib/cards/adapters";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { useAuth } from "@/hooks/useAuth";
 import { useDestinationPageModel } from "@/hooks/useDestinationPageModel";
@@ -345,33 +347,7 @@ export default function DestinationDetailClient({ province }: Props) {
             <h2 className="mb-6 text-xl font-bold text-white">{t("relatedSection")}</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {data.related.map((r) => (
-                <Link
-                  key={r.slug}
-                  href={`/destinations/${r.slug}`}
-                  className="group flex gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition hover:border-amber-400/40"
-                >
-                  <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-lg">
-                    {r.image.trim() ? (
-                      <Image
-                        src={r.image}
-                        alt=""
-                        fill
-                        className="object-cover transition group-hover:scale-105"
-                        sizes="112px"
-                        placeholder="blur"
-                        blurDataURL={BLUR_DATA_URL_LIGHT}
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-slate-800/90" aria-hidden />
-                    )}
-                  </div>
-                  <div className="min-w-0 py-1">
-                    <p className="font-bold text-white group-hover:text-amber-300">{r.name}</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {r.views.toLocaleString(fmt)} {tc("views")}
-                    </p>
-                  </div>
-                </Link>
+                <DestinationRelatedCard key={r.slug} card={relatedDestinationToCard(r)} />
               ))}
             </div>
           </section>

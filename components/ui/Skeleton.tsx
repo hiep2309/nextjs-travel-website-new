@@ -1,5 +1,7 @@
 "use client";
 
+import { glassCard } from "@/components/ui/cardStyles";
+
 export function Skeleton({
   className = "",
   rounded = "rounded-xl",
@@ -18,7 +20,7 @@ export function Skeleton({
 /** Lưới thẻ bài giống Explore (ảnh + 3 dòng chữ) */
 export function ExplorePostCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/15 bg-white/[0.06]">
+    <div className={glassCard.vertical.replace("transition hover:border-amber-400/40", "")}>
       <Skeleton className="h-48 w-full rounded-none" />
       <div className="space-y-3 p-4 sm:p-5">
         <Skeleton className="h-4 w-[72%]" />

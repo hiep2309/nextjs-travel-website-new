@@ -10,11 +10,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-
-import Image from "next/image";
-
-import { Eye } from "lucide-react";
-
 import { collection, getDocs, query, where } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -53,6 +48,8 @@ import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import type { LocalizedString } from "@/lib/i18n/types";
 import type { AppLocale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
+import { PostCardHorizontal } from "@/components/cards";
+import type { ContentCardModel } from "@/lib/cards/types";
 
 function postsToGuides(posts: TravelPost[], locale: AppLocale, fallbackTitle: string): GuideEntry[] {
   return posts
@@ -268,69 +265,22 @@ export default function GuidesPage() {
 
                 : labelForCategory(g.category);
 
-            return (
+            const metaParts = [`${g.readMinutes} ${tc("readMin")}`, g.dateDisplay];
+            if (g.source === "firestore") {
+              metaParts.push(`${(g.viewCount ?? 0).toLocaleString()} ${tc("views")}`);
+            }
 
-              <article
+            const card: ContentCardModel = {
+              href: g.href,
+              title: getTranslation(g.title, locale),
+              description: getTranslation(g.excerpt, locale),
+              image: g.image,
+              badge: catLabel,
+              badgeVariant: "amber",
+              metaLine: metaParts.join(" · "),
+            };
 
-                key={g.id}
-
-                className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#141b2e]/90 shadow-lg transition hover:border-amber-500/30"
-
-              >
-
-                <Link href={g.href} className="flex flex-col sm:flex-row">
-
-                  <span className="relative aspect-[16/10] shrink-0 bg-slate-800 sm:aspect-auto sm:h-48 sm:w-64">
-
-                    {g.image.trim() ? (
-
-                      <Image src={g.image} alt="" fill className="object-cover" sizes="256px" />
-
-                    ) : null}
-
-                  </span>
-
-                  <div className="flex min-w-0 flex-1 flex-col justify-center p-5 sm:p-6">
-
-                    <span className="inline-block w-fit rounded-md border border-amber-500/45 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold uppercase text-amber-300">
-
-                      {catLabel}
-
-                    </span>
-
-                    <h2 className="mt-3 text-xl font-bold sm:text-2xl">{getTranslation(g.title, locale)}</h2>
-
-                    <p className="mt-2 line-clamp-2 text-sm text-[#b4bfce]">{getTranslation(g.excerpt, locale)}</p>
-
-                    <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#8892a8]">
-
-                      <span>
-
-                        {g.readMinutes} phút đọc · {g.dateDisplay}
-
-                      </span>
-
-                      {g.source === "firestore" ? (
-
-                        <span className="inline-flex items-center gap-1">
-
-                          <Eye className="size-3.5" aria-hidden />
-
-                          {(g.viewCount ?? 0).toLocaleString("vi-VN")} lượt xem
-
-                        </span>
-
-                      ) : null}
-
-                    </p>
-
-                  </div>
-
-                </Link>
-
-              </article>
-
-            );
+            return <PostCardHorizontal key={g.id} card={card} titleAs="h2" />;
 
           })}
 

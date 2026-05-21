@@ -3,7 +3,6 @@
  */
 "use client";
 
-import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -14,6 +13,8 @@ import { db } from "@/lib/firebase";
 import { filterTourSharePosts, getPostViewCount, sortPostsByViewsThenDate } from "@/lib/posts/sortPosts";
 import { useLocalizedPost } from "@/hooks/useLocalizedPost";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
+import { PostCardCarousel } from "@/components/cards";
+import { travelPostToContentCard } from "@/lib/cards/adapters";
 import type { TravelPost } from "@/lib/travelPost";
 import type { AppLocale } from "@/i18n/routing";
 
@@ -36,50 +37,39 @@ function GuideTourCarouselCard({ post }: { post: TravelPost }) {
     (typeof post.category === "string" ? post.category : "") ||
     "?";
 
+  const card = travelPostToContentCard(post, { title: title || tc("notFound"), description });
+
   return (
-    <Link
-      href={`/posts/${post.id}`}
-      data-carousel-card
-      className="group flex w-[min(280px,calc(100vw-3rem))] shrink-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-slate-900/40 shadow-xl backdrop-blur-md transition hover:border-amber-400/35 sm:w-[272px] lg:rounded-3xl"
-    >
-      <div className="relative aspect-[16/10] w-full min-h-[140px] shrink-0 overflow-hidden bg-slate-800">
-        <Image
-          src={imageSrc}
-          alt=""
-          fill
-          className="object-cover transition duration-700 ease-out group-hover:scale-[1.03]"
-          sizes="(max-width:640px)90vw,272px"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80" />
-        <span className="absolute right-2.5 top-2.5 rounded-full border border-white/25 bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
-          {tourPopularityBadge(views, t)}
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <div>
-          <h3 className="line-clamp-2 font-semibold leading-snug text-white group-hover:text-amber-100">
-            {title || tc("notFound")}
-          </h3>
-          <p className="mt-1 text-[13px] text-white/70">{post.region || tc("vietnam")}</p>
-        </div>
-        <div className="space-y-1.5 text-[13px] text-white/70">
-          {post.travelTime ? (
+    <PostCardCarousel
+      card={{ ...card, image: imageSrc }}
+      overlayBadge={tourPopularityBadge(views, t)}
+      body={
+        <>
+          <div>
+            <h3 className="line-clamp-2 font-semibold leading-snug text-white group-hover:text-amber-100">
+              {title || tc("notFound")}
+            </h3>
+            <p className="mt-1 text-[13px] text-white/70">{post.region || tc("vietnam")}</p>
+          </div>
+          <div className="space-y-1.5 text-[13px] text-white/70">
+            {post.travelTime ? (
+              <p className="flex items-start gap-2">
+                <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/45" aria-hidden />
+                <span>{post.travelTime}</span>
+              </p>
+            ) : null}
             <p className="flex items-start gap-2">
-              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/45" aria-hidden />
-              <span>{post.travelTime}</span>
+              <Tag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/45" aria-hidden />
+              <span className="line-clamp-2">{categories}</span>
             </p>
-          ) : null}
-          <p className="flex items-start gap-2">
-            <Tag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/45" aria-hidden />
-            <span className="line-clamp-2">{categories}</span>
+          </div>
+          <p className="mt-auto line-clamp-2 pt-1 text-right text-[12px] text-white/55">{description}</p>
+          <p className="text-right text-sm font-semibold text-white">
+            {views.toLocaleString()} {tc("views")} · {t("viewDetail")}
           </p>
-        </div>
-        <p className="mt-auto line-clamp-2 pt-1 text-right text-[12px] text-white/55">{description}</p>
-        <p className="text-right text-sm font-semibold text-white">
-          {views.toLocaleString()} {tc("views")} · {t("viewDetail")}
-        </p>
-      </div>
-    </Link>
+        </>
+      }
+    />
   );
 }
 
@@ -224,34 +214,23 @@ const Guide = () => {
                 className="hide-scrollbar flex flex-row flex-nowrap gap-4 overflow-x-auto overscroll-x-contain pb-3"
               >
                 {articleCards.map((a) => (
-                  <Link
+                  <PostCardCarousel
                     key={a.title}
-                    href={a.href ?? "/guides"}
-                    data-carousel-card
-                    className="group flex w-[min(280px,calc(100vw-3rem))] shrink-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-slate-900/40 shadow-xl backdrop-blur-md transition hover:border-amber-400/35 sm:w-[272px] lg:rounded-3xl"
-                  >
-                    <div className="relative aspect-[16/10] w-full min-h-[140px] shrink-0 overflow-hidden bg-slate-800">
-                      <Image
-                        src={a.image}
-                        alt=""
-                        fill
-                        className="object-cover transition duration-700 ease-out group-hover:scale-[1.03]"
-                        sizes="(max-width:640px)90vw,272px"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80" />
-                      <span className="absolute left-2.5 top-2.5 rounded-full border border-white/25 bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
-                        {a.badge}
-                      </span>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-3 p-4">
-                      <h3 className="font-semibold leading-snug text-white group-hover:text-white/95">{a.title}</h3>
-                      <p className="line-clamp-3 flex-1 text-[13px] leading-relaxed text-white/70">{a.excerpt}</p>
+                    card={{
+                      href: a.href ?? "/guides",
+                      title: a.title,
+                      description: a.excerpt,
+                      image: a.image,
+                    }}
+                    overlayBadge={a.badge}
+                    overlayBadgePosition="left"
+                    footer={
                       <div className="flex items-center justify-between border-t border-white/15 pt-3 text-[12px] text-white/60">
                         <span>{a.readTime}</span>
                         <span>{a.date}</span>
                       </div>
-                    </div>
-                  </Link>
+                    }
+                  />
                 ))}
               </div>
             </div>

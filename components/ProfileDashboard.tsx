@@ -32,6 +32,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
+import { ContentCardOverlay } from "@/components/cards";
 import { buildDestinationModelForProvince } from "@/hooks/useDestinationPageModel";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { getProvinceBySlug } from "@/lib/provinceSlug";
@@ -583,46 +584,17 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
             ) : (
               <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {rows.map((row) => (
-                  <Link
+                  <ContentCardOverlay
                     key={row.key}
                     href={row.href}
-                    className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] transition hover:border-amber-400/35 hover:bg-white/[0.07]"
-                  >
-                    <div className="relative aspect-[16/11] w-full">
-                      {row.image.trim() ? (
-                        <Image
-                          src={row.image}
-                          alt=""
-                          fill
-                          className="object-cover transition duration-500 group-hover:scale-105"
-                          sizes="(max-width:640px)100vw,360px"
-                          placeholder="blur"
-                          blurDataURL={BLUR_DATA_URL_LIGHT}
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-white/[0.08]" aria-hidden />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0b0e14] via-[#0b0e14]/50 to-transparent" />
-                      <span className="absolute left-3 top-3 rounded-md bg-black/55 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white/90 backdrop-blur-sm">
-                        {row.chip}
-                      </span>
-                      {tab === "reviews" && row.extra ? (
-                        <span className="absolute right-3 top-3 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 px-2 py-0.5 text-[11px] font-bold text-[#0b0e14]">
-                          <Star className="size-3 fill-[#0b0e14]" aria-hidden />
-                          {row.extra}
-                        </span>
-                      ) : null}
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <p className="text-base font-bold leading-snug text-white group-hover:text-amber-200">
-                          {row.title}
-                        </p>
-                        <p className="mt-1 text-xs text-white/55">{row.sub}</p>
-                      </div>
-                    </div>
-                    {tab === "saved" ? (
-                      <Bookmark className="absolute bottom-3 right-3 size-5 text-white/80 drop-shadow-md" fill="currentColor" aria-hidden />
-                    ) : null}
-                  </Link>
+                    title={row.title}
+                    image={row.image}
+                    chip={row.chip}
+                    sub={row.sub}
+                    extra={row.extra}
+                    showSavedIcon={tab === "saved"}
+                    showRating={tab === "reviews" && Boolean(row.extra)}
+                  />
                 ))}
               </div>
             )}

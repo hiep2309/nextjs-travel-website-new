@@ -7,15 +7,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import Image from "next/image";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
 import { flattenLocalizedForSearch, normalizeTravelPost } from "@/lib/firestore/multilingual";
-import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { ExplorePostCardSkeleton } from "@/components/ui/Skeleton";
+import { PostCardVertical } from "@/components/cards";
+import { travelPostToContentCard } from "@/lib/cards/adapters";
 import { postBelongsToSection, resolvePostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useLocalizedPost } from "@/hooks/useLocalizedPost";
@@ -37,64 +37,45 @@ function ExplorePostCard({
   const typeLabels = usePostTypeLabels();
   const isAdmin = role === "admin";
 
-  return (
-    <article className="relative h-full overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg transition hover:border-amber-400/40">
-      {isAdmin ? (
-        <div className="absolute right-3 top-3 z-10 flex flex-wrap justify-end gap-2">
-          <Link
-            href={`/create-post?edit=${post.id}`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-black/55 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg backdrop-blur-sm transition hover:bg-violet-600/80"
-          >
-            <Pencil className="size-3.5" aria-hidden />
-            {tp("editPost")}
-          </Link>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              void onDelete(post.id);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-950/70 px-2.5 py-1.5 text-xs font-semibold text-red-100 shadow-lg backdrop-blur-sm transition hover:bg-red-600/80"
-            aria-label={tp("deletePost")}
-          >
-            <Trash2 className="size-3.5" aria-hidden />
-            {tp("deletePost")}
-          </button>
-        </div>
-      ) : null}
-      <Link href={`/posts/${post.id}`} className="group block h-full">
-        <div className="relative h-48 bg-slate-800">
-          {post.image?.trim() ? (
-            <Image
-              src={post.image}
-              alt={title}
-              fill
-              className="object-cover"
-              sizes="(max-width:768px)100vw,33vw"
-              placeholder="blur"
-              blurDataURL={BLUR_DATA_URL_LIGHT}
-            />
-          ) : null}
-        </div>
-        <div className="p-4 sm:p-5">
-          <p className="mb-2 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.15em] text-white/70">
-            <span className="rounded-md border border-amber-400/35 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
-              {typeLabels.label(resolvePostType(post))}
-            </span>
-            <span>{post.region || tc("vietnam")}</span>
-          </p>
-          <h3 className="mb-2 line-clamp-2 text-lg font-semibold group-hover:text-amber-100">
-            {title || tc("notFound")}
-          </h3>
-          <p className="line-clamp-3 text-sm text-white/75">{description || t("noDesc")}</p>
-          <p className="mt-3 inline-flex items-center gap-1 text-xs text-white/55">
-            <Eye className="size-3.5 shrink-0" aria-hidden />
-            {(post.viewCount ?? 0).toLocaleString()} {tc("views")}
-          </p>
-        </div>
+  const card = travelPostToContentCard(post, {
+    title: title || tc("notFound"),
+    description,
+    badge: typeLabels.label(resolvePostType(post)),
+    badgeVariant: "amber",
+  });
+
+  const actions = isAdmin ? (
+    <div className="absolute right-3 top-3 z-10 flex flex-wrap justify-end gap-2">
+      <Link
+        href={`/create-post?edit=${post.id}`}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-black/55 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg backdrop-blur-sm transition hover:bg-violet-600/80"
+      >
+        <Pencil className="size-3.5" aria-hidden />
+        {tp("editPost")}
       </Link>
-    </article>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          void onDelete(post.id);
+        }}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-950/70 px-2.5 py-1.5 text-xs font-semibold text-red-100 shadow-lg backdrop-blur-sm transition hover:bg-red-600/80"
+        aria-label={tp("deletePost")}
+      >
+        <Trash2 className="size-3.5" aria-hidden />
+        {tp("deletePost")}
+      </button>
+    </div>
+  ) : null;
+
+  return (
+    <PostCardVertical
+      card={card}
+      actions={actions}
+      emptyDescription={t("noDesc")}
+      regionFallback={tc("vietnam")}
+    />
   );
 }
 

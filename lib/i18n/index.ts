@@ -9,4 +9,5 @@ export * from "./content";
 export * from "./metadata";
 export * from "./pageMetadata";
 export * from "./server";
+export * from "../translation";
 export { Link, redirect, usePathname, useRouter, getPathname } from "./navigation";
