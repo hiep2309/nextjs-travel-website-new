@@ -410,7 +410,7 @@
     "alertUpdated": "Đã cập nhật bài viết.",
     "loadEditErr": "Không tải được bài để sửa.",
     "editForbidden": "Bạn không có quyền sửa bài này.",
-    "translating": "Translating content to English and Korean…"
+    "translating": "Translating with AI (en/ko)…"
   },
   "Profile": {
     "title": "Profile",
@@ -441,7 +441,11 @@
     "approveErr": "Không duyệt được bài.",
     "previewPost": "Xem trước",
     "approvePost": "Duyệt",
-    "rejectPost": "Từ chối"
+    "rejectPost": "Từ chối",
+    "translatePost": "AI translate (en/ko)",
+    "translateOk": "Post translated to English and Korean.",
+    "translateErr": "Translation failed. Check GEMINI_API_KEY or try again.",
+    "translateMissing": "Post is missing title or content to translate."
   },
   "Notifications": {
     "title": "Thông báo",

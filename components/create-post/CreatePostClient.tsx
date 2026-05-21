@@ -16,7 +16,7 @@ import { pickLocalized } from "@/lib/i18n/content";
 import { canEditPost } from "@/lib/posts/permissions";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useTravelTimeLabels } from "@/hooks/useTravelTimeLabels";
-import { buildLocalizedHtml, buildLocalizedString, buildPostLocaleWritePayload } from "@/lib/i18n/buildPostLocales";
+import { requestPostTranslation } from "@/lib/translation/requestPostTranslation";
 import { normalizeLocalizedSlug, normalizeLocalizedString } from "@/lib/firestore/multilingual";
 import type { LocalizedSlug } from "@/lib/i18n/types";
 import {
@@ -421,22 +421,14 @@ export default function CreatePostClient() {
       const primary = allUrls[0]!;
 
       setBanner({ kind: "ok", text: t("translating") });
-      const [titleLocales, descriptionLocales, contentHtmlLocales] = await Promise.all([
-        buildLocalizedString(titleTrim, "vi"),
-        buildLocalizedString(plainText, "vi"),
-        buildLocalizedHtml(sanitizeBasicHtml(docHtml), "vi"),
-      ]);
-
-      const localePayload = buildPostLocaleWritePayload(
-        titleLocales,
-        descriptionLocales,
-        contentHtmlLocales,
-        {
-          sourceLocale: "vi",
-          existingSlugs: editMeta?.existingSlugs,
-          slugSuffix: Date.now().toString(36),
-        },
-      );
+      const localePayload = await requestPostTranslation({
+        title: titleTrim,
+        description: plainText,
+        contentHtml: sanitizeBasicHtml(docHtml),
+        sourceLocale: "vi",
+        existingSlugs: editMeta?.existingSlugs,
+        slugSuffix: Date.now().toString(36),
+      });
 
       if (editMeta) {
         await updateDoc(doc(db, "posts", editMeta.id), {

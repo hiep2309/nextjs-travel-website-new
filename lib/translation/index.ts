@@ -22,4 +22,12 @@ export {
   buildLocalizedHtmlServer,
   translatePostFields,
 } from "./buildLocalizedContent";
+export { runPostTranslationPipeline } from "./pipeline";
+export { requestPostTranslation } from "./requestPostTranslation";
+export type {
+  RequestPostTranslationBody,
+  RequestPostTranslationResponse,
+} from "./requestPostTranslation";
+export { extractPostSourceFields } from "./extractPostSource";
+export type { PostSourceFields } from "./extractPostSource";
 export { isGeminiTranslationAvailable } from "./providers/gemini";

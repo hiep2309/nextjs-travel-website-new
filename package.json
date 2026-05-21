@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "translate:posts": "node scripts/translate-posts-ai.mjs",
+    "translate:posts:dry": "node scripts/translate-posts-ai.mjs --dry-run"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

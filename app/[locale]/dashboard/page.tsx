@@ -15,13 +15,14 @@ import { useRouter } from "next/navigation";
 import { Link } from "@/lib/i18n/navigation";
 import type { AppLocale } from "@/i18n/routing";
 import { pickLocalized } from "@/lib/i18n/content";
-import type { LocalizedString } from "@/lib/i18n/types";
+import type { LocalizedSlug, LocalizedString } from "@/lib/i18n/types";
 import {
   collection,
   deleteDoc,
   doc,
   getDocs,
   query,
+  serverTimestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -43,6 +44,7 @@ import {
   Plane,
   Search,
   Shield,
+  Sparkles,
   Trash2,
   Users,
 } from "lucide-react";
@@ -50,12 +52,17 @@ import { db } from "@/lib/firebase";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { useAuth } from "@/hooks/useAuth";
 import { notifyPostApproved } from "@/lib/posts/notifyAuthor";
+import { extractPostSourceFields } from "@/lib/translation/extractPostSource";
+import { requestPostTranslation } from "@/lib/translation/requestPostTranslation";
 
 type PostRow = {
   id: string;
   title?: LocalizedString | string;
   name?: LocalizedString | string;
   description?: LocalizedString | string;
+  contentHtml?: LocalizedString | string;
+  slugs?: LocalizedSlug;
+  sourceLocale?: AppLocale;
   image?: string;
   authorName?: string;
   authorId?: string;
@@ -139,6 +146,7 @@ export default function DashboardPage() {
   const [usersList, setUsersList] = useState<UserRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [translatingId, setTranslatingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
@@ -204,6 +212,51 @@ export default function DashboardPage() {
     ],
     [totalPosts, approvedPosts.length, pendingPosts.length, roleCounts.total, usersList.length],
   );
+
+  const handleTranslatePost = async (postId: string) => {
+    const target = allPosts.find((p) => p.id === postId);
+    if (!target) return;
+    setTranslatingId(postId);
+    setBanner(null);
+    try {
+      const source = extractPostSourceFields(postId, target as Record<string, unknown>);
+      if (!source.title.trim() || !source.contentHtml.trim()) {
+        setBanner({ type: "err", text: t("translateMissing") });
+        return;
+      }
+      const payload = await requestPostTranslation({
+        title: source.title,
+        description: source.description,
+        contentHtml: source.contentHtml,
+        sourceLocale: source.sourceLocale,
+        existingSlugs: source.existingSlugs,
+      });
+      await updateDoc(doc(db, "posts", postId), {
+        ...payload,
+        updatedAt: serverTimestamp(),
+      });
+      setAllPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                title: payload.title,
+                description: payload.description,
+                contentHtml: payload.contentHtml,
+                slugs: payload.slugs,
+                sourceLocale: payload.sourceLocale,
+              }
+            : p,
+        ),
+      );
+      setBanner({ type: "ok", text: t("translateOk") });
+    } catch (err) {
+      console.error(err);
+      setBanner({ type: "err", text: t("translateErr") });
+    } finally {
+      setTranslatingId(null);
+    }
+  };
 
   const handleApprove = async (postId: string) => {
     const target = allPosts.find((p) => p.id === postId);
@@ -573,6 +626,16 @@ export default function DashboardPage() {
                               </div>
                               </div>
                               <div className="flex shrink-0 justify-end gap-1 sm:justify-start">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleTranslatePost(post.id)}
+                                  disabled={translatingId === post.id}
+                                  className="rounded-lg border border-violet-200 bg-violet-50 p-2 text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+                                  aria-label={t("translatePost")}
+                                  title={t("translatePost")}
+                                >
+                                  <Sparkles className={`size-4 ${translatingId === post.id ? "animate-pulse" : ""}`} />
+                                </button>
                                 <Link
                                   href={`/create-post?edit=${post.id}`}
                                   className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100"
@@ -675,6 +738,16 @@ export default function DashboardPage() {
                                 </td>
                                 <td className="py-3 text-right">
                                   <div className="inline-flex items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleTranslatePost(post.id)}
+                                      disabled={translatingId === post.id}
+                                      className="inline-flex rounded-lg p-1.5 text-violet-600 hover:bg-violet-50 disabled:opacity-50"
+                                      aria-label={t("translatePost")}
+                                      title={t("translatePost")}
+                                    >
+                                      <Sparkles className={`size-4 ${translatingId === post.id ? "animate-pulse" : ""}`} />
+                                    </button>
                                     <Link
                                       href={`/create-post?edit=${post.id}`}
                                       className="inline-flex rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
