@@ -133,7 +133,14 @@ export function normalizeTravelPost(id: string, raw: Record<string, unknown>): T
     sourceLocale: (raw.sourceLocale as AppLocale) ?? defaultLocale,
     name: legacyName,
     slug: legacySlug,
-    image: typeof raw.image === "string" ? raw.image : undefined,
+    image:
+      typeof raw.image === "string" && raw.image.trim()
+        ? raw.image.trim()
+        : Array.isArray(raw.images) && typeof raw.images[0] === "string" && raw.images[0].trim()
+          ? raw.images[0].trim()
+          : typeof raw.thumb === "string" && raw.thumb.trim()
+            ? raw.thumb.trim()
+            : undefined,
     images: Array.isArray(raw.images) ? (raw.images as string[]) : undefined,
     thumb: typeof raw.thumb === "string" ? raw.thumb : undefined,
     region: typeof raw.region === "string" ? raw.region : undefined,

@@ -19,5 +19,5 @@ export function canEditPost(
 ): boolean {
   if (!uid) return false;
   if (role === "admin") return true;
-  return Boolean(authorId && authorId === uid && status === "pending");
+  return Boolean(authorId && authorId === uid);
 }

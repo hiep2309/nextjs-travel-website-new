@@ -4,6 +4,7 @@
 export const COLLECTIONS = {
   users: "users",
   posts: "posts",
+  savedItineraries: "saved_itineraries",
 } as const;
 
 /**

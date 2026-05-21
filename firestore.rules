@@ -55,7 +55,7 @@ service cloud.firestore {
         || viewCountOnlyBump()
         || (request.auth != null
           && request.auth.uid == resource.data.authorId
-          && resource.data.status == "pending");
+          && request.resource.data.authorId == resource.data.authorId);
 
       allow delete: if isAdmin()
         || (request.auth != null && request.auth.uid == resource.data.authorId);
@@ -67,6 +67,13 @@ service cloud.firestore {
       allow update: if request.auth != null
         && resource.data.userId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    match /saved_itineraries/{itineraryId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }

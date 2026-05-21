@@ -33,6 +33,7 @@ import { auth, db, storage } from "@/lib/firebase";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
 import { ContentCardOverlay } from "@/components/cards";
+import ProfileItinerariesPanel from "@/components/itinerary/ProfileItinerariesPanel";
 import { buildDestinationModelForProvince } from "@/hooks/useDestinationPageModel";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { getProvinceBySlug } from "@/lib/provinceSlug";
@@ -50,7 +51,7 @@ import {
 
 const glass = "rounded-2xl border border-white/15 bg-white/[0.06] shadow-xl backdrop-blur-xl";
 
-type TabId = "saved" | "history" | "reviews";
+type TabId = "saved" | "itineraries" | "history" | "reviews";
 type FilterId = "all" | "destination" | "post";
 
 type ContentRow = {
@@ -127,13 +128,14 @@ const AVATAR_MAX_MB = 5;
 export default function ProfileDashboard({ profile }: { profile: MergedProfile }) {
   const router = useRouter();
   const locale = useLocale() as AppLocale;
+  const tProfile = useTranslations("Profile");
   const tDest = useTranslations("Destinations");
   const { logout } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarLocalUrl, setAvatarLocalUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [tick, setTick] = useState(0);
-  const [tab, setTab] = useState<TabId>("saved");
+  const [tab, setTab] = useState<TabId>("itineraries");
   const [filter, setFilter] = useState<FilterId>("all");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
   const [rows, setRows] = useState<ContentRow[]>([]);
@@ -349,9 +351,10 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
   };
 
   const tabs: { id: TabId; label: string; icon: typeof Bookmark }[] = [
-    { id: "saved", label: "Đã lưu", icon: Bookmark },
-    { id: "history", label: "Đã xem", icon: History },
-    { id: "reviews", label: "Đánh giá", icon: Star },
+    { id: "itineraries", label: tProfile("itineraries"), icon: Sparkles },
+    { id: "saved", label: tProfile("saved"), icon: Bookmark },
+    { id: "history", label: tProfile("viewed"), icon: History },
+    { id: "reviews", label: tProfile("reviews"), icon: Star },
   ];
 
   return (
@@ -368,7 +371,9 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                   type="button"
                   onClick={() => setTab(id)}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
-                    tab === id ? "bg-white/15 text-white" : "text-white/65 hover:bg-white/10 hover:text-white"
+                    tab === id
+                      ? "bg-gradient-to-r from-violet-600/40 to-blue-600/30 text-white ring-1 ring-violet-400/30"
+                      : "text-white/65 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
@@ -404,16 +409,14 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
           </div>
 
           <div className={`${glass} relative mt-4 overflow-hidden p-5`}>
-            <Sparkles className="absolute right-3 top-3 size-8 text-amber-400/30" aria-hidden />
-            <p className="text-sm font-bold text-white">Lên lịch chuyến tiếp theo</p>
-            <p className="mt-2 text-xs leading-relaxed text-white/55">
-              Gợi ý điểm đến, tour và cẩm nang trên VN Insight.
-            </p>
+            <Sparkles className="absolute right-3 top-3 size-8 text-violet-400/30" aria-hidden />
+            <p className="text-sm font-bold text-white">{tProfile("plannerPromoTitle")}</p>
+            <p className="mt-2 text-xs leading-relaxed text-white/55">{tProfile("plannerPromoDesc")}</p>
             <Link
-              href="/explore"
-              className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white transition hover:bg-blue-500"
+              href="/ai-trip-planner"
+              className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-2.5 text-sm font-bold text-white transition hover:from-violet-500 hover:to-blue-500"
             >
-              Khám phá ngay
+              {tProfile("plannerPromoCta")}
               <ChevronRight className="size-4" aria-hidden />
             </Link>
           </div>
@@ -422,10 +425,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         <div className="min-w-0 flex-1 lg:flex lg:gap-8">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">VN Insight</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Trang cá nhân</h1>
-            <p className="mt-2 max-w-xl text-sm text-white/55">
-              Xem lại địa điểm và bài viết đã lưu, lịch sử xem gần đây, cùng các đánh giá bạn đã ghi nhận.
-            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{tProfile("title")}</h1>
+            <p className="mt-2 max-w-xl text-sm text-white/55">{tProfile("subtitle")}</p>
 
             {/* Profile header */}
             <div className={`${glass} mt-8 p-6 sm:p-8`}>
@@ -532,6 +533,10 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
               ))}
             </div>
 
+            {tab === "itineraries" ? (
+              <ProfileItinerariesPanel userId={profile.uid} />
+            ) : (
+              <>
             <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2">
                 {(
@@ -597,6 +602,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                   />
                 ))}
               </div>
+            )}
+            </>
             )}
 
             <button

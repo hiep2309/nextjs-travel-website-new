@@ -4,7 +4,7 @@
 "use client";
 
 import Image from "next/image";
-import { LogIn, Menu, Settings, Compass, LogOut, LayoutDashboard } from "lucide-react";
+import { LogIn, Menu, Settings, Compass, LogOut, LayoutDashboard, Bookmark } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { User } from "firebase/auth";
 import { useTranslations } from "next-intl";
@@ -176,6 +176,15 @@ const Navbar = () => {
                           </Link>
                         )}
                         <Link
+                          href="/saved-itineraries"
+                          onClick={() => setOpenMenu(false)}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-white transition hover:bg-white/10"
+                          role="menuitem"
+                        >
+                          <Bookmark className="size-4 shrink-0 text-violet-300" aria-hidden />
+                          {t("savedItineraries")}
+                        </Link>
+                        <Link
                           href="/profile"
                           onClick={() => setOpenMenu(false)}
                           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-white transition hover:bg-white/10"
@@ -290,6 +299,13 @@ const Navbar = () => {
                     className="block w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 text-center text-sm font-bold text-white shadow-lg shadow-violet-900/30"
                   >
                     {t("viewProfile")}
+                  </Link>
+                  <Link
+                    href="/saved-itineraries"
+                    onClick={closeMobile}
+                    className="block w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-center text-sm font-semibold text-white"
+                  >
+                    {t("savedItineraries")}
                   </Link>
                   {role === "admin" && (
                     <Link

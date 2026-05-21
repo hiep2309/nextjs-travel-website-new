@@ -1,11 +1,17 @@
 "use client";
 
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Bookmark, Share2 } from "lucide-react";
+import { Bookmark, Check, Share2 } from "lucide-react";
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import type { PlannerFormData, TripPlan } from "@/lib/planner/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FirebaseError } from "firebase/app";
+import { useLocale, useTranslations } from "next-intl";
+import type { AppLocale } from "@/i18n/routing";
+import { Link } from "@/i18n/navigation";
+import AuthPromptModal from "@/components/itinerary/AuthPromptModal";
+import { useAuth } from "@/hooks/useAuth";
+import { saveItinerary, updateItineraryPlan } from "@/lib/itinerary/saveItinerary";
+import type { PlannerFormData, TripPlan, TripPlanMeta } from "@/lib/planner/types";
 import { easeOut } from "@/lib/planner/motionPresets";
 import TripTimeline from "./TripTimeline";
 import CostSummary from "./CostSummary";
@@ -20,13 +26,27 @@ type TabId = "overview" | "map" | "cost" | number;
 type Props = {
   plan: TripPlan;
   form: PlannerFormData;
+  planMeta?: TripPlanMeta | null;
+  savedItineraryId?: string | null;
+  onSaved?: (id: string) => void;
 };
 
-export default function TripResults({ plan, form }: Props) {
+export default function TripResults({ plan, form, planMeta, savedItineraryId, onSaved }: Props) {
   const t = useTranslations("AiPlanner");
+  const locale = useLocale() as AppLocale;
+  const { user } = useAuth();
   const reduceMotion = useReducedMotion();
   const [tab, setTab] = useState<TabId>("overview");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(savedItineraryId ?? null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [toastError, setToastError] = useState(false);
+
+  useEffect(() => {
+    if (savedItineraryId) setSavedId(savedItineraryId);
+  }, [savedItineraryId]);
   const tabIndexRef = useRef(0);
   const [slideDir, setSlideDir] = useState(0);
 
@@ -56,16 +76,43 @@ export default function TripResults({ plan, form }: Props) {
     setTab(id);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
+    setSaving(true);
+    setToastError(false);
     try {
-      localStorage.setItem(
-        "vninsight_saved_trip",
-        JSON.stringify({ plan, form, savedAt: Date.now() }),
-      );
+      let id = savedId ?? savedItineraryId ?? null;
+      if (id) {
+        await updateItineraryPlan(id, user.uid, plan, form, locale);
+        setSavedId(id);
+      } else {
+        id = await saveItinerary(user.uid, plan, form, locale);
+        setSavedId(id);
+        onSaved?.(id);
+      }
       setSaved(true);
-      window.setTimeout(() => setSaved(false), 2500);
-    } catch {
-      /* ignore */
+      setToast(t("saveSuccess"));
+      window.setTimeout(() => {
+        setSaved(false);
+        setToast(null);
+      }, 3500);
+    } catch (err) {
+      console.error("[TripResults] save failed", err);
+      const detail =
+        err instanceof FirebaseError && err.code === "permission-denied"
+          ? t("saveErrorPermission")
+          : t("saveError");
+      setToastError(true);
+      setToast(detail);
+      window.setTimeout(() => {
+        setToast(null);
+        setToastError(false);
+      }, 5000);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -97,6 +144,32 @@ export default function TripResults({ plan, form }: Props) {
       };
 
   return (
+    <>
+      <AuthPromptModal open={showAuth} onClose={() => setShowAuth(false)} />
+      <AnimatePresence>
+        {toast ? (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`mb-4 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm backdrop-blur-md ${
+              toastError
+                ? "border-red-400/30 bg-red-950/50 text-red-50"
+                : "border-emerald-400/30 bg-emerald-950/50 text-emerald-50"
+            }`}
+          >
+            <span className="inline-flex items-center gap-2">
+              {!toastError ? <Check className="size-4 text-emerald-300" /> : null}
+              {toast}
+            </span>
+            {savedId ? (
+              <Link href={`/saved-itineraries/${savedId}`} className="shrink-0 font-semibold text-emerald-200 underline-offset-2 hover:underline">
+                {t("viewSaved")}
+              </Link>
+            ) : null}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     <motion.div
       initial={reduceMotion ? false : { opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
@@ -105,7 +178,19 @@ export default function TripResults({ plan, form }: Props) {
     >
       <div className="flex flex-col gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-start sm:justify-between sm:pb-5">
         <div className="min-w-0">
-          <h2 className="text-lg font-bold text-white sm:text-xl lg:text-2xl">{t("resultsTitle")}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-bold text-white sm:text-xl lg:text-2xl">{t("resultsTitle")}</h2>
+            {planMeta?.source === "fallback" ? (
+              <span className="rounded-full border border-amber-400/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-100">
+                {t("fallbackBadge")}
+              </span>
+            ) : null}
+            {planMeta?.source === "cache" ? (
+              <span className="rounded-full border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-100">
+                {t("cachedBadge")}
+              </span>
+            ) : null}
+          </div>
           <p className="mt-1 line-clamp-2 text-xs text-white/55 sm:text-sm">
             {plan.trip_title} · {form.days} {t("daysShort")} · {travelStyleLabel} · {transportLabel} ·{" "}
             {paceLabel} · {form.travelers} {t("people")}
@@ -114,11 +199,14 @@ export default function TripResults({ plan, form }: Props) {
         <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
           <button
             type="button"
-            onClick={handleSave}
-            className="touch-manipulation inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white transition active:scale-[0.98] hover:bg-white/10 sm:px-4"
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className="touch-manipulation inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white transition active:scale-[0.98] hover:bg-white/10 disabled:opacity-60 sm:px-4"
           >
-            <Bookmark className={`size-4 shrink-0 ${saved ? "fill-violet-300" : ""}`} />
-            <span className="truncate">{saved ? t("saved") : t("save")}</span>
+            <Bookmark className={`size-4 shrink-0 ${saved || savedId ? "fill-violet-300" : ""}`} />
+            <span className="truncate">
+              {saving ? t("saving") : saved ? t("saved") : savedId ? t("updateSave") : t("save")}
+            </span>
           </button>
           <button
             type="button"
@@ -220,5 +308,6 @@ export default function TripResults({ plan, form }: Props) {
         </motion.div>
       </AnimatePresence>
     </motion.div>
+    </>
   );
 }

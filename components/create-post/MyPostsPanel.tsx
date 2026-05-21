@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { db } from "@/lib/firebase";
 import { postBelongsToSection, resolvePostType, type PostSection, sectionForPostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
+import { resolvePostCoverImage } from "@/lib/posts/coverImage";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import type { TravelPost } from "@/lib/travelPost";
 
@@ -151,9 +152,13 @@ export default function MyPostsPanel({ authorId, refreshKey = 0 }: Props) {
                     className="flex min-w-0 flex-1 gap-3 transition hover:opacity-90"
                   >
                     <span className="relative h-14 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-800">
-                      {p.image?.trim() ? (
-                        <Image src={p.image} alt="" fill className="object-cover" sizes="64px" />
-                      ) : null}
+                      <Image
+                        src={resolvePostCoverImage(p)}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="64px"
+                      />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-xs font-bold leading-snug text-white">

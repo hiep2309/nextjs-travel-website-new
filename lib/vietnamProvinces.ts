@@ -16,7 +16,7 @@ export type ProvinceDef = {
  */
 const LOCAL_PROVINCE_IMAGE_BY_NAME: Record<string, string> = {
   "Hà Nội": "/Hà Nội — Hồ Hoàn Kiếm2.jpg",
-  "Hải Phòng": "/Hải Phòng — Vịnh Lan Hạ.jpg",
+  "Hải Phòng": "/Hải Phòng — Vịnh Lan Hạ3.jpg",
   "Đà Nẵng": "/Đà Nẵng — Biển Mỹ Khê.jpg",
   "Huế": "/Huế — Đại Nội.jpg",
   "An Giang": "/Phú Yên — Gành Đá Đĩa.jpg",

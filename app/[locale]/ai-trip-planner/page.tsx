@@ -2,6 +2,7 @@
  * AI Trip Planner — Gemini-powered itinerary generator.
  */
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import AiTripPlannerClient from "@/components/planner/AiTripPlannerClient";
 import { initPageLocale } from "@/lib/i18n/server";
 import { generatePageMetadata, PAGE_META } from "@/lib/i18n/pageMetadata";
@@ -14,5 +15,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default function AiTripPlannerPage({ params }: Props) {
   initPageLocale(params.locale);
-  return <AiTripPlannerClient />;
+  return (
+    <Suspense fallback={null}>
+      <AiTripPlannerClient />
+    </Suspense>
+  );
 }

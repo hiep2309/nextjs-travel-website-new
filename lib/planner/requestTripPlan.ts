@@ -1,15 +1,16 @@
 import type { AppLocale } from "@/i18n/routing";
-import type { PlannerFormData, TripPlan } from "@/lib/planner/types";
+import { PlannerError, type PlannerErrorCode } from "@/lib/planner/plannerErrors";
+import type { PlannerFormData, TripPlanMeta, TripPlanResult } from "@/lib/planner/types";
 
-export type TripPlanApiResponse = {
-  plan?: TripPlan;
+export type TripPlanApiResponse = TripPlanResult & {
   error?: string;
+  code?: PlannerErrorCode;
 };
 
 export async function requestTripPlan(
   form: PlannerFormData,
   locale: AppLocale = "vi",
-): Promise<TripPlan> {
+): Promise<TripPlanResult> {
   const res = await fetch("/api/ai-trip", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -22,10 +23,11 @@ export async function requestTripPlan(
 
   if (!contentType.includes("application/json")) {
     const snippet = raw.replace(/\s+/g, " ").slice(0, 80);
-    throw new Error(
+    throw new PlannerError(
       res.ok
         ? "Server returned non-JSON response"
-        : `API error (${res.status}): ${snippet || "HTML error page — restart dev server and check /api/ai-trip"}`,
+        : `API error (${res.status}): ${snippet || "HTML error page"}`,
+      "UNKNOWN",
     );
   }
 
@@ -33,15 +35,20 @@ export async function requestTripPlan(
   try {
     data = JSON.parse(raw) as TripPlanApiResponse;
   } catch {
-    throw new Error("Invalid JSON from API");
+    throw new PlannerError("Invalid JSON from API", "UNKNOWN");
   }
 
   if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+    throw new PlannerError(data.error || `Request failed (${res.status})`, data.code ?? "UNKNOWN");
   }
   if (!data.plan) {
-    throw new Error("AI returned empty itinerary");
+    throw new PlannerError("AI returned empty itinerary", "INVALID_PLAN");
   }
 
-  return data.plan;
+  return {
+    plan: data.plan,
+    meta: data.meta ?? ({ source: "ai" } satisfies TripPlanMeta),
+  };
 }
+
+export { PlannerError, type PlannerErrorCode };

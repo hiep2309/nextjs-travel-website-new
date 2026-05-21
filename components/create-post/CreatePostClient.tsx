@@ -17,7 +17,7 @@ import { canEditPost } from "@/lib/posts/permissions";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useTravelTimeLabels } from "@/hooks/useTravelTimeLabels";
 import { requestPostTranslation } from "@/lib/translation/requestPostTranslation";
-import { normalizeLocalizedSlug, normalizeLocalizedString } from "@/lib/firestore/multilingual";
+import { normalizeLocalizedSlug, normalizeLocalizedString, buildPostLocaleWritePayload } from "@/lib/firestore/multilingual";
 import type { LocalizedSlug } from "@/lib/i18n/types";
 import {
   Bookmark,
@@ -102,6 +102,9 @@ export default function CreatePostClient() {
     status: string;
     existingUrls: string[];
     existingSlugs?: LocalizedSlug;
+    existingTitle?: unknown;
+    existingDescription?: unknown;
+    existingContentHtml?: unknown;
   } | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(Boolean(editPostId));
 
@@ -203,7 +206,15 @@ export default function CreatePostClient() {
         setTagsRaw(Array.isArray(data.tags) ? (data.tags as string[]).join(", ") : "");
         setDocHtml(htmlVi);
         initialHtmlRef.current = htmlVi;
-        setEditMeta({ id: editPostId, status, existingUrls: images, existingSlugs });
+        setEditMeta({
+          id: editPostId,
+          status,
+          existingUrls: images,
+          existingSlugs,
+          existingTitle: data.title,
+          existingDescription: data.description,
+          existingContentHtml: data.contentHtml,
+        });
         editLoadedIdRef.current = editPostId;
         setHydrated(true);
       } catch {
@@ -421,14 +432,31 @@ export default function CreatePostClient() {
       const primary = allUrls[0]!;
 
       setBanner({ kind: "ok", text: t("translating") });
-      const localePayload = await requestPostTranslation({
-        title: titleTrim,
-        description: plainText,
-        contentHtml: sanitizeBasicHtml(docHtml),
-        sourceLocale: "vi",
-        existingSlugs: editMeta?.existingSlugs,
-        slugSuffix: Date.now().toString(36),
-      });
+      let localePayload;
+      try {
+        localePayload = await requestPostTranslation({
+          title: titleTrim,
+          description: plainText,
+          contentHtml: sanitizeBasicHtml(docHtml),
+          sourceLocale: "vi",
+          existingSlugs: editMeta?.existingSlugs,
+          slugSuffix: Date.now().toString(36),
+        });
+      } catch (translateErr) {
+        if (!editMeta) throw translateErr;
+        console.warn("[CreatePost] translation failed on edit, saving Vietnamese only", translateErr);
+        const titleMap = normalizeLocalizedString(editMeta.existingTitle, titleTrim);
+        titleMap.vi = titleTrim;
+        const descMap = normalizeLocalizedString(editMeta.existingDescription, plainText);
+        descMap.vi = plainText;
+        const htmlMap = normalizeLocalizedString(editMeta.existingContentHtml, docHtml);
+        htmlMap.vi = sanitizeBasicHtml(docHtml);
+        localePayload = buildPostLocaleWritePayload(titleMap, descMap, htmlMap, {
+          sourceLocale: "vi",
+          existingSlugs: editMeta.existingSlugs,
+        });
+        setBanner({ kind: "ok", text: t("savedViOnly") });
+      }
 
       if (editMeta) {
         await updateDoc(doc(db, "posts", editMeta.id), {

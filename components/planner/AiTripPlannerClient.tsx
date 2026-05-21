@@ -1,34 +1,96 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { RefreshCw, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
 import { getDefaultPlannerForm } from "@/lib/planner/i18n";
+import { getItineraryById } from "@/lib/itinerary/getItineraries";
 import { panelEnter } from "@/lib/planner/motionPresets";
-import { requestTripPlan } from "@/lib/planner/requestTripPlan";
-import type { PlannerFormData, TripPlan } from "@/lib/planner/types";
+import {
+  PlannerError,
+  requestTripPlan,
+  type PlannerErrorCode,
+} from "@/lib/planner/requestTripPlan";
+import type { PlannerFormData, TripPlan, TripPlanMeta } from "@/lib/planner/types";
+import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { usePlannerCooldown } from "@/hooks/usePlannerCooldown";
 import PlannerForm from "./PlannerForm";
+import PlannerFallbackBanner from "./PlannerFallbackBanner";
 import PlannerLoading from "./PlannerLoading";
 import TripResults from "./TripResults";
+
+function resolveErrorMessage(
+  code: PlannerErrorCode | null,
+  fallback: string,
+  t: ReturnType<typeof useTranslations<"AiPlanner">>,
+): string {
+  switch (code) {
+    case "PARSE_FAILED":
+      return t("errorParse");
+    case "INVALID_PLAN":
+      return t("errorInvalidPlan");
+    case "TRUNCATED":
+      return t("errorTruncated");
+    case "QUOTA":
+      return t("errorQuota");
+    case "BLOCKED":
+      return t("errorBlocked");
+    case "API_KEY":
+      return fallback;
+    default:
+      return fallback || t("errorGeneric");
+  }
+}
 
 export default function AiTripPlannerClient() {
   const t = useTranslations("AiPlanner");
   const locale = useLocale() as AppLocale;
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const reduceMotion = useReducedMotion();
   const resultsRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<PlannerFormData>(() => getDefaultPlannerForm(locale));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<PlannerErrorCode | null>(null);
   const [plan, setPlan] = useState<TripPlan | null>(null);
+  const { isCoolingDown, remainingSec, startCooldown } = usePlannerCooldown();
+  const [planMeta, setPlanMeta] = useState<TripPlanMeta | null>(null);
+  const [loadedItineraryId, setLoadedItineraryId] = useState<string | null>(null);
 
   useEffect(() => {
     setForm(getDefaultPlannerForm(locale));
     setPlan(null);
+    setPlanMeta(null);
     setError(null);
+    setErrorCode(null);
+    setLoadedItineraryId(null);
   }, [locale]);
+
+  useEffect(() => {
+    const itineraryId = searchParams.get("itinerary");
+    if (!itineraryId || !user?.uid) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const row = await getItineraryById(user.uid, itineraryId);
+        if (cancelled || !row) return;
+        setForm(row.form);
+        setPlan(row.plan);
+        setLoadedItineraryId(row.id);
+      } catch {
+        /* ignore — user can regenerate */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, user?.uid]);
 
   useEffect(() => {
     if (!plan || !isMobile) return;
@@ -39,17 +101,28 @@ export default function AiTripPlannerClient() {
   }, [plan, isMobile, reduceMotion]);
 
   const generate = async () => {
+    if (isCoolingDown) return;
     setLoading(true);
     setError(null);
+    setErrorCode(null);
     setPlan(null);
+    setPlanMeta(null);
     if (isMobile) {
       resultsRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     }
     try {
       const result = await requestTripPlan(form, locale);
-      setPlan(result);
+      setPlan(result.plan);
+      setPlanMeta(result.meta);
+      if (result.meta.source === "fallback" && result.meta.fallbackReason === "quota") {
+        startCooldown();
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errorGeneric"));
+      const code = err instanceof PlannerError ? err.code : null;
+      const fallback = err instanceof Error ? err.message : t("errorGeneric");
+      setErrorCode(code);
+      setError(resolveErrorMessage(code, fallback, t));
+      if (code === "QUOTA") startCooldown();
     } finally {
       setLoading(false);
     }
@@ -73,10 +146,19 @@ export default function AiTripPlannerClient() {
             value={form}
             onChange={setForm}
             onSubmit={() => void generate()}
-            loading={loading}
+            loading={loading || isCoolingDown}
           />
 
           <div ref={resultsRef} className="min-w-0 scroll-mt-24 lg:scroll-mt-28">
+            {planMeta ? (
+              <PlannerFallbackBanner
+                meta={planMeta}
+                loading={loading}
+                isCoolingDown={isCoolingDown}
+                remainingSec={remainingSec}
+                onRetry={() => void generate()}
+              />
+            ) : null}
             <AnimatePresence mode="wait">
               {error ? (
                 <motion.div
@@ -84,25 +166,55 @@ export default function AiTripPlannerClient() {
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="mb-4 rounded-2xl border border-red-500/40 bg-red-950/50 px-4 py-3 text-sm text-red-100"
+                  className="mb-4 overflow-hidden rounded-2xl border border-red-500/35 bg-gradient-to-br from-red-950/70 via-red-950/50 to-slate-950/80 p-4 shadow-xl shadow-red-950/30 backdrop-blur-md sm:p-5"
                   role="alert"
                 >
-                  {error}
-                  {error.includes("GEMINI_API_KEY") ? (
-                    <p className="mt-2 text-xs text-red-200/80">{t("errorApiKey")}</p>
-                  ) : null}
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-red-500/20 ring-1 ring-red-400/30">
+                      <Sparkles className="size-4 text-red-200" aria-hidden />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-red-50">{error}</p>
+                      {errorCode === "API_KEY" || error.includes("GEMINI_API_KEY") ? (
+                        <p className="mt-2 text-xs leading-relaxed text-red-200/80">{t("errorApiKey")}</p>
+                      ) : (
+                        <p className="mt-1.5 text-xs text-red-200/70">{t("errorParseHint")}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void generate()}
+                        disabled={loading || isCoolingDown}
+                        className="touch-manipulation mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-2.5 text-sm font-semibold text-red-50 transition hover:bg-red-500/25 active:scale-[0.98] disabled:opacity-60"
+                      >
+                        <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden />
+                        {isCoolingDown ? t("retryIn", { seconds: remainingSec }) : t("errorRetry")}
+                      </button>
+                    </div>
+                  </div>
                 </motion.div>
               ) : null}
             </AnimatePresence>
 
             <AnimatePresence mode="wait">
               {loading ? (
-                <motion.div key="loading" {...(reduceMotion ? {} : { variants: panelEnter, initial: "hidden", animate: "show", exit: "exit" })}>
+                <motion.div
+                  key="loading"
+                  {...(reduceMotion ? {} : { variants: panelEnter, initial: "hidden", animate: "show", exit: "exit" })}
+                >
                   <PlannerLoading />
                 </motion.div>
               ) : plan ? (
-                <motion.div key="plan" {...(reduceMotion ? {} : { variants: panelEnter, initial: "hidden", animate: "show" })}>
-                  <TripResults plan={plan} form={form} />
+                <motion.div
+                  key="plan"
+                  {...(reduceMotion ? {} : { variants: panelEnter, initial: "hidden", animate: "show" })}
+                >
+                  <TripResults
+                    plan={plan}
+                    form={form}
+                    planMeta={planMeta}
+                    savedItineraryId={loadedItineraryId}
+                    onSaved={setLoadedItineraryId}
+                  />
                 </motion.div>
               ) : (
                 <motion.div

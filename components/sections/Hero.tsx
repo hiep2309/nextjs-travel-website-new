@@ -15,11 +15,11 @@ import { pickLocalized } from "@/lib/i18n/content";
 import { useLocalizedPost } from "@/hooks/useLocalizedPost";
 import type { AppLocale } from "@/i18n/routing";
 import type { TravelPost } from "@/lib/travelPost";
+import { resolvePostCoverImage } from "@/lib/posts/coverImage";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import dynamic from "next/dynamic";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 
 function HeroMapLoading() {
   const t = useTranslations("Hero");
@@ -365,14 +365,7 @@ const Hero = () => {
   const visitCount = Number(displayPost.viewCount ?? displayPost.views ?? displayPost.number ?? 0);
   const featuredHref = topPost?.id ? `/posts/${topPost.id}` : "/explore";
 
-  const regionLabel = (displayPost.region ?? "").trim();
-  const provinceForFeatured = regionLabel
-    ? VIETNAM_PROVINCES.find((p) => p.name === regionLabel)
-    : undefined;
-  /** Đã khớp tỉnh trong catalog → chỉ dùng ảnh catalog (có thể rỗng); chưa khớp → ảnh bài / mặc định. */
-  const featuredCardImage = provinceForFeatured
-    ? provinceForFeatured.image
-    : (displayPost.image || place.image || HOI_AN_DEFAULT.image!);
+  const featuredCardImage = resolvePostCoverImage(displayPost);
 
   /** Thời tiết gọi theo tọa độ `place` — luôn gắn với khu vực bài đang nổi bật */
   const weatherDestinationLine =

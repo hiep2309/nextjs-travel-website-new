@@ -58,13 +58,6 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!isGeminiConfigured()) {
-    return NextResponse.json(
-      { error: "GEMINI_API_KEY is not configured" },
-      { status: 503, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
   try {
     let body: unknown;
     try {
@@ -78,13 +71,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid planner input" }, { status: 400 });
     }
 
-    const plan = await generateTripPlan(data, data.locale);
-    return NextResponse.json({ plan }, { headers: { "Content-Type": "application/json" } });
+    const result = await generateTripPlan(data, data.locale ?? "vi");
+    return NextResponse.json(result, { headers: { "Content-Type": "application/json" } });
   } catch (err) {
     console.error("[api/ai-trip]", err);
-    const message = err instanceof Error ? err.message : "Failed to generate itinerary";
-    const status =
-      message.includes("GEMINI_API_KEY") ? 503 : message.includes("quota") ? 429 : 500;
-    return NextResponse.json({ error: message }, { status, headers: { "Content-Type": "application/json" } });
+    return NextResponse.json(
+      { error: "Failed to generate itinerary", code: "UNKNOWN" },
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }

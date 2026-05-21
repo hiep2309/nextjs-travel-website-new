@@ -45,6 +45,12 @@ export const PAGE_META = {
     titleKey: "title",
     descriptionKey: "subtitle",
   },
+  savedItineraries: {
+    namespace: "SavedItineraries",
+    path: "/saved-itineraries",
+    titleKey: "title",
+    descriptionKey: "subtitle",
+  },
   createPost: {
     namespace: "CreatePost",
     path: "/create-post",
