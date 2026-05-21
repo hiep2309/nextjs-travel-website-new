@@ -1,15 +1,13 @@
 /**
- * UI chi tiết địa điểm (theo tỉnh) — ảnh, giới thiệu, hoạt động gợi ý, ẩm thực, CTA.
- *
- * Chức năng:
- * - Nhận `slug` và resolve province; có thể đánh dấu đã lưu / đánh giá (localStorage).
- * - Liên kết tới `/explore` với filter tỉnh và các tour/guides liên quan.
+ * UI chi tiết địa điểm (theo tỉnh) — locale-aware via next-intl + localized province catalog.
  */
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import type { AppLocale } from "@/i18n/routing";
 import {
   BookOpen,
   Bookmark,
@@ -23,10 +21,10 @@ import {
   Check,
 } from "lucide-react";
 import type { ProvinceDef } from "@/lib/vietnamProvinces";
-import { buildDestinationPageModel } from "@/lib/destinationPageModel";
 import { TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { useAuth } from "@/hooks/useAuth";
+import { useDestinationPageModel } from "@/hooks/useDestinationPageModel";
 import {
   getSavedDestinationSlugs,
   getUserDestinationRating,
@@ -43,8 +41,18 @@ const ACCENT = {
 
 type Props = { province: ProvinceDef };
 
+function numberLocale(locale: AppLocale): string {
+  if (locale === "vi") return "vi-VN";
+  if (locale === "ko") return "ko-KR";
+  return "en-US";
+}
+
 export default function DestinationDetailClient({ province }: Props) {
-  const data = useMemo(() => buildDestinationPageModel(province), [province]);
+  const locale = useLocale() as AppLocale;
+  const t = useTranslations("Destinations");
+  const tc = useTranslations("Common");
+  const data = useDestinationPageModel(province);
+  const fmt = numberLocale(locale);
   const { user } = useAuth();
   const activityUid = user?.uid ?? null;
   const [saved, setSaved] = useState(false);
@@ -73,16 +81,16 @@ export default function DestinationDetailClient({ province }: Props) {
   const toggleSave = useCallback(() => {
     const next = toggleSavedDestinationSlug(data.slug, activityUid);
     setSaved(next);
-    showToast(next ? "Đã lưu địa điểm" : "Đã bỏ lưu");
-  }, [data.slug, showToast, activityUid]);
+    showToast(next ? t("saveToast") : t("unsaveToast"));
+  }, [data.slug, showToast, activityUid, t]);
 
   const applyMyRating = useCallback(
     (stars: number) => {
       setUserDestinationRating(data.slug, stars, activityUid);
       setMyStars(stars);
-      showToast(`Bạn đã chấm ${stars} sao — lưu trong trang cá nhân`);
+      showToast(t("rateToast", { stars }));
     },
-    [data.slug, showToast, activityUid],
+    [data.slug, showToast, activityUid, t],
   );
 
   const share = useCallback(async () => {
@@ -98,11 +106,11 @@ export default function DestinationDetailClient({ province }: Props) {
     }
     try {
       await navigator.clipboard.writeText(url);
-      showToast("Đã copy liên kết");
+      showToast(t("copyOk"));
     } catch {
-      showToast("Không copy được — hãy copy thanh địa chỉ.");
+      showToast(t("copyFail"));
     }
-  }, [data.headline, showToast]);
+  }, [data.headline, showToast, t]);
 
   const scrollToId = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -114,8 +122,8 @@ export default function DestinationDetailClient({ province }: Props) {
     "@context": "https://schema.org",
     "@type": "TouristDestination",
     name: data.headline,
-    description: data.province.summary,
-    touristType: data.province.region,
+    description: data.localized.summary,
+    touristType: data.localized.region,
   };
 
   return (
@@ -130,7 +138,6 @@ export default function DestinationDetailClient({ province }: Props) {
         </div>
       ) : null}
 
-      {/* Hero */}
       <section className="relative">
         <div className="relative h-[min(52vh,480px)] w-full sm:h-[min(58vh,560px)]">
           {data.heroImage.trim() ? (
@@ -154,14 +161,14 @@ export default function DestinationDetailClient({ province }: Props) {
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <nav className="-mt-28 flex flex-wrap gap-y-1 pb-4 text-[11px] font-medium text-white/65 sm:-mt-32 sm:text-xs">
             <Link href="/" className="hover:text-amber-400">
-              Home
+              {t("breadcrumbHome")}
             </Link>
             <ChevronRight className="mx-1 size-3.5 shrink-0 opacity-50" aria-hidden />
             <Link href="/explore" className="hover:text-amber-400">
-              Destinations
+              {t("breadcrumbExplore")}
             </Link>
             <ChevronRight className="mx-1 size-3.5 shrink-0 opacity-50" aria-hidden />
-            <span className="text-white/50">{data.province.region}</span>
+            <span className="text-white/50">{data.localized.region}</span>
             <ChevronRight className="mx-1 size-3.5 shrink-0 opacity-50" aria-hidden />
             <span className="text-amber-200/90">{data.headline}</span>
           </nav>
@@ -173,18 +180,18 @@ export default function DestinationDetailClient({ province }: Props) {
             <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/75">
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="size-4 text-amber-400" />
-                {data.province.name}
+                {data.localized.name}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="size-4 text-amber-400" />
-                {data.readMinutes} phút đọc
+                {data.readMinutes} {tc("readMin")}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Eye className="size-4 text-amber-400" />
-                {data.views.toLocaleString("vi-VN")} lượt xem
+                {data.views.toLocaleString(fmt)} {tc("views")}
               </span>
             </div>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/85">{data.province.summary}</p>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/85">{data.localized.summary}</p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -192,7 +199,7 @@ export default function DestinationDetailClient({ province }: Props) {
                 className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-violet-500"
               >
                 <Bookmark className={`size-4 ${saved ? "fill-white" : ""}`} />
-                {saved ? "Đã lưu" : "Lưu địa điểm"}
+                {saved ? t("saved") : t("save")}
               </button>
               <button
                 type="button"
@@ -200,13 +207,13 @@ export default function DestinationDetailClient({ province }: Props) {
                 className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/10"
               >
                 <Share2 className="size-4" />
-                Chia sẻ
+                {t("share")}
               </button>
               <div className="inline-flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-bold text-amber-200">
                 <Star className="size-4 fill-amber-400 text-amber-400" />
                 {data.rating.toFixed(1)}
                 <span className="font-normal text-amber-200/80">
-                  ({data.ratingCount.toLocaleString("vi-VN")} đánh giá)
+                  ({data.ratingCount.toLocaleString(fmt)} {t("reviews")})
                 </span>
               </div>
             </div>
@@ -219,19 +226,18 @@ export default function DestinationDetailClient({ province }: Props) {
           <section id="gioi-thieu" className="scroll-mt-28">
             <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-white">
               <BookOpen className="size-5 text-amber-400" />
-              Giới thiệu
+              {t("intro")}
             </h2>
             <p className="leading-relaxed text-slate-300">{data.intro}</p>
           </section>
 
           <section id="vi-sao" className="scroll-mt-28">
-            <h2 className="mb-6 text-xl font-bold text-white">Vì sao nên khám phá {data.province.name}?</h2>
+            <h2 className="mb-6 text-xl font-bold text-white">
+              {t("whyExplore", { name: data.localized.name })}
+            </h2>
             <div className="grid gap-4 sm:grid-cols-3">
               {data.whyCards.map((c) => (
-                <div
-                  key={c.key}
-                  className={`rounded-2xl border p-5 ${ACCENT[c.accent]}`}
-                >
+                <div key={c.key} className={`rounded-2xl border p-5 ${ACCENT[c.accent]}`}>
                   <Sparkles className="mb-3 size-6 opacity-90" />
                   <h3 className="mb-2 font-bold">{c.title}</h3>
                   <p className="text-sm leading-relaxed opacity-90">{c.body}</p>
@@ -241,7 +247,7 @@ export default function DestinationDetailClient({ province }: Props) {
           </section>
 
           <section id="trai-nghiem" className="scroll-mt-28">
-            <h2 className="mb-6 text-xl font-bold text-white">Trải nghiệm không thể bỏ lỡ</h2>
+            <h2 className="mb-6 text-xl font-bold text-white">{t("mustDo")}</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {data.experiences.map((ex) => (
                 <div
@@ -271,25 +277,28 @@ export default function DestinationDetailClient({ province }: Props) {
           </section>
 
           <section id="kinh-nghiem" className="scroll-mt-28">
-            <h2 className="mb-6 text-xl font-bold text-white">Kinh nghiệm du lịch</h2>
+            <h2 className="mb-6 text-xl font-bold text-white">{t("travelTips")}</h2>
             <ul className="space-y-3">
-              {data.tips.map((t) => (
-                <li key={t} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-slate-300">
+              {data.tips.map((tip) => (
+                <li
+                  key={tip}
+                  className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-slate-300"
+                >
                   <Check className="mt-0.5 size-5 shrink-0 text-emerald-400" aria-hidden />
-                  <span className="text-sm leading-relaxed">{t}</span>
+                  <span className="text-sm leading-relaxed">{tip}</span>
                 </li>
               ))}
             </ul>
           </section>
 
           <section id="chi-phi" className="scroll-mt-28">
-            <h2 className="mb-6 text-xl font-bold text-white">Chi phí tham khảo</h2>
+            <h2 className="mb-6 text-xl font-bold text-white">{t("costTitle")}</h2>
             <div className="overflow-hidden rounded-2xl border border-white/10">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-white/10 bg-white/[0.06] text-white/80">
-                    <th className="px-4 py-3 font-semibold">Hạng mục</th>
-                    <th className="px-4 py-3 font-semibold">Chi phí (ước lượng)</th>
+                    <th className="px-4 py-3 font-semibold">{t("costItem")}</th>
+                    <th className="px-4 py-3 font-semibold">{t("costEst")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -306,9 +315,9 @@ export default function DestinationDetailClient({ province }: Props) {
 
           <section id="hinh-anh" className="scroll-mt-28">
             <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-xl font-bold text-white">Hình ảnh</h2>
+              <h2 className="text-xl font-bold text-white">{t("gallery")}</h2>
               <Link href="/explore" className="text-sm font-semibold text-amber-400 hover:underline">
-                Xem tất cả
+                {t("viewAllGallery")}
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -333,7 +342,7 @@ export default function DestinationDetailClient({ province }: Props) {
           </section>
 
           <section id="lien-quan" className="scroll-mt-28">
-            <h2 className="mb-6 text-xl font-bold text-white">Bài viết / điểm đến liên quan</h2>
+            <h2 className="mb-6 text-xl font-bold text-white">{t("relatedSection")}</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {data.related.map((r) => (
                 <Link
@@ -358,7 +367,9 @@ export default function DestinationDetailClient({ province }: Props) {
                   </div>
                   <div className="min-w-0 py-1">
                     <p className="font-bold text-white group-hover:text-amber-300">{r.name}</p>
-                    <p className="mt-1 text-xs text-slate-400">{r.views.toLocaleString("vi-VN")} lượt xem</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {r.views.toLocaleString(fmt)} {tc("views")}
+                    </p>
                   </div>
                 </Link>
               ))}
@@ -366,25 +377,24 @@ export default function DestinationDetailClient({ province }: Props) {
           </section>
         </article>
 
-        {/* Sidebar */}
         <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
           <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 backdrop-blur-md">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400/90">Thông tin nhanh</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400/90">{t("quickInfo")}</h3>
             <dl className="mt-4 space-y-3 text-sm">
               <div>
-                <dt className="text-slate-500">Địa điểm</dt>
+                <dt className="text-slate-500">{t("location")}</dt>
                 <dd className="mt-0.5 text-slate-200">{data.quickInfo.location}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Thời gian lý tưởng</dt>
+                <dt className="text-slate-500">{t("idealTimeLabel")}</dt>
                 <dd className="mt-0.5 text-slate-200">{data.quickInfo.idealTime}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Chi phí ước tính</dt>
+                <dt className="text-slate-500">{t("estCostLabel")}</dt>
                 <dd className="mt-0.5 text-slate-200">{data.quickInfo.estCost}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Phù hợp</dt>
+                <dt className="text-slate-500">{t("suitabilityLabel")}</dt>
                 <dd className="mt-0.5 text-slate-200">{data.quickInfo.suitability}</dd>
               </div>
             </dl>
@@ -394,12 +404,12 @@ export default function DestinationDetailClient({ province }: Props) {
               rel="noopener noreferrer"
               className="mt-4 flex w-full items-center justify-center rounded-xl border border-amber-400/50 bg-amber-400/10 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/20"
             >
-              Xem trên bản đồ
+              {t("viewOnMap")}
             </a>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400/90">Mục lục</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400/90">{t("tocTitle")}</h3>
             <ol className="mt-4 space-y-2">
               {data.toc.map((item) => (
                 <li key={item.id}>
@@ -430,20 +440,20 @@ export default function DestinationDetailClient({ province }: Props) {
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent" />
             </div>
             <div className="p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-amber-400">Tour gợi ý</p>
-              <p className="mt-2 text-lg font-bold text-white">Tour trong ngày tại khu vực</p>
-              <p className="mt-1 text-sm text-slate-400">Xem lịch trình &amp; khởi hành trên trang Tours.</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-400">{t("tourSuggestTitle")}</p>
+              <p className="mt-2 text-lg font-bold text-white">{t("tourSuggestBody")}</p>
+              <p className="mt-1 text-sm text-slate-400">{t("tourSuggestDesc")}</p>
               <Link
                 href="/tours"
                 className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-white py-3 text-sm font-bold text-slate-900 transition hover:bg-white/90"
               >
-                Xem tour
+                {t("viewTours")}
               </Link>
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400/90">Đánh giá cộng đồng</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400/90">{t("communityReviews")}</h3>
             <div className="mt-3 flex items-end gap-2">
               <span className="text-3xl font-black text-white">{data.rating.toFixed(1)}</span>
               <span className="pb-1 text-sm text-slate-400">/ 5</span>
@@ -460,7 +470,7 @@ export default function DestinationDetailClient({ province }: Props) {
               {data.starBreakdown.map((row) => (
                 <div key={row.star} className="flex items-center gap-2 text-xs">
                   <span className="w-3 text-slate-500">{row.star}</span>
-                    <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
                     <div className="h-full rounded-full bg-amber-500/70" style={{ width: `${row.pct}%` }} />
                   </div>
                   <span className="w-8 text-right text-slate-500">{row.pct}%</span>
@@ -468,15 +478,15 @@ export default function DestinationDetailClient({ province }: Props) {
               ))}
             </div>
             <div className="mt-6 border-t border-white/10 pt-5">
-              <p className="text-xs font-bold uppercase tracking-wider text-violet-300/90">Đánh giá của bạn</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-violet-300/90">{t("yourRating")}</p>
               <p className="mt-1 text-xs text-slate-400">
-                {myStars ? `Bạn đã chấm ${myStars} sao — xem lại ở trang cá nhân.` : "Chạm sao để lưu điểm của bạn."}
+                {myStars ? t("rateSaved", { stars: myStars }) : t("rateHint")}
               </p>
               <div
                 className="mt-3 flex gap-1"
                 onMouseLeave={() => setHoverStar(null)}
                 role="group"
-                aria-label="Chấm điểm 1–5 sao"
+                aria-label={t("rateStarsGroup")}
               >
                 {[1, 2, 3, 4, 5].map((s) => {
                   const active = (hoverStar ?? myStars ?? 0) >= s;
@@ -489,7 +499,7 @@ export default function DestinationDetailClient({ province }: Props) {
                       onBlur={() => setHoverStar(null)}
                       onClick={() => applyMyRating(s)}
                       className="rounded-md p-1 text-amber-400 transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                      aria-label={`${s} sao`}
+                      aria-label={t("starAria", { n: s })}
                     >
                       <Star className={`size-7 ${active ? "fill-amber-400 text-amber-400" : "text-slate-600"}`} />
                     </button>
@@ -503,7 +513,7 @@ export default function DestinationDetailClient({ province }: Props) {
             href="/explore"
             className="flex items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-medium text-slate-300 hover:bg-white/5"
           >
-            ← Quay lại danh sách
+            {t("backToList")}
           </Link>
         </aside>
       </div>

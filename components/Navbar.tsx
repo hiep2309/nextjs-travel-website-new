@@ -1,5 +1,5 @@
 /**
- * Thanh điều hướng chính — i18n via next-intl, LocaleSwitcher, auth menu.
+ * Thanh điều hướng chính ??i18n via next-intl, LocaleSwitcher, auth menu.
  */
 "use client";
 
@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
+import NotificationBell from "@/components/NotificationBell";
 
 function userInitials(user: User) {
   const raw = user.displayName?.trim() || user.email?.split("@")[0] || "U";
@@ -57,6 +58,7 @@ const NAV_ITEMS = [
   { key: "tours", href: "/tours" },
   { key: "guides", href: "/guides" },
   { key: "blog", href: "/explore" },
+  { key: "aiPlanner", href: "/ai-trip-planner", badge: true },
 ] as const;
 
 const Navbar = () => {
@@ -102,9 +104,14 @@ const Navbar = () => {
               <Link
                 key={item.key}
                 href={item.href}
-                className="text-sm font-semibold text-gray-300 transition hover:text-blue-400"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-300 transition hover:text-blue-400"
               >
                 {t(item.key)}
+                {"badge" in item && item.badge ? (
+                  <span className="rounded-full bg-violet-600/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                    {t("new")}
+                  </span>
+                ) : null}
               </Link>
             ))}
             {!loading && user && role === "admin" && (
@@ -118,6 +125,8 @@ const Navbar = () => {
             <div className="hidden sm:flex">
               <LocaleSwitcher />
             </div>
+
+            <NotificationBell />
 
             <div className="hidden items-center gap-4 md:flex">
               {loading ? (
@@ -242,9 +251,14 @@ const Navbar = () => {
                 key={item.key}
                 href={item.href}
                 onClick={closeMobile}
-                className="block py-2 font-medium text-gray-300 hover:text-blue-400 touch-manipulation"
+                className="flex items-center gap-2 py-2 font-medium text-gray-300 hover:text-blue-400 touch-manipulation"
               >
                 {t(item.key)}
+                {"badge" in item && item.badge ? (
+                  <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    {t("new")}
+                  </span>
+                ) : null}
               </Link>
             ))}
             {!loading && user && role === "admin" && (

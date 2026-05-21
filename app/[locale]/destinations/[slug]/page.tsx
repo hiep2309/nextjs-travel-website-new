@@ -2,12 +2,14 @@
  * Multilingual destination detail — `/[locale]/destinations/[slug]`
  */
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 import { getProvinceBySlug, provinceNameToSlug } from "@/lib/provinceSlug";
 import { buildDestinationPageModel } from "@/lib/destinationPageModel";
+import { buildLocalizedProvinceFields } from "@/lib/content/localizedProvince";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
+import { initPageLocale } from "@/lib/i18n/server";
 import { absoluteUrl } from "@/lib/siteUrl";
 import DestinationDetailClient from "./DestinationDetailClient";
 
@@ -25,7 +27,9 @@ export async function generateMetadata({ params }: Props) {
   const p = getProvinceBySlug(params.slug);
   if (!p) return { title: "Not found", robots: { index: false } };
 
-  const model = buildDestinationPageModel(p);
+  const t = await getTranslations({ locale, namespace: "Destinations" });
+  const localized = buildLocalizedProvinceFields(p, locale);
+  const model = buildDestinationPageModel(p, locale, t, localized);
   const baseSlug = provinceNameToSlug(p.name);
 
   const meta = buildLocalizedMetadata({
@@ -34,7 +38,7 @@ export async function generateMetadata({ params }: Props) {
     slugs: { vi: baseSlug, en: baseSlug, ko: baseSlug },
     fallback: {
       title: `${model.headline} | VN Insight`,
-      description: p.summary,
+      description: localized.summary,
     },
   });
 
@@ -50,9 +54,7 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default function DestinationPage({ params }: Props) {
-  const locale = params.locale as AppLocale;
-  if (!routing.locales.includes(locale)) notFound();
-  setRequestLocale(locale);
+  const locale = initPageLocale(params.locale);
 
   const province = getProvinceBySlug(params.slug);
   if (!province) notFound();

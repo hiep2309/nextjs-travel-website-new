@@ -16,6 +16,7 @@ import { VIETNAM_PROVINCES, type ProvinceDef } from "@/lib/vietnamProvinces";
 import { provinceNameToSlug } from "@/lib/provinceSlug";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { useRegionLabel } from "@/hooks/useRegionLabel";
+import { useLocalizedProvince, useLocalizedProvinceName } from "@/hooks/useLocalizedProvince";
 
 const provinces = VIETNAM_PROVINCES;
 const defaultIndex = Math.max(0, provinces.findIndex((p) => p.name === "Đà Nẵng"));
@@ -68,19 +69,20 @@ function ProvinceChip({
 }) {
   const t = useTranslations("Province");
   const regionLabel = useRegionLabel(province.region);
+  const localizedName = useLocalizedProvinceName(province.name);
 
   return (
     <button
       ref={chipRef}
       type="button"
       onClick={() => onPick(index)}
-      title={`${province.name} — ${regionLabel}`}
+      title={`${localizedName} — ${regionLabel}`}
       className={`group relative flex h-[150px] w-[120px] shrink-0 snap-center flex-col overflow-hidden rounded-xl border text-left shadow-lg transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80 sm:h-[158px] sm:w-[128px] ${
         index === activeIndex
           ? "z-[1] scale-[1.06] border-2 border-white shadow-xl shadow-black/50 ring-2 ring-amber-400/70 snap-center"
           : "border-white/25 bg-slate-900/40 hover:border-white/50 hover:scale-[1.02] snap-center"
       }`}
-      aria-label={t("selectProvince", { name: province.name, region: regionLabel })}
+      aria-label={t("selectProvince", { name: localizedName, region: regionLabel })}
       aria-current={index === activeIndex ? "true" : undefined}
     >
       <div className="pointer-events-none absolute left-1.5 top-1.5 z-[2] flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white backdrop-blur-sm ring-1 ring-white/15">
@@ -95,7 +97,7 @@ function ProvinceChip({
           {regionLabel.toLocaleUpperCase()}
         </p>
         <p className="mt-0.5 line-clamp-2 break-words text-[11px] font-bold leading-snug text-white">
-          {province.name}
+          {localizedName}
         </p>
       </div>
     </button>
@@ -127,8 +129,9 @@ export default function ProvinceShowcase() {
   const isFirstCenterRef = useRef(true);
 
   const activeProvince = useMemo(() => provinces[activeIndex], [activeIndex]);
+  const activeLocalized = useLocalizedProvince(activeProvince);
   const activeRegionLabel = useRegionLabel(activeProvince.region);
-  const heroSummary = t("summaryTemplate", { name: activeProvince.name });
+  const heroSummary = activeLocalized.summary;
   activeIndexRef.current = activeIndex;
 
   const startFlyFromThumb = useCallback((index: number) => {
@@ -311,7 +314,7 @@ export default function ProvinceShowcase() {
                 {activeRegionLabel.toLocaleUpperCase()} · {t("vietnam")}
               </p>
               <h2 className="mb-5 text-4xl font-black uppercase leading-[0.92] tracking-tight sm:mb-6 sm:text-6xl lg:text-7xl">
-                {activeProvince.name.toLocaleUpperCase("vi-VN")}
+                {activeLocalized.name.toLocaleUpperCase()}
               </h2>
               <Link
                 href={`/destinations/${provinceNameToSlug(activeProvince.name)}`}

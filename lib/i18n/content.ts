@@ -3,6 +3,9 @@
  */
 import { defaultLocale, locales, type AppLocale } from "@/i18n/routing";
 import type { LocalizedSeo, LocalizedSlug, LocalizedString } from "./types";
+import { flattenLocalizedForSearch } from "@/lib/firestore/multilingual";
+
+export { flattenLocalizedForSearch };
 
 export function pickLocalized(
   field: LocalizedString | string | undefined | null,

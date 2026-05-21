@@ -5,11 +5,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+
+const POST_SAVED_TOAST_KEY = "vninsight_post_saved";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { Bookmark, Eye, Star } from "lucide-react";
-import { doc, getDoc, increment, updateDoc } from "firebase/firestore";
+import { Bookmark, Eye, Pencil, Star, Trash2 } from "lucide-react";
+import { deleteDoc, doc, getDoc, increment, updateDoc } from "firebase/firestore";
+import { useRouter } from "@/lib/i18n/navigation";
+import { canDeletePost, canEditPost } from "@/lib/posts/permissions";
 import { db } from "@/lib/firebase";
 import {
   getUserPostRating,
@@ -25,33 +29,29 @@ import { absoluteUrl } from "@/lib/siteUrl";
 import { resolvePostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useLocalizedPost } from "@/hooks/useLocalizedPost";
+import { normalizeTravelPost } from "@/lib/firestore/multilingual";
+import type { TravelPost } from "@/lib/travelPost";
 
-type Post = {
-  title?: string | import("@/lib/i18n/types").LocalizedString;
-  name?: string | import("@/lib/i18n/types").LocalizedString;
-  description?: string | import("@/lib/i18n/types").LocalizedString;
-  contentHtml?: string | import("@/lib/i18n/types").LocalizedString;
-  image?: string;
-  region?: string;
-  category?: string;
-  postType?: string;
-  travelTime?: string;
-  tags?: string[];
-  status?: string;
-  viewCount?: number;
-};
+function resolvePostId(postIdProp: string | undefined, params: ReturnType<typeof useParams>) {
+  if (postIdProp?.trim()) return postIdProp.trim();
+  const raw = params?.id;
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw) && typeof raw[0] === "string") return raw[0];
+  return "";
+}
 
-export default function PostDetailClient() {
+export default function PostDetailClient({ postId: postIdProp }: { postId?: string } = {}) {
   const t = useTranslations("Posts");
   const tc = useTranslations("Common");
   const { label: labelForPostType } = usePostTypeLabels();
   const params = useParams();
-  const id = typeof params?.id === "string" ? params.id : "";
+  const id = resolvePostId(postIdProp, params);
+  const router = useRouter();
   const { user, role, loading: authLoading } = useAuth();
   const activityUid = user?.uid ?? null;
   const recordedViewKeyRef = useRef<string | null>(null);
-  const [post, setPost] = useState<Post | null>(null);
-  const localized = useLocalizedPost(post ? { id, ...post } : null);
+  const [post, setPost] = useState<TravelPost | null>(null);
+  const localized = useLocalizedPost(post);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [saved, setSaved] = useState(false);
@@ -65,7 +65,24 @@ export default function PostDetailClient() {
   }, []);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || typeof window === "undefined") return;
+    try {
+      if (sessionStorage.getItem(POST_SAVED_TOAST_KEY) === id) {
+        sessionStorage.removeItem(POST_SAVED_TOAST_KEY);
+        showToast(t("savedAfterEdit"));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [id, showToast, t]);
+
+  useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      setErr(t("notFound"));
+      setPost(null);
+      return;
+    }
     (async () => {
       setLoading(true);
       setErr("");
@@ -75,11 +92,7 @@ export default function PostDetailClient() {
           setErr(t("notFound"));
           setPost(null);
         } else {
-          const data = snap.data() as Post;
-          const normalized: Post = {
-            ...data,
-            viewCount: typeof data.viewCount === "number" ? data.viewCount : 0,
-          };
+          const normalized = normalizeTravelPost(snap.id, snap.data() as Record<string, unknown>);
           setPost(normalized);
 
           const canBumpViews =
@@ -106,7 +119,7 @@ export default function PostDetailClient() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     if (!id || !post || authLoading) return;
@@ -138,6 +151,18 @@ export default function PostDetailClient() {
     const next = toggleSavedPost(postMeta, activityUid);
     setSaved(next);
     showToast(next ? t("saveToast") : t("unsaveToast"));
+  };
+
+  const handleDelete = async () => {
+    if (!id || !post) return;
+    if (!window.confirm(t("confirmDelete"))) return;
+    try {
+      await deleteDoc(doc(db, "posts", id));
+      showToast(t("deletedOk"));
+      router.push("/create-post");
+    } catch {
+      showToast(t("deleteErr"));
+    }
   };
 
   const applyRating = (stars: number) => {
@@ -232,6 +257,30 @@ export default function PostDetailClient() {
                 )}
               </div>
             ) : null}
+            {(canEditPost(role, user?.uid, post.authorId, post.status) ||
+              canDeletePost(role, user?.uid, post.authorId)) && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {canEditPost(role, user?.uid, post.authorId, post.status) ? (
+                  <Link
+                    href={`/create-post?edit=${id}`}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15"
+                  >
+                    <Pencil className="size-4" />
+                    {t("editPost")}
+                  </Link>
+                ) : null}
+                {canDeletePost(role, user?.uid, post.authorId) ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete()}
+                    className="inline-flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/25"
+                  >
+                    <Trash2 className="size-4" />
+                    {t("deletePost")}
+                  </button>
+                ) : null}
+              </div>
+            )}
             <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-800">
               {coverSrc ? (
                 <Image

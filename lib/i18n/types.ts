@@ -1,56 +1,95 @@
 /**
- * Firestore multilingual content types.
+ * Firestore multilingual schema — canonical types for all localized documents.
  *
- * Store translations as nested maps keyed by locale code.
- * Example: { vi: "Hà Nội", en: "Hanoi", ko: "하노이" }
+ * UI strings → messages/*.json (next-intl)
+ * DB content  → fields shaped as LocalizedString / LocalizedHtml
  */
 import type { AppLocale } from "@/i18n/routing";
+import type { PostType } from "@/lib/postCategories";
 
 export type LocalizedString = Partial<Record<AppLocale, string>> & {
   vi?: string;
 };
 
+/** HTML body per locale */
+export type LocalizedHtml = Partial<Record<AppLocale, string>>;
+
 export type LocalizedSlug = Partial<Record<AppLocale, string>>;
 
-export type LocalizedSeo = Partial<
-  Record<
-    AppLocale,
-    {
-      title?: string;
-      description?: string;
-      keywords?: string[];
-    }
-  >
->;
+export type LocalizedSeoEntry = {
+  title?: string;
+  description?: string;
+  keywords?: string[];
+};
 
-/** Base fields every localized Firestore document should include */
+export type LocalizedSeo = Partial<Record<AppLocale, LocalizedSeoEntry>>;
+
+export type TranslationStatus = "draft" | "machine" | "reviewed" | "published";
+
+export type TranslationStatusMap = Partial<Record<AppLocale, TranslationStatus>>;
+
+/** Shared metadata on every multilingual Firestore document */
 export type LocalizedDocumentBase = {
-  /** Canonical locale used when creating content (author's language) */
   sourceLocale?: AppLocale;
-  /** Per-locale slugs for SEO URLs */
   slugs?: LocalizedSlug;
-  /** Per-locale SEO overrides */
   seo?: LocalizedSeo;
-  /** Translation workflow status per locale */
-  translationStatus?: Partial<
-    Record<AppLocale, "draft" | "machine" | "reviewed" | "published">
-  >;
-  updatedAt?: { seconds?: number };
+  translationStatus?: TranslationStatusMap;
+  updatedAt?: { seconds?: number } | unknown;
 };
 
-export type MultilingualPost = LocalizedDocumentBase & {
-  id: string;
-  title?: LocalizedString;
-  description?: LocalizedString;
-  contentHtml?: Partial<Record<AppLocale, string>>;
-  image?: string;
-  region?: string;
-  status?: string;
+/** @deprecated Legacy duplicate of title.vi — read-only fallback */
+export type LegacyPostFields = {
+  name?: string;
+  slug?: string;
 };
+
+export type MultilingualPost = LocalizedDocumentBase &
+  LegacyPostFields & {
+    id: string;
+    title: LocalizedString;
+    description: LocalizedString;
+    contentHtml: LocalizedHtml;
+    image?: string;
+    images?: string[];
+    thumb?: string;
+    region?: string;
+    regionKey?: string;
+    country?: string;
+    postType?: PostType | string;
+    category?: string;
+    travelTime?: string;
+    tags?: string[];
+    status?: "pending" | "approved" | "rejected" | "draft" | "deleted" | string;
+    authorId?: string;
+    authorName?: string;
+    createdAt?: { seconds?: number };
+    viewCount?: number;
+    number?: number;
+  };
 
 export type MultilingualDestination = LocalizedDocumentBase & {
   id: string;
-  name?: LocalizedString;
-  summary?: LocalizedString;
+  name: LocalizedString;
+  summary: LocalizedString;
+  region?: LocalizedString;
   heroImage?: string;
+  slug?: LocalizedSlug;
+};
+
+export type MultilingualGuide = LocalizedDocumentBase & {
+  id: string;
+  title: LocalizedString;
+  excerpt: LocalizedString;
+  contentHtml?: LocalizedHtml;
+  category?: string;
+  image?: string;
+};
+
+/** Static province — optional localized maps (fallback to vi strings) */
+export type MultilingualProvince = {
+  slug: string;
+  name: LocalizedString;
+  region: LocalizedString;
+  summary: LocalizedString;
+  image: string;
 };

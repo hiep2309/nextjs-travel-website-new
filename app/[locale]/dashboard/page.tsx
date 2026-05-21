@@ -10,8 +10,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { Link } from "@/lib/i18n/navigation";
+import type { AppLocale } from "@/i18n/routing";
+import { pickLocalized } from "@/lib/i18n/content";
+import type { LocalizedString } from "@/lib/i18n/types";
 import {
   collection,
   deleteDoc,
@@ -35,6 +39,7 @@ import {
   MapPin,
   MoreVertical,
   PenSquare,
+  Pencil,
   Plane,
   Search,
   Shield,
@@ -44,12 +49,13 @@ import {
 import { db } from "@/lib/firebase";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { useAuth } from "@/hooks/useAuth";
+import { notifyPostApproved } from "@/lib/posts/notifyAuthor";
 
 type PostRow = {
   id: string;
-  title?: string;
-  name?: string;
-  description?: string;
+  title?: LocalizedString | string;
+  name?: LocalizedString | string;
+  description?: LocalizedString | string;
   image?: string;
   authorName?: string;
   authorId?: string;
@@ -115,7 +121,18 @@ function TrafficSparkline() {
   );
 }
 
+function postDisplayTitle(
+  post: Pick<PostRow, "title" | "name">,
+  locale: AppLocale,
+  fallback: string,
+): string {
+  return pickLocalized(post.title ?? post.name, locale) || fallback;
+}
+
 export default function DashboardPage() {
+  const locale = useLocale() as AppLocale;
+  const t = useTranslations("Dashboard");
+  const tp = useTranslations("Posts");
   const { user, role, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const [allPosts, setAllPosts] = useState<PostRow[]>([]);
@@ -189,25 +206,34 @@ export default function DashboardPage() {
   );
 
   const handleApprove = async (postId: string) => {
+    const target = allPosts.find((p) => p.id === postId);
     try {
       await updateDoc(doc(db, "posts", postId), { status: "approved" });
       setAllPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, status: "approved" } : p)),
       );
-      setBanner({ type: "ok", text: "Đã duyệt bài viết." });
+      if (target?.authorId) {
+        await notifyPostApproved({
+          authorId: target.authorId,
+          postId,
+          title: target.title,
+          name: target.name,
+        });
+      }
+      setBanner({ type: "ok", text: t("approvedOk") });
     } catch {
-      setBanner({ type: "err", text: "Không duyệt được bài." });
+      setBanner({ type: "err", text: t("approveErr") });
     }
   };
 
-  const handleReject = async (postId: string) => {
-    if (!window.confirm("Xóa vĩnh viễn bài viết này?")) return;
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm(t("confirmDelete"))) return;
     try {
       await deleteDoc(doc(db, "posts", postId));
       setAllPosts((prev) => prev.filter((p) => p.id !== postId));
-      setBanner({ type: "ok", text: "Đã xóa bài." });
+      setBanner({ type: "ok", text: t("deletedOk") });
     } catch {
-      setBanner({ type: "err", text: "Không xóa được bài." });
+      setBanner({ type: "err", text: t("deleteErr") });
     }
   };
 
@@ -235,7 +261,7 @@ export default function DashboardPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] px-4 py-10 text-slate-800 lg:px-8">
+      <div className="min-h-[calc(100dvh-4rem)] bg-[#f4f6f9] px-4 py-10 text-slate-800 lg:px-8">
         <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
           <h1 className="text-xl font-bold">Trang thành viên</h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -257,11 +283,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] w-full bg-[#f4f6f9]/88 text-slate-800 backdrop-blur-[2px]">
-      <div className="flex w-full">
+    <>
+    <div className="fixed inset-x-0 top-16 bottom-0 z-20 flex overflow-hidden bg-[#f4f6f9] text-slate-800">
         {/* Sidebar */}
         <aside
-          className={`fixed bottom-0 left-0 top-16 z-30 hidden flex-col border-r border-slate-800/80 bg-[#1e2a3a] text-slate-300 lg:flex ${SIDEBAR_W}`}
+          className={`hidden shrink-0 flex-col border-r border-slate-800/80 bg-[#1e2a3a] text-slate-300 lg:flex ${SIDEBAR_W}`}
         >
           <div className="flex items-center gap-2 border-b border-white/10 px-5 py-4">
             <div className="flex size-9 items-center justify-center rounded-lg bg-blue-600 text-white">
@@ -375,9 +401,9 @@ export default function DashboardPage() {
         </aside>
 
         {/* Main */}
-        <div className={`min-w-0 flex-1 lg:pl-64`}>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {/* Top bar */}
-          <header className="sticky top-16 z-20 flex flex-col gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between lg:px-8">
+          <header className="z-20 flex shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-8">
             <div className="relative max-w-xl flex-1">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -421,7 +447,7 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          <div className="space-y-6 p-4 lg:px-8 lg:py-6">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4 lg:px-8 lg:py-6">
             <div className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
               <Link
                 href="/explore"
@@ -513,7 +539,7 @@ export default function DashboardPage() {
                     ) : (
                       <ul className="space-y-3">
                         {pendingPreview.map((post) => {
-                          const title = post.title || post.name || "Không tiêu đề";
+                          const title = postDisplayTitle(post, locale, "Không tiêu đề");
                           const author = post.authorName || post.authorId || "—";
                           return (
                             <li
@@ -548,12 +574,20 @@ export default function DashboardPage() {
                               </div>
                               <div className="flex shrink-0 justify-end gap-1 sm:justify-start">
                                 <Link
+                                  href={`/create-post?edit=${post.id}`}
+                                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100"
+                                  aria-label={t("editPost")}
+                                  title={t("editPost")}
+                                >
+                                  <Pencil className="size-4" />
+                                </Link>
+                                <Link
                                   href={`/posts/${post.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100"
-                                  aria-label="Xem trước bài viết"
-                                  title="Xem trước"
+                                  aria-label={t("previewPost")}
+                                  title={t("previewPost")}
                                 >
                                   <Eye className="size-4" />
                                 </Link>
@@ -561,15 +595,15 @@ export default function DashboardPage() {
                                   type="button"
                                   onClick={() => handleApprove(post.id)}
                                   className="rounded-lg bg-emerald-500 p-2 text-white hover:bg-emerald-600"
-                                  aria-label="Duyệt"
+                                  aria-label={t("approvePost")}
                                 >
                                   <Check className="size-4" />
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleReject(post.id)}
+                                  onClick={() => handleDeletePost(post.id)}
                                   className="rounded-lg border border-red-200 bg-white p-2 text-red-600 hover:bg-red-50"
-                                  aria-label="Từ chối"
+                                  aria-label={t("deletePost")}
                                 >
                                   <Trash2 className="size-4" />
                                 </button>
@@ -599,7 +633,7 @@ export default function DashboardPage() {
                         </thead>
                         <tbody>
                           {latestPosts.map((post) => {
-                            const title = post.title || post.name || "—";
+                            const title = postDisplayTitle(post, locale, "—");
                             const approved = post.status === "approved";
                             return (
                               <tr key={post.id} className="border-b border-slate-100 last:border-0">
@@ -640,12 +674,43 @@ export default function DashboardPage() {
                                   {formatDate(post.createdAt?.seconds)}
                                 </td>
                                 <td className="py-3 text-right">
-                                  <Link
-                                    href={`/posts/${post.id}`}
-                                    className="inline-flex rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                                  >
-                                    <MoreVertical className="size-4" />
-                                  </Link>
+                                  <div className="inline-flex items-center gap-0.5">
+                                    <Link
+                                      href={`/create-post?edit=${post.id}`}
+                                      className="inline-flex rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
+                                      aria-label={t("editPost")}
+                                      title={t("editPost")}
+                                    >
+                                      <Pencil className="size-4" />
+                                    </Link>
+                                    <Link
+                                      href={`/posts/${post.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                      aria-label={t("previewPost")}
+                                    >
+                                      <Eye className="size-4" />
+                                    </Link>
+                                    {post.status === "pending" ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleApprove(post.id)}
+                                        className="inline-flex rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"
+                                        aria-label={t("approvePost")}
+                                      >
+                                        <Check className="size-4" />
+                                      </button>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeletePost(post.id)}
+                                      className="inline-flex rounded-lg p-1.5 text-red-500 hover:bg-red-50"
+                                      aria-label={t("deletePost")}
+                                    >
+                                      <Trash2 className="size-4" />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -719,7 +784,9 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </div>
     </div>
+    {/* Giữ chỗ trong layout để footer không nhảy lên dưới navbar */}
+    <div className="min-h-[calc(100dvh-4rem)]" aria-hidden />
+    </>
   );
 }

@@ -8,7 +8,7 @@ import { notFound } from "next/navigation";
 import "../globals.css";
 import { bodyFontClassName } from "../fonts";
 import AppShell from "@/components/AppShell";
-import { routing, type AppLocale } from "@/i18n/routing";
+import { routing, type AppLocale, localeToHrefLang } from "@/i18n/routing";
 import { getSiteUrl } from "@/lib/siteUrl";
 
 type Props = {
@@ -35,12 +35,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: t("defaultDescription"),
     alternates: {
       canonical: `${site}/${locale}`,
-      languages: {
-        "vi-VN": `${site}/vi`,
-        en: `${site}/en`,
-        ko: `${site}/ko`,
-        "x-default": `${site}/vi`,
-      },
+      languages: Object.fromEntries([
+        ...routing.locales.map((loc) => [localeToHrefLang[loc], `${site}/${loc}`]),
+        ["x-default", `${site}/vi`],
+      ]),
     },
     openGraph: {
       type: "website",

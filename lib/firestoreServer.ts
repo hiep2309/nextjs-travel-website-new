@@ -4,6 +4,10 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { firebaseConfig } from "@/lib/firebaseConfig";
+import { normalizeTravelPost } from "@/lib/firestore/multilingual";
+import { getTranslation, getTranslationSeo } from "@/lib/getTranslation";
+import type { AppLocale } from "@/i18n/routing";
+import type { LocalizedString } from "@/lib/i18n/types";
 
 function getServerDb() {
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -11,34 +15,42 @@ function getServerDb() {
 }
 
 export type PostSeoMeta = {
-  title: string;
-  description: string;
+  title: LocalizedString;
+  description: LocalizedString;
+  titleLegacy?: string;
+  descriptionLegacy?: string;
+  slugs?: import("@/lib/i18n/types").LocalizedSlug;
+  seo?: import("@/lib/i18n/types").LocalizedSeo;
   image?: string;
-  /** Bài pending: không index; draft/rejected tương tự */
   robotsNoIndex: boolean;
 };
 
-export async function getPostSeoMeta(id: string): Promise<PostSeoMeta | null> {
+export async function getPostSeoMeta(id: string, locale?: AppLocale): Promise<PostSeoMeta | null> {
   if (!id) return null;
   try {
     const snap = await getDoc(doc(getServerDb(), "posts", id));
     if (!snap.exists()) return null;
-    const d = snap.data();
-    const title = String(d.title || d.name || "Bài viết").trim() || "Bài viết";
-    const description = String(d.description || "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 280);
-    const image = typeof d.image === "string" && d.image.startsWith("http") ? d.image : undefined;
-    const status = typeof d.status === "string" ? d.status : "";
+    const post = normalizeTravelPost(snap.id, snap.data() as Record<string, unknown>);
+    const loc = locale ?? "vi";
+    const seoEntry = getTranslationSeo(post.seo, loc);
+    const titleLegacy = getTranslation(post.title, loc) || "Bài viết";
+    const descriptionLegacy =
+      seoEntry.description ||
+      getTranslation(post.description, loc).replace(/\s+/g, " ").trim().slice(0, 280) ||
+      `${titleLegacy} — VN Insight`;
 
+    const status = post.status ?? "";
     const robotsNoIndex =
       status === "pending" || status === "draft" || status === "rejected" || status === "deleted";
 
     return {
-      title,
-      description: description || `${title} — VietNam Insight`,
-      image,
+      title: post.title,
+      description: post.description,
+      titleLegacy,
+      descriptionLegacy,
+      slugs: post.slugs,
+      seo: post.seo,
+      image: post.image?.startsWith("http") ? post.image : undefined,
       robotsNoIndex,
     };
   } catch {

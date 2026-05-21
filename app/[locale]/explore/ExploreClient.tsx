@@ -3,31 +3,67 @@
  */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { Eye } from "lucide-react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { Eye, Pencil, Trash2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
+import { flattenLocalizedForSearch, normalizeTravelPost } from "@/lib/firestore/multilingual";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { ExplorePostCardSkeleton } from "@/components/ui/Skeleton";
 import { postBelongsToSection, resolvePostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useLocalizedPost } from "@/hooks/useLocalizedPost";
+import { sortPostsByViewsThenDate } from "@/lib/posts/sortPosts";
 import type { TravelPost } from "@/lib/travelPost";
 
-function ExplorePostCard({ post }: { post: TravelPost }) {
+function ExplorePostCard({
+  post,
+  onDelete,
+}: {
+  post: TravelPost;
+  onDelete: (postId: string) => void | Promise<void>;
+}) {
   const t = useTranslations("Explore");
+  const tp = useTranslations("Posts");
   const tc = useTranslations("Common");
+  const { role } = useAuth();
   const { title, description } = useLocalizedPost(post);
   const typeLabels = usePostTypeLabels();
+  const isAdmin = role === "admin";
 
   return (
-    <Link href={`/posts/${post.id}`} className="group block">
-      <article className="h-full overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg transition group-hover:border-amber-400/40">
+    <article className="relative h-full overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-lg transition hover:border-amber-400/40">
+      {isAdmin ? (
+        <div className="absolute right-3 top-3 z-10 flex flex-wrap justify-end gap-2">
+          <Link
+            href={`/create-post?edit=${post.id}`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-black/55 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg backdrop-blur-sm transition hover:bg-violet-600/80"
+          >
+            <Pencil className="size-3.5" aria-hidden />
+            {tp("editPost")}
+          </Link>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void onDelete(post.id);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-950/70 px-2.5 py-1.5 text-xs font-semibold text-red-100 shadow-lg backdrop-blur-sm transition hover:bg-red-600/80"
+            aria-label={tp("deletePost")}
+          >
+            <Trash2 className="size-3.5" aria-hidden />
+            {tp("deletePost")}
+          </button>
+        </div>
+      ) : null}
+      <Link href={`/posts/${post.id}`} className="group block h-full">
         <div className="relative h-48 bg-slate-800">
           {post.image?.trim() ? (
             <Image
@@ -48,20 +84,23 @@ function ExplorePostCard({ post }: { post: TravelPost }) {
             </span>
             <span>{post.region || tc("vietnam")}</span>
           </p>
-          <h3 className="mb-2 line-clamp-2 text-lg font-semibold">{title || tc("notFound")}</h3>
+          <h3 className="mb-2 line-clamp-2 text-lg font-semibold group-hover:text-amber-100">
+            {title || tc("notFound")}
+          </h3>
           <p className="line-clamp-3 text-sm text-white/75">{description || t("noDesc")}</p>
           <p className="mt-3 inline-flex items-center gap-1 text-xs text-white/55">
             <Eye className="size-3.5 shrink-0" aria-hidden />
             {(post.viewCount ?? 0).toLocaleString()} {tc("views")}
           </p>
         </div>
-      </article>
-    </Link>
+      </Link>
+    </article>
   );
 }
 
 export default function ExploreClient() {
   const t = useTranslations("Explore");
+  const tp = useTranslations("Posts");
   const tc = useTranslations("Common");
   const searchParams = useSearchParams();
   const selectedProvince = searchParams.get("province") || "";
@@ -77,9 +116,8 @@ export default function ExploreClient() {
       try {
         const q = query(collection(db, "posts"), where("status", "==", "approved"));
         const snap = await getDocs(q);
-        const data = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as TravelPost[];
-        const sorted = data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        setPosts(sorted);
+        const data = snap.docs.map((d) => normalizeTravelPost(d.id, d.data() as Record<string, unknown>));
+        setPosts(sortPostsByViewsThenDate(data));
       } catch {
         setError(t("loadError"));
       } finally {
@@ -89,30 +127,47 @@ export default function ExploreClient() {
     void fetchPosts();
   }, [t]);
 
+  const handleDeletePost = useCallback(
+    async (postId: string) => {
+      if (!window.confirm(tp("confirmDelete"))) return;
+      try {
+        await deleteDoc(doc(db, "posts", postId));
+        setPosts((prev) => prev.filter((p) => p.id !== postId));
+      } catch {
+        window.alert(tp("deleteErr"));
+      }
+    },
+    [tp],
+  );
+
   const filteredPosts = useMemo(() => {
     let list = posts.filter((p) => postBelongsToSection(p, "destinations"));
     const provinceNeedle = normalizeVietnameseText(selectedProvince);
     if (provinceNeedle) {
       list = list.filter((post) => {
         const region = normalizeVietnameseText(post.region || "");
-        const title = normalizeVietnameseText(String(post.title || ""));
-        const name = normalizeVietnameseText(String(post.name || ""));
-        return region.includes(provinceNeedle) || title.includes(provinceNeedle) || name.includes(provinceNeedle);
+        const searchable = normalizeVietnameseText(
+          flattenLocalizedForSearch(post.title) +
+            " " +
+            flattenLocalizedForSearch(post.description) +
+            " " +
+            (post.name ?? ""),
+        );
+        return region.includes(provinceNeedle) || searchable.includes(provinceNeedle);
       });
     }
     const qNeedle = normalizeVietnameseText(searchQuery.trim());
     if (qNeedle) {
       list = list.filter((post) => {
         const region = normalizeVietnameseText(post.region || "");
-        const title = normalizeVietnameseText(String(post.title || ""));
-        const name = normalizeVietnameseText(String(post.name || ""));
-        const desc = normalizeVietnameseText(String(post.description || ""));
-        return (
-          title.includes(qNeedle) ||
-          name.includes(qNeedle) ||
-          region.includes(qNeedle) ||
-          desc.includes(qNeedle)
+        const searchable = normalizeVietnameseText(
+          flattenLocalizedForSearch(post.title) +
+            " " +
+            flattenLocalizedForSearch(post.description) +
+            " " +
+            (post.name ?? ""),
         );
+        return region.includes(qNeedle) || searchable.includes(qNeedle);
       });
     }
     return list;
@@ -159,7 +214,7 @@ export default function ExploreClient() {
         {!loading && !error && filteredPosts.length > 0 && (
           <div className="grid gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
             {filteredPosts.map((post) => (
-              <ExplorePostCard key={post.id} post={post} />
+              <ExplorePostCard key={post.id} post={post} onDelete={handleDeletePost} />
             ))}
           </div>
         )}

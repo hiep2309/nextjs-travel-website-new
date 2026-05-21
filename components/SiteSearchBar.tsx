@@ -4,16 +4,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
+import type { AppLocale } from "@/i18n/routing";
 import { MapPin, Search } from "lucide-react";
-import { normalizeVietnameseText } from "@/lib/normalizeVn";
+import {
+  buildLocalizedProvinceFields,
+  findExactProvinceMatch,
+  scoreProvinceSearch,
+} from "@/lib/content/localizedProvince";
 import { provinceNameToSlug } from "@/lib/provinceSlug";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 
 const SUGGEST_LIMIT = 8;
 
 export default function SiteSearchBar() {
+  const locale = useLocale() as AppLocale;
   const t = useTranslations("Search");
   const tc = useTranslations("Common");
   const router = useRouter();
@@ -21,50 +27,33 @@ export default function SiteSearchBar() {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  const needle = useMemo(() => normalizeVietnameseText(value.trim()), [value]);
-
   const provinceSuggestions = useMemo(() => {
-    if (!needle) return [];
-    const scored = VIETNAM_PROVINCES.map((p) => {
-      const nameN = normalizeVietnameseText(p.name);
-      const regionN = normalizeVietnameseText(p.region);
-      let score = 0;
-      if (nameN === needle) score = 100;
-      else if (nameN.startsWith(needle)) score = 80;
-      else if (nameN.includes(needle)) score = 60;
-      else if (regionN.includes(needle)) score = 40;
-      else if (needle.length >= 2 && needle.includes(nameN.split(" ")[0] ?? "")) score = 25;
-      return { p, score };
-    })
+    const q = value.trim();
+    if (!q) return [];
+    return VIETNAM_PROVINCES.map((p) => ({ p, score: scoreProvinceSearch(p, q, locale) }))
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, SUGGEST_LIMIT)
       .map((x) => x.p);
-    return scored;
-  }, [needle]);
+  }, [value, locale]);
 
   const navigateForQuery = useCallback(
     (raw: string) => {
       const q = raw.trim();
       if (!q) return;
-      const n = normalizeVietnameseText(q);
-      const exact = VIETNAM_PROVINCES.find((p) => normalizeVietnameseText(p.name) === n);
+      const exact = findExactProvinceMatch(q, locale);
       if (exact) {
         router.push(`/destinations/${provinceNameToSlug(exact.name)}`);
         return;
       }
-      const matches = VIETNAM_PROVINCES.filter((p) => {
-        const pn = normalizeVietnameseText(p.name);
-        const pr = normalizeVietnameseText(p.region);
-        return pn.includes(n) || pr.includes(n) || (n.length >= 3 && n.includes(pn));
-      });
+      const matches = VIETNAM_PROVINCES.filter((p) => scoreProvinceSearch(p, q, locale) > 0);
       if (matches.length === 1) {
         router.push(`/destinations/${provinceNameToSlug(matches[0]!.name)}`);
         return;
       }
       router.push(`/explore?q=${encodeURIComponent(q)}`);
     },
-    [router],
+    [router, locale],
   );
 
   useEffect(() => {
@@ -119,27 +108,30 @@ export default function SiteSearchBar() {
           role="listbox"
           aria-label={t("provinceSuggestions")}
         >
-          {provinceSuggestions.map((p) => (
-            <li key={p.name} role="presentation">
-              <button
-                type="button"
-                role="option"
-                aria-selected="false"
-                className="flex w-full items-start gap-3 px-4 py-3 text-left text-sm text-white transition hover:bg-white/10"
-                onClick={() => {
-                  setValue(p.name);
-                  setOpen(false);
-                  router.push(`/destinations/${provinceNameToSlug(p.name)}`);
-                }}
-              >
-                <MapPin className="mt-0.5 size-4 shrink-0 text-amber-400/90" aria-hidden />
-                <span>
-                  <span className="font-semibold">{p.name}</span>
-                  <span className="mt-0.5 block text-xs text-white/55">{p.region}</span>
-                </span>
-              </button>
-            </li>
-          ))}
+          {provinceSuggestions.map((p) => {
+            const loc = buildLocalizedProvinceFields(p, locale);
+            return (
+              <li key={p.name} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left text-sm text-white transition hover:bg-white/10"
+                  onClick={() => {
+                    setValue(loc.name);
+                    setOpen(false);
+                    router.push(`/destinations/${provinceNameToSlug(p.name)}`);
+                  }}
+                >
+                  <MapPin className="mt-0.5 size-4 shrink-0 text-amber-400/90" aria-hidden />
+                  <span>
+                    <span className="font-semibold">{loc.name}</span>
+                    <span className="mt-0.5 block text-xs text-white/55">{loc.region}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
           <li className="border-t border-white/10 px-4 py-2">
             <button
               type="button"

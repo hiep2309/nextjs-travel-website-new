@@ -1,6 +1,13 @@
 import type { AppLocale } from "@/i18n/routing";
 import type { LocalizedString } from "@/lib/i18n/types";
 import { plainToSimpleHtml, stripHtmlToPlain, translateTextClient } from "@/lib/i18n/machineTranslate";
+import {
+  buildPostLocaleWritePayload,
+  buildPostSeo,
+  buildPostSlugs,
+} from "@/lib/firestore/multilingual";
+
+export { buildPostLocaleWritePayload, buildPostSeo, buildPostSlugs };
 
 const TARGETS: AppLocale[] = ["vi", "en", "ko"];
 

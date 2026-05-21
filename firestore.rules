@@ -51,8 +51,23 @@ service cloud.firestore {
           || (request.resource.data.status == "approved" && isAdmin())
         );
 
-      allow update: if isAdmin() || viewCountOnlyBump();
-      allow delete: if isAdmin();
+      allow update: if isAdmin()
+        || viewCountOnlyBump()
+        || (request.auth != null
+          && request.auth.uid == resource.data.authorId
+          && resource.data.status == "pending");
+
+      allow delete: if isAdmin()
+        || (request.auth != null && request.auth.uid == resource.data.authorId);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && isAdmin();
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }
 }

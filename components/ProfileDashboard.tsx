@@ -30,7 +30,9 @@ import { doc, setDoc } from "firebase/firestore";
 import { reload, updateProfile } from "firebase/auth";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
-import { buildDestinationPageModel } from "@/lib/destinationPageModel";
+import { useLocale, useTranslations } from "next-intl";
+import type { AppLocale } from "@/i18n/routing";
+import { buildDestinationModelForProvince } from "@/hooks/useDestinationPageModel";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { getProvinceBySlug } from "@/lib/provinceSlug";
 import { useAuth } from "@/hooks/useAuth";
@@ -68,12 +70,16 @@ function defaultPostImage() {
 
 type ActivityItem = { label: string; title: string; href: string; at: number; thumb: string };
 
-function buildActivityFeed(uid: string): ActivityItem[] {
+function buildActivityFeed(
+  uid: string,
+  locale: AppLocale,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): ActivityItem[] {
   const items: ActivityItem[] = [];
   for (const { slug, at } of getDestinationHistory(uid).slice(0, 12)) {
     const p = getProvinceBySlug(slug);
     if (!p) continue;
-    const m = buildDestinationPageModel(p);
+    const m = buildDestinationModelForProvince(p, locale, t);
     items.push({
       label: "Đã xem",
       title: m.headline,
@@ -94,7 +100,7 @@ function buildActivityFeed(uid: string): ActivityItem[] {
   for (const { slug, stars, at } of getUserDestinationRatings(uid)) {
     const p = getProvinceBySlug(slug);
     if (!p) continue;
-    const m = buildDestinationPageModel(p);
+    const m = buildDestinationModelForProvince(p, locale, t);
     items.push({
       label: `Đánh giá ${stars}★`,
       title: m.headline,
@@ -119,6 +125,8 @@ const AVATAR_MAX_MB = 5;
 
 export default function ProfileDashboard({ profile }: { profile: MergedProfile }) {
   const router = useRouter();
+  const locale = useLocale() as AppLocale;
+  const tDest = useTranslations("Destinations");
   const { logout } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarLocalUrl, setAvatarLocalUrl] = useState<string | null>(null);
@@ -210,7 +218,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
       for (const slug of slugs) {
         const p = getProvinceBySlug(slug);
         if (!p) continue;
-        const m = buildDestinationPageModel(p);
+        const m = buildDestinationModelForProvince(p, locale, tDest);
         out.push({
           key: `d-${slug}`,
           kind: "destination",
@@ -245,7 +253,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         .map((h) => {
           const p = getProvinceBySlug(h.slug);
           if (!p) return null;
-          const m = buildDestinationPageModel(p);
+          const m = buildDestinationModelForProvince(p, locale, tDest);
           return {
             key: `d-${h.slug}-${h.at}`,
             kind: "destination" as const,
@@ -274,7 +282,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         .map((r) => {
           const p = getProvinceBySlug(r.slug);
           if (!p) return null;
-          const m = buildDestinationPageModel(p);
+          const m = buildDestinationModelForProvince(p, locale, tDest);
           return {
             key: `dr-${r.slug}`,
             kind: "destination" as const,
@@ -328,11 +336,11 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
       reviews: destReviews.length + postReviews.length,
       places: uniqDest.size,
     });
-  }, [tab, filter, sort, tick, profile.uid]);
+  }, [tab, filter, sort, tick, profile.uid, locale, tDest]);
 
   useEffect(() => {
-    setActivityFeed(buildActivityFeed(profile.uid));
-  }, [tick, profile.uid]);
+    setActivityFeed(buildActivityFeed(profile.uid, locale, tDest));
+  }, [tick, profile.uid, locale, tDest]);
 
   const handleLogout = async () => {
     await logout();

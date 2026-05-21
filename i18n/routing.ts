@@ -21,8 +21,15 @@ export const localeToHrefLang: Record<AppLocale, string> = {
   ko: "ko",
 };
 
+/** Cookie used by next-intl middleware to persist user language choice */
+export const LOCALE_COOKIE = "NEXT_LOCALE" as const;
+
 export const routing = defineRouting({
   locales,
   defaultLocale,
   localePrefix: "always",
+  localeCookie: {
+    name: LOCALE_COOKIE,
+    maxAge: 60 * 60 * 24 * 365,
+  },
 });

@@ -6,11 +6,14 @@ import { useLocale, useTranslations } from "next-intl";
 import { pickLocalized } from "@/lib/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
-import { Eye, ExternalLink, Loader2, RefreshCw } from "lucide-react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { Eye, ExternalLink, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
+import { canDeletePost, canEditPost } from "@/lib/posts/permissions";
+import { useAuth } from "@/hooks/useAuth";
 import { db } from "@/lib/firebase";
 import { postBelongsToSection, resolvePostType, type PostSection, sectionForPostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
+import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import type { TravelPost } from "@/lib/travelPost";
 
 type FilterKey = "all" | PostSection;
@@ -25,6 +28,7 @@ export default function MyPostsPanel({ authorId, refreshKey = 0 }: Props) {
   const t = useTranslations("CreatePost");
   const tp = useTranslations("Posts");
   const tc = useTranslations("Common");
+  const { role, user } = useAuth();
   const { label: labelForPostType, sectionLabel } = usePostTypeLabels();
 
   const FILTERS: { key: FilterKey; label: string }[] = [
@@ -53,7 +57,7 @@ export default function MyPostsPanel({ authorId, refreshKey = 0 }: Props) {
     try {
       const q = query(collection(db, "posts"), where("authorId", "==", authorId));
       const snap = await getDocs(q);
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as TravelPost[];
+      const data = snap.docs.map((d) => normalizeTravelPost(d.id, d.data() as Record<string, unknown>));
       data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setPosts(data);
     } catch {
@@ -71,6 +75,16 @@ export default function MyPostsPanel({ authorId, refreshKey = 0 }: Props) {
     if (filter === "all") return posts;
     return posts.filter((p) => postBelongsToSection(p, filter));
   }, [posts, filter]);
+
+  const handleDelete = async (postId: string) => {
+    if (!window.confirm(tp("confirmDelete"))) return;
+    try {
+      await deleteDoc(doc(db, "posts", postId));
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch {
+      window.alert(tp("deleteErr"));
+    }
+  };
 
   const counts = useMemo(() => {
     const c: Record<FilterKey, number> = { all: posts.length, destinations: 0, tours: 0, guides: 0 };
@@ -131,9 +145,10 @@ export default function MyPostsPanel({ authorId, refreshKey = 0 }: Props) {
               const st = statusLabel(p.status);
               return (
                 <li key={p.id}>
+                  <div className="flex gap-3 rounded-xl border border-white/10 bg-black/20 p-2">
                   <Link
                     href={`/posts/${p.id}`}
-                    className="flex gap-3 rounded-xl border border-white/10 bg-black/20 p-2 transition hover:border-violet-400/35 hover:bg-white/[0.06]"
+                    className="flex min-w-0 flex-1 gap-3 transition hover:opacity-90"
                   >
                     <span className="relative h-14 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-800">
                       {p.image?.trim() ? (
@@ -164,6 +179,30 @@ export default function MyPostsPanel({ authorId, refreshKey = 0 }: Props) {
                     </span>
                     <ExternalLink className="mt-1 size-3.5 shrink-0 text-white/30" aria-hidden />
                   </Link>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    {canEditPost(role, user?.uid, p.authorId, p.status) ? (
+                      <Link
+                        href={`/create-post?edit=${p.id}`}
+                        className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
+                        aria-label={tp("editPost")}
+                        title={tp("editPost")}
+                      >
+                        <Pencil className="size-3.5" />
+                      </Link>
+                    ) : null}
+                    {canDeletePost(role, user?.uid, p.authorId) ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(p.id)}
+                        className="rounded-lg border border-red-500/30 p-1.5 text-red-300 hover:bg-red-500/15"
+                        aria-label={tp("deletePost")}
+                        title={tp("deletePost")}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                  </div>
                 </li>
               );
             })}

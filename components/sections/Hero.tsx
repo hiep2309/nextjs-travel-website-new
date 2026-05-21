@@ -14,7 +14,8 @@ import { Link } from "@/i18n/navigation";
 import { pickLocalized } from "@/lib/i18n/content";
 import { useLocalizedPost } from "@/hooks/useLocalizedPost";
 import type { AppLocale } from "@/i18n/routing";
-import type { LocalizedString } from "@/lib/i18n/types";
+import type { TravelPost } from "@/lib/travelPost";
+import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import dynamic from "next/dynamic";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -49,18 +50,8 @@ type Weather = {
   condition: string;
 };
 
-type PopularPost = {
-  id: string;
-  name?: string | LocalizedString;
-  title?: string | LocalizedString;
-  description?: string | LocalizedString;
-  image?: string;
-  region?: string;
-  country?: string;
-  /** Lượt xem thực tế từ Firestore (`increment` trên trang chi tiết) */
-  viewCount?: number;
+type PopularPost = TravelPost & {
   views?: number;
-  number?: number;
 };
 
 type TransportOption = {
@@ -78,9 +69,11 @@ const FEATURE_CARD =
 
 const HOI_AN_DEFAULT = {
   id: "",
-  title: "Cố đô Huế",
-  description:
-    "Di sản UNESCO, sông Hương và ẩm thực cung đình — điểm đến nổi bật tại miền Trung.",
+  title: { vi: "Cố đô Huế" },
+  description: {
+    vi: "Di sản UNESCO, sông Hương và ẩm thực cung đình — điểm đến nổi bật tại miền Trung.",
+  },
+  contentHtml: { vi: "" },
   image: "https://images.unsplash.com/photo-1583417319070-08ee3d0dde43?auto=format&fit=crop&w=900&q=80",
   region: "Huế",
   country: "Vietnam",
@@ -93,7 +86,7 @@ const INITIAL_PLACE: Place = {
   image: HOI_AN_DEFAULT.image!,
   lat: 15.8801,
   lon: 108.338,
-  description: HOI_AN_DEFAULT.description!,
+  description: HOI_AN_DEFAULT.description?.vi ?? "",
 };
 
 const Hero = () => {
@@ -330,11 +323,11 @@ const Hero = () => {
             limit(5),
           );
           const snap = await getDocs(qFast);
-          data = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as PopularPost[];
+          data = snap.docs.map((d) => normalizeTravelPost(d.id, d.data() as Record<string, unknown>));
         } catch {
           const qCap = query(collection(db, "posts"), where("status", "==", "approved"), limit(120));
           const snap = await getDocs(qCap);
-          data = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as PopularPost[];
+          data = snap.docs.map((d) => normalizeTravelPost(d.id, d.data() as Record<string, unknown>));
           data.sort((a, b) => postViewScore(b) - postViewScore(a));
         }
         const sorted = [...data].sort((a, b) => postViewScore(b) - postViewScore(a));

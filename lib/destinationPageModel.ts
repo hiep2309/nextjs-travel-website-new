@@ -1,15 +1,21 @@
 /**
- * Xây “model” hiển thị cho trang chi tiết địa điểm — headline, why cards, food, chi phí, TOC, điểm liên quan.
- *
- * Kết hợp dữ liệu `ProvinceDef` — ảnh trải nghiệm/gallery dùng chung ảnh hero của tỉnh.
+ * Xây model hiển thị cho trang chi tiết địa điểm — locale-aware via next-intl Destinations namespace.
  */
+import type { AppLocale } from "@/i18n/routing";
+import type { LocalizedProvinceView } from "@/lib/content/localizedProvince";
+import { getLocalizedProvinceName } from "@/lib/content/localizedProvince";
 import type { ProvinceDef } from "@/lib/vietnamProvinces";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 import { provinceNameToSlug } from "@/lib/provinceSlug";
 
-const TITLE_OVERRIDE: Partial<Record<string, string>> = {
-  "Huế": "Cố đô Huế — di sản & ẩm thực",
+const TITLE_OVERRIDE_VI: Partial<Record<string, string>> = {
+  Huế: "Cố đô Huế — di sản & ẩm thực",
 };
+
+export type DestinationCopyFn = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
 
 export type WhyCard = {
   key: string;
@@ -33,6 +39,7 @@ export type DestinationPageModel = {
   slug: string;
   headline: string;
   province: ProvinceDef;
+  localized: LocalizedProvinceView;
   heroImage: string;
   readMinutes: number;
   views: number;
@@ -61,9 +68,26 @@ function pseudoRand(seed: string, max: number): number {
   return Math.abs(h) % max;
 }
 
-export function buildDestinationPageModel(p: ProvinceDef): DestinationPageModel {
+function formatCostRange(locale: AppLocale, min: number, max: number): string {
+  if (locale === "vi") {
+    return `${min.toLocaleString("vi-VN")} – ${max.toLocaleString("vi-VN")} ₫`;
+  }
+  return `${min.toLocaleString(locale === "ko" ? "ko-KR" : "en-US")} – ${max.toLocaleString(locale === "ko" ? "ko-KR" : "en-US")} VND`;
+}
+
+export function buildDestinationPageModel(
+  p: ProvinceDef,
+  locale: AppLocale,
+  t: DestinationCopyFn,
+  localized: LocalizedProvinceView,
+): DestinationPageModel {
   const slug = provinceNameToSlug(p.name);
-  const headline = TITLE_OVERRIDE[p.name] ?? `${p.name} — gợi ý du lịch`;
+  const headlineOverride = TITLE_OVERRIDE_VI[p.name];
+  const headline = headlineOverride
+    ? locale === "vi"
+      ? headlineOverride
+      : t("headlineHue", { name: localized.name })
+    : t("headlineDefault", { name: localized.name });
   const heroImage = p.image;
 
   const readMinutes = 8 + (pseudoRand(p.name, 8) || 1);
@@ -71,69 +95,89 @@ export function buildDestinationPageModel(p: ProvinceDef): DestinationPageModel 
   const rating = Math.min(5, 4.4 + pseudoRand(slug + "r", 7) / 10);
   const ratingCount = 120 + pseudoRand(slug + "c", 400);
 
-  const intro = `${p.name} thuộc vùng ${p.region} là điểm đến được nhiều du khách quan tâm. ${p.summary} Bài viết tổng hợp gợi ý lịch trình, trải nghiệm và mức chi phí tham khảo để bạn lên kế hoạch thoải mái hơn.`;
+  const intro = t("introBody", {
+    name: localized.name,
+    region: localized.region,
+    summary: localized.summary,
+  });
 
   const whyCards: WhyCard[] = [
     {
       key: "1",
-      title: "Không gian đặc trưng",
-      body: `Tại ${p.name}, bạn dễ bắt gặp những góc phố, làng nghề và công trình mang dấu ấn địa phương — phù hợp đi bộ, chụp ảnh và cảm nhận nhịp sống chậm.`,
+      title: t("why1Title"),
+      body: t("why1Body", { name: localized.name }),
       accent: "purple",
     },
     {
       key: "2",
-      title: "Văn hóa & lễ hội",
-      body: `Nét văn hóa ${p.region} hiện rõ qua ẩm thực, phiên chợ và các hoạt động cộng đồng; hãy hỏi người dân về mùa lễ hội để không bỏ lỡ trải nghiệm.`,
+      title: t("why2Title"),
+      body: t("why2Body", { region: localized.region }),
       accent: "pink",
     },
     {
       key: "3",
-      title: "Ẩm thực địa phương",
-      body: `Từ quán vỉa hè đến nhà hàng đặc sản, ẩm thực tại ${p.name} đa dạng mức giá — nên dự trù tiền mặt nhỏ để thử món địa phương.`,
+      title: t("why3Title"),
+      body: t("why3Body", { name: localized.name }),
       accent: "orange",
     },
   ];
 
-  const expTitles = [
-    "Hoạt động ngoài trời",
-    "Tham quan di tích & làng nghề",
-    "Chợ đêm & ẩm thực",
-    "Góc check-in nổi bật",
-  ];
-  /** Một địa điểm = một ảnh đại diện (hero), tránh xoay vòng ảnh Unsplash khác nhau gây rối. */
-  const experiences: ExperienceCard[] = expTitles.map((title) => ({
-    title,
+  const experiences: ExperienceCard[] = ["exp1", "exp2", "exp3", "exp4"].map((key) => ({
+    title: t(key),
     image: heroImage,
   }));
 
-  const tips = [
-    "Khung giờ đẹp thường là chiều tối đến 22:00 — tránh nắng gắt và dễ chụp ảnh hơn.",
-    "Ngày lễ đông đúc: đến sớm hoặc đặt chỗ nếu có tour kèm hướng dẫn.",
-    "Mang tiền mặt vừa đủ; nhiều quán nhỏ chưa nhận thẻ.",
-    "Giày thể thao hoặc sandal đi bộ êm — một số khu lát đá trơn khi mưa.",
-  ];
+  const tips = ["tip1", "tip2", "tip3", "tip4"].map((key) => t(key));
 
   const costs: CostRow[] = [
-    { item: "Tham quan điểm chính (ước lượng)", price: `${(50 + pseudoRand(p.name, 4) * 30).toLocaleString("vi-VN")} – ${(150 + pseudoRand(p.name + "x", 5) * 40).toLocaleString("vi-VN")} ₫` },
-    { item: "Ăn uống trong ngày", price: `${(120 + pseudoRand(p.name + "e", 8) * 25).toLocaleString("vi-VN")} – ${(400 + pseudoRand(p.name + "f", 6) * 50).toLocaleString("vi-VN")} ₫` },
-    { item: "Quà lưu niệm / trải nghiệm nhỏ", price: `${(80 + pseudoRand(p.name + "g", 10) * 20).toLocaleString("vi-VN")} – ${(300 + pseudoRand(p.name + "h", 7) * 40).toLocaleString("vi-VN")} ₫` },
-    { item: "Thuê máy ảnh / gói chụp (tuỳ chọn)", price: `${(200 + pseudoRand(p.name + "i", 5) * 100).toLocaleString("vi-VN")} – ${(800 + pseudoRand(p.name + "j", 4) * 100).toLocaleString("vi-VN")} ₫` },
+    {
+      item: t("cost1Item"),
+      price: formatCostRange(
+        locale,
+        50 + pseudoRand(p.name, 4) * 30,
+        150 + pseudoRand(p.name + "x", 5) * 40,
+      ),
+    },
+    {
+      item: t("cost2Item"),
+      price: formatCostRange(
+        locale,
+        120 + pseudoRand(p.name + "e", 8) * 25,
+        400 + pseudoRand(p.name + "f", 6) * 50,
+      ),
+    },
+    {
+      item: t("cost3Item"),
+      price: formatCostRange(
+        locale,
+        80 + pseudoRand(p.name + "g", 10) * 20,
+        300 + pseudoRand(p.name + "h", 7) * 40,
+      ),
+    },
+    {
+      item: t("cost4Item"),
+      price: formatCostRange(
+        locale,
+        200 + pseudoRand(p.name + "i", 5) * 100,
+        800 + pseudoRand(p.name + "j", 4) * 100,
+      ),
+    },
   ];
 
   const quickInfo = {
-    location: `${p.name}, ${p.region}, Việt Nam`,
-    idealTime: "Chiều – tối (khoảng 18:00 – 22:00)",
-    estCost: "400.000 – 1.200.000 ₫ / người / ngày (tham khảo)",
-    suitability: "Gia đình, cặp đôi, nhóm bạn",
+    location: t("quickLocation", { name: localized.name, region: localized.region }),
+    idealTime: t("quickIdealTime"),
+    estCost: t("quickEstCost"),
+    suitability: t("quickSuitability"),
   };
 
   const toc: TocItem[] = [
-    { id: "gioi-thieu", label: "Giới thiệu", num: "01" },
-    { id: "vi-sao", label: "Vì sao nên đến?", num: "02" },
-    { id: "trai-nghiem", label: "Trải nghiệm", num: "03" },
-    { id: "kinh-nghiem", label: "Kinh nghiệm", num: "04" },
-    { id: "chi-phi", label: "Chi phí", num: "05" },
-    { id: "hinh-anh", label: "Hình ảnh", num: "06" },
+    { id: "gioi-thieu", label: t("tocIntro"), num: "01" },
+    { id: "vi-sao", label: t("tocWhy"), num: "02" },
+    { id: "trai-nghiem", label: t("tocExp"), num: "03" },
+    { id: "kinh-nghiem", label: t("tocTips"), num: "04" },
+    { id: "chi-phi", label: t("tocCost"), num: "05" },
+    { id: "hinh-anh", label: t("tocGallery"), num: "06" },
   ];
 
   const gallery = [heroImage, heroImage, heroImage, heroImage];
@@ -142,7 +186,7 @@ export function buildDestinationPageModel(p: ProvinceDef): DestinationPageModel 
   const others = VIETNAM_PROVINCES.filter((x) => x.name !== p.name);
   const mix = [...sameRegion, ...others.filter((x) => !sameRegion.includes(x))];
   const related: RelatedDestination[] = mix.slice(0, 4).map((x, i) => ({
-    name: TITLE_OVERRIDE[x.name] ?? x.name,
+    name: getLocalizedProvinceName(x.name, locale),
     slug: provinceNameToSlug(x.name),
     image: x.image,
     views: 600 + pseudoRand(x.name + String(i), 8000),
@@ -164,6 +208,7 @@ export function buildDestinationPageModel(p: ProvinceDef): DestinationPageModel 
     slug,
     headline,
     province: p,
+    localized,
     heroImage,
     readMinutes,
     views,

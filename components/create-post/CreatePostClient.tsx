@@ -9,11 +9,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
+import { pickLocalized } from "@/lib/i18n/content";
+import { canEditPost } from "@/lib/posts/permissions";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useTravelTimeLabels } from "@/hooks/useTravelTimeLabels";
-import { buildLocalizedHtml, buildLocalizedString } from "@/lib/i18n/buildPostLocales";
+import { buildLocalizedHtml, buildLocalizedString, buildPostLocaleWritePayload } from "@/lib/i18n/buildPostLocales";
+import { normalizeLocalizedSlug, normalizeLocalizedString } from "@/lib/firestore/multilingual";
+import type { LocalizedSlug } from "@/lib/i18n/types";
 import {
   Bookmark,
   ChevronRight,
@@ -31,7 +36,7 @@ import {
 } from "lucide-react";
 import { FirebaseError } from "firebase/app";
 import { auth, db, storage } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
@@ -43,6 +48,7 @@ import PostTypePicker from "./PostTypePicker";
 import MyPostsPanel from "./MyPostsPanel";
 
 const glass = "rounded-2xl border border-white/12 bg-white/[0.06] shadow-xl backdrop-blur-xl";
+const POST_SAVED_TOAST_KEY = "vninsight_post_saved";
 
 const TITLE_MAX = 100;
 const IMG_MAX_MB = 10;
@@ -87,7 +93,17 @@ export default function CreatePostClient() {
   };
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editPostId = searchParams.get("edit");
   const { user, loading, role } = useAuth();
+
+  const [editMeta, setEditMeta] = useState<{
+    id: string;
+    status: string;
+    existingUrls: string[];
+    existingSlugs?: LocalizedSlug;
+  } | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(Boolean(editPostId));
 
   const [title, setTitle] = useState("");
   const [destination, setDestination] = useState("");
@@ -99,6 +115,7 @@ export default function CreatePostClient() {
   const [docHtml, setDocHtml] = useState("");
   const initialHtmlRef = useRef<string>("");
   const destRootRef = useRef<HTMLDivElement>(null);
+  const editLoadedIdRef = useRef<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   const [files, setFiles] = useState<{ id: string; file: File; preview: string }[]>([]);
@@ -121,7 +138,91 @@ export default function CreatePostClient() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (!user || hydrated) return;
+    if (!editPostId || !user) {
+      editLoadedIdRef.current = null;
+      setEditMeta(null);
+      setLoadingEdit(false);
+      if (!editPostId) setHydrated(false);
+      return;
+    }
+
+    if (editLoadedIdRef.current === editPostId) return;
+
+    let alive = true;
+    (async () => {
+      setLoadingEdit(true);
+      try {
+        let effectiveRole = role;
+        if (effectiveRole == null) {
+          const userSnap = await getDoc(doc(db, "users", user.uid));
+          effectiveRole = userSnap.exists() ? String(userSnap.data().role || "user") : "user";
+        }
+
+        const snap = await getDoc(doc(db, "posts", editPostId));
+        if (!snap.exists()) {
+          if (alive) {
+            setBanner({ kind: "err", text: t("loadEditErr") });
+            setHydrated(true);
+          }
+          return;
+        }
+        const data = snap.data() as Record<string, unknown>;
+        const authorId = String(data.authorId ?? "");
+        const status = String(data.status ?? "pending");
+        if (!canEditPost(effectiveRole, user.uid, authorId, status)) {
+          if (alive) {
+            setBanner({ kind: "err", text: t("editForbidden") });
+            router.replace("/create-post");
+          }
+          return;
+        }
+        if (!alive) return;
+
+        const titleVi = pickLocalized(
+          (data.title as string | { vi?: string }) ?? (data.name as string),
+          "vi",
+        );
+        const htmlVi = pickLocalized(data.contentHtml as string | { vi?: string }, "vi");
+        const images = Array.isArray(data.images)
+          ? (data.images as string[]).filter(Boolean)
+          : data.image
+            ? [String(data.image)]
+            : [];
+
+        const existingSlugs = normalizeLocalizedSlug(
+          data.slugs,
+          typeof data.slug === "string" ? data.slug : undefined,
+          normalizeLocalizedString(data.title, typeof data.name === "string" ? data.name : undefined),
+        );
+
+        setTitle(titleVi);
+        setDestination(String(data.region ?? ""));
+        setDestQuery(String(data.region ?? ""));
+        setPostType((data.postType as PostType) || "");
+        setTravelTime(String(data.travelTime ?? ""));
+        setTagsRaw(Array.isArray(data.tags) ? (data.tags as string[]).join(", ") : "");
+        setDocHtml(htmlVi);
+        initialHtmlRef.current = htmlVi;
+        setEditMeta({ id: editPostId, status, existingUrls: images, existingSlugs });
+        editLoadedIdRef.current = editPostId;
+        setHydrated(true);
+      } catch {
+        if (alive) {
+          setBanner({ kind: "err", text: t("loadEditErr") });
+          setHydrated(true);
+        }
+      } finally {
+        if (alive) setLoadingEdit(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [editPostId, user, role, router, t]);
+
+  useEffect(() => {
+    if (!user || hydrated || editPostId) return;
     try {
       const raw = localStorage.getItem(draftKey(user.uid));
       if (raw) {
@@ -146,7 +247,7 @@ export default function CreatePostClient() {
       /* ignore */
     }
     setHydrated(true);
-  }, [user, hydrated]);
+  }, [user, hydrated, editPostId]);
 
   useEffect(() => () => files.forEach((x) => URL.revokeObjectURL(x.preview)), [files]);
 
@@ -249,7 +350,9 @@ export default function CreatePostClient() {
           preview: URL.createObjectURL(file),
         });
       }
-      setFiles((prev) => [...prev, ...additions].slice(0, IMG_MAX_FILES));
+      const keptCount = editMeta?.existingUrls.length ?? 0;
+      const maxNew = Math.max(0, IMG_MAX_FILES - keptCount);
+      setFiles((prev) => [...prev, ...additions].slice(0, maxNew));
     } finally {
       setCompressingImages(false);
     }
@@ -283,7 +386,8 @@ export default function CreatePostClient() {
       });
       return;
     }
-    if (files.length === 0) {
+    const hasImages = files.length > 0 || (editMeta?.existingUrls.length ?? 0) > 0;
+    if (!hasImages) {
       setBanner({ kind: "err", text: t("errImages") });
       return;
     }
@@ -312,9 +416,9 @@ export default function CreatePostClient() {
         i += 1;
       }
 
-      const primary = urls[0]!;
-      const slugSafe = `${titleTrim.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-")}-${Date.now()}`.replace(/-+/g, "-");
-      const status = isAdminPoster ? "approved" : "pending";
+      const kept = editMeta?.existingUrls ?? [];
+      const allUrls = [...kept, ...urls];
+      const primary = allUrls[0]!;
 
       setBanner({ kind: "ok", text: t("translating") });
       const [titleLocales, descriptionLocales, contentHtmlLocales] = await Promise.all([
@@ -323,13 +427,45 @@ export default function CreatePostClient() {
         buildLocalizedHtml(sanitizeBasicHtml(docHtml), "vi"),
       ]);
 
+      const localePayload = buildPostLocaleWritePayload(
+        titleLocales,
+        descriptionLocales,
+        contentHtmlLocales,
+        {
+          sourceLocale: "vi",
+          existingSlugs: editMeta?.existingSlugs,
+          slugSuffix: Date.now().toString(36),
+        },
+      );
+
+      if (editMeta) {
+        await updateDoc(doc(db, "posts", editMeta.id), {
+          ...localePayload,
+          region: dest,
+          postType,
+          category: labelForPostType(postType),
+          travelTime,
+          tags: tagsArray,
+          images: allUrls,
+          image: primary,
+          thumb: primary,
+          updatedAt: serverTimestamp(),
+        });
+        setMyPostsRefresh((n) => n + 1);
+        try {
+          sessionStorage.setItem(POST_SAVED_TOAST_KEY, editMeta.id);
+        } catch {
+          /* ignore */
+        }
+        alert(t("alertUpdated"));
+        router.push(`/posts/${editMeta.id}`);
+        return;
+      }
+
+      const status = isAdminPoster ? "approved" : "pending";
+
       await addDoc(collection(db, "posts"), {
-        name: titleTrim,
-        title: titleLocales,
-        description: descriptionLocales,
-        contentHtml: contentHtmlLocales,
-        sourceLocale: "vi",
-        translationStatus: { vi: "published", en: "machine", ko: "machine" },
+        ...localePayload,
         region: dest,
         country: tc("vietnam"),
         postType,
@@ -343,7 +479,7 @@ export default function CreatePostClient() {
         authorId: cur.uid,
         authorName: cur.displayName || cur.email?.split("@")[0] || tn("member"),
         createdAt: serverTimestamp(),
-        slug: slugSafe,
+        updatedAt: serverTimestamp(),
         number: 0,
         viewCount: 0,
       });
@@ -381,6 +517,15 @@ export default function CreatePostClient() {
       setBusy(false);
     }
   };
+
+  const removeExistingUrl = (url: string) => {
+    setEditMeta((prev) =>
+      prev ? { ...prev, existingUrls: prev.existingUrls.filter((u) => u !== url) } : null,
+    );
+  };
+
+  const editorKey = editMeta ? `edit-${editMeta.id}` : `new-${user?.uid ?? "guest"}`;
+  const coverPreview = files[0]?.preview ?? editMeta?.existingUrls[0] ?? null;
 
   if (loading || !user) {
     return (
@@ -451,8 +596,12 @@ export default function CreatePostClient() {
         </aside>
 
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300/70">{t("title")}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{t("headline")}</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300/70">
+            {editMeta ? t("editMode") : t("title")}
+          </p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            {editMeta ? t("editMode") : t("headline")}
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
             {t("intro")}
           </p>
@@ -544,9 +693,13 @@ export default function CreatePostClient() {
                 <p className="mb-2 mt-1 text-xs text-white/45">
                   {t("contentHint")}
                 </p>
-                {hydrated ? (
+                {loadingEdit ? (
+                  <div className="flex h-64 items-center justify-center rounded-2xl bg-white/5">
+                    <Loader2 className="size-6 animate-spin text-violet-400" aria-hidden />
+                  </div>
+                ) : hydrated ? (
                   <CreatePostRichEditor
-                    key={`editor-${user.uid}`}
+                    key={editorKey}
                     initialHtml={initialHtmlRef.current}
                     onDocChange={onDocChange}
                     onUploadImage={uploadInlineImage}
@@ -589,8 +742,25 @@ export default function CreatePostClient() {
                     }}
                   />
                 </label>
-                {files.length > 0 ? (
+                {(editMeta?.existingUrls.length ?? 0) > 0 || files.length > 0 ? (
                   <div className="mt-4 flex flex-wrap gap-3">
+                    {editMeta?.existingUrls.map((url) => (
+                      <div
+                        key={url}
+                        className="relative size-24 overflow-hidden rounded-xl border border-white/15 sm:size-28"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="size-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeExistingUrl(url)}
+                          className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black"
+                          aria-label={t("removeImage")}
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                    ))}
                     {files.map((f) => (
                       <div key={f.id} className="relative size-24 overflow-hidden rounded-xl border border-white/15 sm:size-28">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -620,22 +790,24 @@ export default function CreatePostClient() {
               </div>
 
               <div className="flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={saveDraft}
-                  disabled={busy}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
-                >
-                  <FolderOpen className="size-4" />
-                  {t("saveDraft")}
-                </button>
+                {!editMeta ? (
+                  <button
+                    type="button"
+                    onClick={saveDraft}
+                    disabled={busy}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-bold text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+                  >
+                    <FolderOpen className="size-4" />
+                    {t("saveDraft")}
+                  </button>
+                ) : null}
                 <button
                   type="submit"
-                  disabled={busy}
+                  disabled={busy || loadingEdit}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-violet-900/40 transition hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50"
                 >
                   {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                  {t("publish")}
+                  {editMeta ? t("saveChanges") : t("publish")}
                 </button>
               </div>
             </div>
@@ -659,9 +831,9 @@ export default function CreatePostClient() {
             </h3>
             <div className="p-5">
               <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/40">
-                {files[0] ? (
+                {coverPreview ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={files[0].preview} alt="" className="h-full w-full object-cover" />
+                  <img src={coverPreview} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs text-white/35">{t("noCover")}</div>
                 )}

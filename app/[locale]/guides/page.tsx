@@ -48,6 +48,9 @@ import {
 import type { TravelPost } from "@/lib/travelPost";
 import { useLocale, useTranslations } from "next-intl";
 import { pickLocalized } from "@/lib/i18n/content";
+import { getTranslation } from "@/lib/getTranslation";
+import { normalizeTravelPost } from "@/lib/firestore/multilingual";
+import type { LocalizedString } from "@/lib/i18n/types";
 import type { AppLocale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 
@@ -65,12 +68,19 @@ function postsToGuides(posts: TravelPost[], locale: AppLocale, fallbackTitle: st
               ? "notes"
               : "transport";
       const desc = pickLocalized(p.description, locale);
-      const title = pickLocalized(p.title || p.name, locale) || fallbackTitle;
+      const titleMap: LocalizedString =
+        typeof p.title === "object" && p.title
+          ? p.title
+          : { vi: pickLocalized(p.title ?? p.name, locale) || fallbackTitle };
+      const excerptMap: LocalizedString =
+        typeof p.description === "object" && p.description
+          ? p.description
+          : { vi: desc.trim().slice(0, 160) + (desc.length > 160 ? "…" : "") };
       return {
         id: `fs-${p.id}`,
         source: "firestore" as const,
-        title,
-        excerpt: desc.trim().slice(0, 160) + (desc.length > 160 ? "…" : ""),
+        title: titleMap,
+        excerpt: excerptMap,
 
         category: chip,
 
@@ -122,7 +132,7 @@ export default function GuidesPage() {
 
         const snap = await getDocs(q);
 
-        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as TravelPost[];
+        const data = snap.docs.map((d) => normalizeTravelPost(d.id, d.data() as Record<string, unknown>));
 
         if (alive)
 
@@ -288,9 +298,9 @@ export default function GuidesPage() {
 
                     </span>
 
-                    <h2 className="mt-3 text-xl font-bold sm:text-2xl">{g.title}</h2>
+                    <h2 className="mt-3 text-xl font-bold sm:text-2xl">{getTranslation(g.title, locale)}</h2>
 
-                    <p className="mt-2 line-clamp-2 text-sm text-[#b4bfce]">{g.excerpt}</p>
+                    <p className="mt-2 line-clamp-2 text-sm text-[#b4bfce]">{getTranslation(g.excerpt, locale)}</p>
 
                     <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#8892a8]">
 
