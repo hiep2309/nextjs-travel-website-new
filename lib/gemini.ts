@@ -1,5 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AppLocale } from "@/i18n/routing";
+import {
+  PLANNER_CATEGORIES,
+  costFormatInstruction,
+  getPaceLabel,
+  getStyleLabel,
+  getTransportLabel,
+  localeOutputInstruction,
+} from "@/lib/planner/i18n";
 import type { PlannerFormData, TripPlan } from "@/lib/planner/types";
 
 /** Preferred models — try in order until one succeeds. */
@@ -10,17 +18,8 @@ const MODEL_CANDIDATES = [
   "gemini-2.0-flash",
 ] as const;
 
-function localeOutputInstruction(locale: AppLocale): string {
-  if (locale === "en") {
-    return "Write all text fields (trip_title, theme, place_name, description, tips, hidden_gems) in English.";
-  }
-  if (locale === "ko") {
-    return "Write all text fields (trip_title, theme, place_name, description, tips, hidden_gems) in Korean.";
-  }
-  return "Write place names and descriptions in Vietnamese when destination is in Vietnam.";
-}
-
 function buildPrompt(data: PlannerFormData, locale: AppLocale = "vi"): string {
+  const categoryList = PLANNER_CATEGORIES.join(", ");
   return `You are a professional Vietnam travel planning AI.
 
 Generate a realistic and optimized travel itinerary.
@@ -30,10 +29,10 @@ User Information:
 * Destination: ${data.destination}
 * Days: ${data.days}
 * Budget: ${data.budget}
-* Travel Style: ${data.travelStyle}
+* Travel Style: ${getStyleLabel(locale, data.travelStyle)}
 * Travelers: ${data.travelers}
-* Transportation: ${data.transportation}
-* Pace: ${data.pace}
+* Transportation: ${getTransportLabel(locale, data.transportation)}
+* Pace: ${getPaceLabel(locale, data.pace)}
 * Response language: ${locale}
 
 Requirements:
@@ -43,12 +42,13 @@ Requirements:
 * Include local food recommendations
 * Optimize travel routes logically
 * Keep activities realistic by time
-* Estimate costs accurately in Vietnamese Dong (VND) format like "300.000 VND"
+* ${costFormatInstruction(locale)}
 * Ensure the trip stays within budget
 * Include transportation suggestions
 * Make the itinerary feel premium and cinematic
 * ${localeOutputInstruction(locale)}
 * Generate exactly ${data.days} day(s) in the days array
+* For each activity, set "category" to exactly one of: ${categoryList}
 
 IMPORTANT:
 Return ONLY valid JSON. No markdown, no explanation.
@@ -68,7 +68,7 @@ Required JSON format:
           "place_name": "",
           "description": "",
           "estimated_cost": "",
-          "category": "",
+          "category": "food",
           "tips": ""
         }
       ]

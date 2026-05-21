@@ -24,6 +24,53 @@ const DEFAULT: CategoryStyle = {
   badge: "bg-violet-500/15 text-violet-200 border-violet-400/30",
 };
 
+const CANONICAL: Record<string, CategoryStyle> = {
+  food: {
+    icon: UtensilsCrossed,
+    accent: "from-amber-500 to-orange-600",
+    ring: "ring-amber-400/40",
+    badge: "bg-amber-500/15 text-amber-100 border-amber-400/30",
+  },
+  culture: {
+    icon: Landmark,
+    accent: "from-fuchsia-500 to-violet-600",
+    ring: "ring-fuchsia-400/40",
+    badge: "bg-fuchsia-500/15 text-fuchsia-100 border-fuchsia-400/30",
+  },
+  adventure: {
+    icon: Mountain,
+    accent: "from-emerald-500 to-teal-600",
+    ring: "ring-emerald-400/40",
+    badge: "bg-emerald-500/15 text-emerald-100 border-emerald-400/30",
+  },
+  sightseeing: {
+    icon: MapPin,
+    accent: "from-sky-500 to-cyan-600",
+    ring: "ring-sky-400/40",
+    badge: "bg-sky-500/15 text-sky-100 border-sky-400/30",
+  },
+  transport: DEFAULT,
+  relax: {
+    icon: Coffee,
+    accent: "from-amber-600 to-yellow-700",
+    ring: "ring-amber-400/40",
+    badge: "bg-amber-500/15 text-amber-100 border-amber-400/30",
+  },
+  photo: {
+    icon: Camera,
+    accent: "from-rose-500 to-pink-600",
+    ring: "ring-rose-400/40",
+    badge: "bg-rose-500/15 text-rose-100 border-rose-400/30",
+  },
+  hidden: {
+    icon: Sparkles,
+    accent: "from-violet-500 to-indigo-600",
+    ring: "ring-violet-400/40",
+    badge: "bg-violet-500/15 text-violet-100 border-violet-400/30",
+  },
+  other: DEFAULT,
+};
+
 const RULES: { match: RegExp; style: CategoryStyle }[] = [
   {
     match: /food|ẩm thực|nhà hàng|quán|café|coffee|bữa/i,
@@ -91,6 +138,8 @@ const RULES: { match: RegExp; style: CategoryStyle }[] = [
 ];
 
 export function getCategoryStyle(category: string): CategoryStyle {
+  const key = category.trim().toLowerCase();
+  if (CANONICAL[key]) return CANONICAL[key];
   const c = category.trim();
   if (!c) return DEFAULT;
   for (const rule of RULES) {

@@ -2,7 +2,9 @@
 
 import { motion } from "framer-motion";
 import { useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { AppLocale } from "@/i18n/routing";
+import { plannerCategoryGroupKey } from "@/lib/planner/i18n";
 import { formatVnd, parseVndCost } from "@/lib/planner/parseCost";
 import type { TripPlan } from "@/lib/planner/types";
 
@@ -13,12 +15,13 @@ type Props = {
 
 export default function CostSummary({ plan, budgetRaw }: Props) {
   const t = useTranslations("AiPlanner");
+  const locale = useLocale() as AppLocale;
 
-  const { total, budget, percent, breakdown } = useMemo(() => {
+  const { budget, percent, breakdown } = useMemo(() => {
     const byCat: Record<string, number> = {};
     for (const day of plan.days) {
       for (const act of day.activities) {
-        const cat = act.category?.trim() || t("other");
+        const cat = plannerCategoryGroupKey(act.category);
         byCat[cat] = (byCat[cat] ?? 0) + parseVndCost(act.estimated_cost);
       }
     }
@@ -29,8 +32,10 @@ export default function CostSummary({ plan, budgetRaw }: Props) {
     const breakdown = Object.entries(byCat)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6);
-    return { total, budget, percent, breakdown };
-  }, [plan, budgetRaw, t]);
+    return { budget, percent, breakdown };
+  }, [plan, budgetRaw]);
+
+  const categoryLabel = (key: string) => t(`cat_${key}` as "cat_food");
 
   const r = 52;
   const circ = 2 * Math.PI * r;
@@ -73,13 +78,13 @@ export default function CostSummary({ plan, budgetRaw }: Props) {
         <div className="min-w-0 flex-1">
           <p className="text-2xl font-bold text-white">{plan.total_estimated_cost}</p>
           <p className="mt-1 text-sm text-white/50">
-            {t("budgetLimit")}: {budgetRaw || formatVnd(budget)}
+            {t("budgetLimit")}: {budgetRaw || formatVnd(budget, locale)}
           </p>
           <ul className="mt-4 space-y-2">
             {breakdown.map(([cat, amt]) => (
               <li key={cat} className="flex justify-between gap-2 text-sm">
-                <span className="truncate text-white/70">{cat}</span>
-                <span className="shrink-0 font-medium text-white">{formatVnd(amt)}</span>
+                <span className="truncate text-white/70">{categoryLabel(cat)}</span>
+                <span className="shrink-0 font-medium text-white">{formatVnd(amt, locale)}</span>
               </li>
             ))}
           </ul>

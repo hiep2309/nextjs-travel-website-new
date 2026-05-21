@@ -47,10 +47,9 @@ export const TRAVEL_STYLES: TravelStyle[] = ["Chill", "Adventure", "Food", "Luxu
 export const TRANSPORT_OPTIONS: Transportation[] = ["Car", "Motorbike", "Airplane", "Train"];
 export const PACE_OPTIONS: Pace[] = ["Relaxed", "Balanced", "Packed"];
 
-export const DEFAULT_FORM: PlannerFormData = {
-  destination: "Đà Nẵng",
+/** Non-locale defaults — use `getDefaultPlannerForm(locale)` for full form state. */
+export const PLANNER_FORM_BASE: Omit<PlannerFormData, "destination" | "budget" | "locale"> = {
   days: 3,
-  budget: "5.000.000 VND",
   travelStyle: "Chill",
   travelers: 2,
   transportation: "Airplane",

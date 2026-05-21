@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
+import { getDefaultPlannerForm } from "@/lib/planner/i18n";
 import { panelEnter } from "@/lib/planner/motionPresets";
 import { requestTripPlan } from "@/lib/planner/requestTripPlan";
-import { DEFAULT_FORM, type PlannerFormData, type TripPlan } from "@/lib/planner/types";
+import type { PlannerFormData, TripPlan } from "@/lib/planner/types";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import PlannerForm from "./PlannerForm";
 import PlannerLoading from "./PlannerLoading";
@@ -18,10 +19,16 @@ export default function AiTripPlannerClient() {
   const isMobile = useIsMobile();
   const reduceMotion = useReducedMotion();
   const resultsRef = useRef<HTMLDivElement>(null);
-  const [form, setForm] = useState<PlannerFormData>(DEFAULT_FORM);
+  const [form, setForm] = useState<PlannerFormData>(() => getDefaultPlannerForm(locale));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<TripPlan | null>(null);
+
+  useEffect(() => {
+    setForm(getDefaultPlannerForm(locale));
+    setPlan(null);
+    setError(null);
+  }, [locale]);
 
   useEffect(() => {
     if (!plan || !isMobile) return;

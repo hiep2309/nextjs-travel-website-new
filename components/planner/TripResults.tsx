@@ -41,6 +41,8 @@ export default function TripResults({ plan, form }: Props) {
   }, [plan.days, t]);
 
   const travelStyleLabel = t(`style_${form.travelStyle}`);
+  const transportLabel = t(`transport_${form.transportation}`);
+  const paceLabel = t(`pace_${form.pace}`);
 
   const activeDay =
     typeof tab === "number" ? plan.days.find((d) => d.day === tab) : plan.days[0];
@@ -105,8 +107,8 @@ export default function TripResults({ plan, form }: Props) {
         <div className="min-w-0">
           <h2 className="text-lg font-bold text-white sm:text-xl lg:text-2xl">{t("resultsTitle")}</h2>
           <p className="mt-1 line-clamp-2 text-xs text-white/55 sm:text-sm">
-            {plan.trip_title} · {form.days} {t("daysShort")} · {travelStyleLabel} · {form.travelers}{" "}
-            {t("people")}
+            {plan.trip_title} · {form.days} {t("daysShort")} · {travelStyleLabel} · {transportLabel} ·{" "}
+            {paceLabel} · {form.travelers} {t("people")}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">

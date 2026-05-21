@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { getCategoryStyle } from "@/lib/planner/categoryStyle";
 import { easeOut } from "@/lib/planner/motionPresets";
 import type { TripActivity, TripDay } from "@/lib/planner/types";
+import { usePlannerCategoryLabel } from "@/hooks/usePlannerCategoryLabel";
 
 const FALLBACK_IMG = "/signup_pic.jpg";
 
@@ -106,6 +107,7 @@ function TimelineActivity({
   reduceMotion: boolean | null;
 }) {
   const t = useTranslations("AiPlanner");
+  const categoryLabel = usePlannerCategoryLabel(activity.category);
   const style = getCategoryStyle(activity.category);
   const Icon = style.icon;
 
@@ -166,7 +168,7 @@ function TimelineActivity({
                 <span
                   className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${style.badge}`}
                 >
-                  {activity.category}
+                  {categoryLabel}
                 </span>
               ) : null}
             </div>

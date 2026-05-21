@@ -15,7 +15,6 @@ import {
 import { useTranslations } from "next-intl";
 import { fadeUp } from "@/lib/planner/motionPresets";
 import {
-  DEFAULT_FORM,
   PACE_OPTIONS,
   TRANSPORT_OPTIONS,
   TRAVEL_STYLES,
@@ -123,7 +122,7 @@ export default function PlannerForm({ value, onChange, onSubmit, loading }: Prop
             value={value.budget}
             onChange={(e) => set("budget", e.target.value)}
             className={inputCls}
-            placeholder={DEFAULT_FORM.budget}
+            placeholder={t("budgetPh")}
           />
         </Field>
 
