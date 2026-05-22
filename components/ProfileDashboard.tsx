@@ -7,8 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import {
   Bookmark,
   BookOpen,
@@ -16,6 +15,7 @@ import {
   ChevronRight,
   Clock,
   Compass,
+  FilePenLine,
   History,
   LayoutDashboard,
   LogOut,
@@ -34,6 +34,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
 import { ContentCardOverlay } from "@/components/cards";
 import ProfileItinerariesPanel from "@/components/itinerary/ProfileItinerariesPanel";
+import ProfilePostDraftsPanel from "@/components/create-post/ProfilePostDraftsPanel";
 import { buildDestinationModelForProvince } from "@/hooks/useDestinationPageModel";
 import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { getProvinceBySlug } from "@/lib/provinceSlug";
@@ -48,10 +49,11 @@ import {
   getUserDestinationRatings,
   getUserPostRatings,
 } from "@/lib/userActivityStorage";
+import { getPostDraft, POST_DRAFTS_CHANGED_EVENT } from "@/lib/postDraftStorage";
 
 const glass = "rounded-2xl border border-white/15 bg-white/[0.06] shadow-xl backdrop-blur-xl";
 
-type TabId = "saved" | "itineraries" | "history" | "reviews";
+type TabId = "saved" | "itineraries" | "drafts" | "history" | "reviews";
 type FilterId = "all" | "destination" | "post";
 
 type ContentRow = {
@@ -144,18 +146,21 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
     history: 0,
     reviews: 0,
     places: 0,
+    drafts: 0,
   });
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
     const bump = () => setTick((t) => t + 1);
     window.addEventListener("storage", bump);
+    window.addEventListener(POST_DRAFTS_CHANGED_EVENT, bump);
     const onVis = () => {
       if (document.visibilityState === "visible") bump();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
       window.removeEventListener("storage", bump);
+      window.removeEventListener(POST_DRAFTS_CHANGED_EVENT, bump);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
@@ -338,6 +343,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
       history: destHistory.length + postHistory.length,
       reviews: destReviews.length + postReviews.length,
       places: uniqDest.size,
+      drafts: getPostDraft(profile.uid) ? 1 : 0,
     });
   }, [tab, filter, sort, tick, profile.uid, locale, tDest]);
 
@@ -352,6 +358,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
 
   const tabs: { id: TabId; label: string; icon: typeof Bookmark }[] = [
     { id: "itineraries", label: tProfile("itineraries"), icon: Sparkles },
+    { id: "drafts", label: tProfile("drafts"), icon: FilePenLine },
     { id: "saved", label: tProfile("saved"), icon: Bookmark },
     { id: "history", label: tProfile("viewed"), icon: History },
     { id: "reviews", label: tProfile("reviews"), icon: Star },
@@ -535,6 +542,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
 
             {tab === "itineraries" ? (
               <ProfileItinerariesPanel userId={profile.uid} />
+            ) : tab === "drafts" ? (
+              <ProfilePostDraftsPanel userId={profile.uid} />
             ) : (
               <>
             <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

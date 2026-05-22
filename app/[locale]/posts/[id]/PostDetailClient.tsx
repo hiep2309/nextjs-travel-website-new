@@ -9,7 +9,7 @@ import { useParams } from "next/navigation";
 const POST_SAVED_TOAST_KEY = "vninsight_post_saved";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import Image from "next/image";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import { Bookmark, Eye, Pencil, Star, Trash2 } from "lucide-react";
 import { deleteDoc, doc, getDoc, increment, updateDoc } from "firebase/firestore";
 import { useRouter } from "@/lib/i18n/navigation";
@@ -23,7 +23,7 @@ import {
   toggleSavedPost,
 } from "@/lib/userActivityStorage";
 import { useAuth } from "@/hooks/useAuth";
-import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
+import { resolvePostCoverImage } from "@/lib/posts/coverImage";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { absoluteUrl } from "@/lib/siteUrl";
 import { resolvePostType } from "@/lib/postCategories";
@@ -185,7 +185,7 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
       : postType?.startsWith("guide_")
         ? t("backGuides")
         : t("backDestinations");
-  const coverSrc = post?.image?.trim() || "";
+  const coverSrc = post ? resolvePostCoverImage(post) : "";
   const jsonLd =
     post && id
       ? {
@@ -283,14 +283,11 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
             )}
             <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-800">
               {coverSrc ? (
-                <Image
+                <FlexibleImage
                   src={coverSrc}
                   alt=""
-                  fill
-                  className="object-cover"
                   sizes="(max-width: 768px) 100vw, 48rem"
-                  placeholder="blur"
-                  blurDataURL={BLUR_DATA_URL_LIGHT}
+                  priority
                 />
               ) : null}
             </div>

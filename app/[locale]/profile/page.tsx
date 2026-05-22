@@ -6,7 +6,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import ProfileDashboard from "@/components/ProfileDashboard";
 import { useUserProfile } from "@/hooks/useUserProfile";
 

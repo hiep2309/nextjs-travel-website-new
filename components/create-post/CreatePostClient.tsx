@@ -26,6 +26,7 @@ import {
   FolderOpen,
   History,
   ImagePlus,
+  Link2,
   Loader2,
   Plane,
   Search,
@@ -42,21 +43,25 @@ import { VIETNAM_PROVINCES } from "@/lib/vietnamProvinces";
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
 import { useAuth } from "@/hooks/useAuth";
 import { prepareImageForUpload } from "@/lib/imageUploadPrep";
+import { parseImageUrl } from "@/lib/parseImageUrl";
+import { getPostDraft, removePostDraft, savePostDraft } from "@/lib/postDraftStorage";
+import { POST_TITLE_MAX } from "@/lib/postContentLimits";
 import { CreatePostRichEditor, MAX_CHARS } from "./CreatePostRichEditor";
-import { publicPageForPostType, sectionForPostType, type PostType } from "@/lib/postCategories";
+import {
+  postTypeRequiresTravelTime,
+  publicPageForPostType,
+  sectionForPostType,
+  type PostType,
+} from "@/lib/postCategories";
 import PostTypePicker from "./PostTypePicker";
 import MyPostsPanel from "./MyPostsPanel";
 
 const glass = "rounded-2xl border border-white/12 bg-white/[0.06] shadow-xl backdrop-blur-xl";
 const POST_SAVED_TOAST_KEY = "vninsight_post_saved";
 
-const TITLE_MAX = 100;
+const TITLE_MAX = POST_TITLE_MAX;
 const IMG_MAX_MB = 10;
 const IMG_MAX_FILES = 4;
-
-function draftKey(uid: string) {
-  return `vninsight_create_post_draft:${uid}`;
-}
 
 function sanitizeBasicHtml(html: string): string {
   let s = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
@@ -122,6 +127,8 @@ export default function CreatePostClient() {
   const [hydrated, setHydrated] = useState(false);
 
   const [files, setFiles] = useState<{ id: string; file: File; preview: string }[]>([]);
+  const [externalUrls, setExternalUrls] = useState<string[]>([]);
+  const [imageUrlInput, setImageUrlInput] = useState("");
 
   const [busy, setBusy] = useState(false);
   const [compressingImages, setCompressingImages] = useState(false);
@@ -235,22 +242,15 @@ export default function CreatePostClient() {
   useEffect(() => {
     if (!user || hydrated || editPostId) return;
     try {
-      const raw = localStorage.getItem(draftKey(user.uid));
-      if (raw) {
-        const d = JSON.parse(raw) as {
-          title?: string;
-          destination?: string;
-          postType?: PostType;
-          travelTime?: string;
-          tagsRaw?: string;
-          html?: string;
-        };
+      const d = getPostDraft(user.uid);
+      if (d) {
         setTitle(d.title ?? "");
         setDestination(d.destination ?? "");
         setDestQuery(d.destination ?? "");
         setPostType(d.postType ?? "");
         setTravelTime(d.travelTime ?? "");
         setTagsRaw(d.tagsRaw ?? "");
+        setExternalUrls(Array.isArray(d.imageUrls) ? d.imageUrls.filter(Boolean) : []);
         initialHtmlRef.current = d.html ?? "";
         setDocHtml(d.html ?? "");
       }
@@ -304,17 +304,15 @@ export default function CreatePostClient() {
   const saveDraft = () => {
     if (!user) return;
     try {
-      localStorage.setItem(
-        draftKey(user.uid),
-        JSON.stringify({
-          title,
-          destination,
-          postType,
-          travelTime,
-          tagsRaw,
-          html: docHtml,
-        }),
-      );
+      savePostDraft(user.uid, {
+        title,
+        destination,
+        postType,
+        travelTime,
+        tagsRaw,
+        html: docHtml,
+        imageUrls: externalUrls,
+      });
       setBanner({ kind: "ok", text: t("draftSaved") });
     } catch {
       setBanner({ kind: "err", text: t("draftFailed") });
@@ -328,6 +326,32 @@ export default function CreatePostClient() {
       return prev.filter((x) => x.id !== id);
     });
 
+  const imageSlotCount =
+    (editMeta?.existingUrls.length ?? 0) + files.length + externalUrls.length;
+
+  const addImageUrl = () => {
+    const parsed = parseImageUrl(imageUrlInput);
+    if (!parsed) {
+      setBanner({ kind: "err", text: t("errImageUrl") });
+      return;
+    }
+    if (imageSlotCount >= IMG_MAX_FILES) {
+      setBanner({ kind: "err", text: t("errImageMax", { maxFiles: IMG_MAX_FILES }) });
+      return;
+    }
+    const known = new Set([...(editMeta?.existingUrls ?? []), ...externalUrls]);
+    if (known.has(parsed)) {
+      setBanner({ kind: "err", text: t("errImageUrlDup") });
+      return;
+    }
+    setExternalUrls((prev) => [...prev, parsed]);
+    setImageUrlInput("");
+  };
+
+  const removeExternalUrl = (url: string) => {
+    setExternalUrls((prev) => prev.filter((u) => u !== url));
+  };
+
   const uploadInlineImage = useCallback(async (file: File) => {
     const cur = auth.currentUser;
     if (!cur) throw new Error(t("notLoggedIn"));
@@ -340,7 +364,7 @@ export default function CreatePostClient() {
     const sref = ref(storage, path);
     await uploadBytes(sref, prepared, { contentType: prepared.type });
     return getDownloadURL(sref);
-  }, []);
+  }, [t]);
 
   const onFilesChosen = async (list: FileList | null) => {
     if (!list?.length) return;
@@ -361,9 +385,9 @@ export default function CreatePostClient() {
           preview: URL.createObjectURL(file),
         });
       }
-      const keptCount = editMeta?.existingUrls.length ?? 0;
-      const maxNew = Math.max(0, IMG_MAX_FILES - keptCount);
-      setFiles((prev) => [...prev, ...additions].slice(0, maxNew));
+      const baseCount = (editMeta?.existingUrls.length ?? 0) + externalUrls.length;
+      const maxFiles = Math.max(0, IMG_MAX_FILES - baseCount);
+      setFiles((prev) => [...prev, ...additions].slice(0, maxFiles));
     } finally {
       setCompressingImages(false);
     }
@@ -384,8 +408,12 @@ export default function CreatePostClient() {
       setBanner({ kind: "err", text: t("errDest") });
       return;
     }
-    if (!postType || !travelTime) {
-      setBanner({ kind: "err", text: t("errTypeTime") });
+    if (!postType) {
+      setBanner({ kind: "err", text: t("errPostType") });
+      return;
+    }
+    if (postTypeRequiresTravelTime(postType) && !travelTime.trim()) {
+      setBanner({ kind: "err", text: t("errTravelTime") });
       return;
     }
     const plainText = docHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -397,7 +425,8 @@ export default function CreatePostClient() {
       });
       return;
     }
-    const hasImages = files.length > 0 || (editMeta?.existingUrls.length ?? 0) > 0;
+    const hasImages =
+      files.length > 0 || externalUrls.length > 0 || (editMeta?.existingUrls.length ?? 0) > 0;
     if (!hasImages) {
       setBanner({ kind: "err", text: t("errImages") });
       return;
@@ -428,10 +457,11 @@ export default function CreatePostClient() {
       }
 
       const kept = editMeta?.existingUrls ?? [];
-      const allUrls = [...kept, ...urls];
+      const allUrls = [...kept, ...urls, ...externalUrls];
       const primary = allUrls[0]!;
 
       setBanner({ kind: "ok", text: t("translating") });
+      const slugSuffix = Date.now().toString(36);
       let localePayload;
       try {
         localePayload = await requestPostTranslation({
@@ -440,20 +470,20 @@ export default function CreatePostClient() {
           contentHtml: sanitizeBasicHtml(docHtml),
           sourceLocale: "vi",
           existingSlugs: editMeta?.existingSlugs,
-          slugSuffix: Date.now().toString(36),
+          slugSuffix,
         });
       } catch (translateErr) {
-        if (!editMeta) throw translateErr;
-        console.warn("[CreatePost] translation failed on edit, saving Vietnamese only", translateErr);
-        const titleMap = normalizeLocalizedString(editMeta.existingTitle, titleTrim);
+        console.warn("[CreatePost] translation failed, saving Vietnamese only", translateErr);
+        const titleMap = normalizeLocalizedString(editMeta?.existingTitle, titleTrim);
         titleMap.vi = titleTrim;
-        const descMap = normalizeLocalizedString(editMeta.existingDescription, plainText);
+        const descMap = normalizeLocalizedString(editMeta?.existingDescription, plainText);
         descMap.vi = plainText;
-        const htmlMap = normalizeLocalizedString(editMeta.existingContentHtml, docHtml);
+        const htmlMap = normalizeLocalizedString(editMeta?.existingContentHtml, docHtml);
         htmlMap.vi = sanitizeBasicHtml(docHtml);
         localePayload = buildPostLocaleWritePayload(titleMap, descMap, htmlMap, {
           sourceLocale: "vi",
-          existingSlugs: editMeta.existingSlugs,
+          existingSlugs: editMeta?.existingSlugs,
+          slugSuffix: editMeta ? undefined : slugSuffix,
         });
         setBanner({ kind: "ok", text: t("savedViOnly") });
       }
@@ -492,7 +522,7 @@ export default function CreatePostClient() {
         category: labelForPostType(postType),
         travelTime,
         tags: tagsArray,
-        images: urls,
+        images: allUrls,
         image: primary,
         thumb: primary,
         status,
@@ -505,7 +535,7 @@ export default function CreatePostClient() {
       });
 
       try {
-        localStorage.removeItem(draftKey(cur.uid));
+        removePostDraft(cur.uid);
       } catch {
         /* */
       }
@@ -529,6 +559,8 @@ export default function CreatePostClient() {
           prev.forEach((x) => URL.revokeObjectURL(x.preview));
           return [];
         });
+        setExternalUrls([]);
+        setImageUrlInput("");
       }
     } catch (err) {
       console.error(err);
@@ -545,7 +577,8 @@ export default function CreatePostClient() {
   };
 
   const editorKey = editMeta ? `edit-${editMeta.id}` : `new-${user?.uid ?? "guest"}`;
-  const coverPreview = files[0]?.preview ?? editMeta?.existingUrls[0] ?? null;
+  const coverPreview =
+    files[0]?.preview ?? editMeta?.existingUrls[0] ?? externalUrls[0] ?? null;
 
   if (loading || !user) {
     return (
@@ -689,8 +722,15 @@ export default function CreatePostClient() {
                 {destination ? <p className="mt-1.5 text-xs text-violet-300/80">{t("destSelected", { name: destination })}</p> : null}
               </div>
 
-              <PostTypePicker value={postType} onChange={setPostType} />
+              <PostTypePicker
+                value={postType}
+                onChange={(type) => {
+                  setPostType(type);
+                  if (type === "destination_review") setTravelTime("");
+                }}
+              />
 
+              {postTypeRequiresTravelTime(postType) ? (
               <div>
                 <label className="text-sm font-semibold text-white/80">{t("travelTime")}</label>
                 <select
@@ -707,6 +747,7 @@ export default function CreatePostClient() {
                   ))}
                 </select>
               </div>
+              ) : null}
 
               <div>
                 <label className="text-sm font-semibold text-white/80">{t("fieldContent")}</label>
@@ -762,7 +803,31 @@ export default function CreatePostClient() {
                     }}
                   />
                 </label>
-                {(editMeta?.existingUrls.length ?? 0) > 0 || files.length > 0 ? (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="url"
+                    value={imageUrlInput}
+                    onChange={(e) => setImageUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addImageUrl();
+                      }
+                    }}
+                    placeholder={t("imageUrlPh")}
+                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/35 focus:border-violet-500/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={addImageUrl}
+                    disabled={imageSlotCount >= IMG_MAX_FILES}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-500/35 bg-violet-500/15 px-4 py-2.5 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/25 disabled:opacity-50"
+                  >
+                    <Link2 className="size-4" aria-hidden />
+                    {t("addImageUrl")}
+                  </button>
+                </div>
+                {(editMeta?.existingUrls.length ?? 0) > 0 || files.length > 0 || externalUrls.length > 0 ? (
                   <div className="mt-4 flex flex-wrap gap-3">
                     {editMeta?.existingUrls.map((url) => (
                       <div
@@ -774,6 +839,26 @@ export default function CreatePostClient() {
                         <button
                           type="button"
                           onClick={() => removeExistingUrl(url)}
+                          className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black"
+                          aria-label={t("removeImage")}
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    {externalUrls.map((url) => (
+                      <div
+                        key={url}
+                        className="relative size-24 overflow-hidden rounded-xl border border-violet-400/25 sm:size-28"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="size-full object-cover" />
+                        <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[9px] text-violet-200">
+                          URL
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeExternalUrl(url)}
                           className="absolute right-1 top-1 rounded-full bg-black/70 p-1 text-white hover:bg-black"
                           aria-label={t("removeImage")}
                         >

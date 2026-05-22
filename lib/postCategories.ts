@@ -73,6 +73,11 @@ export function publicPageForPostType(type: PostType) {
   return SECTION_NAV[sectionForPostType(type)];
 }
 
+/** Review địa điểm không bắt buộc chọn thời gian đi. */
+export function postTypeRequiresTravelTime(type: PostType | ""): type is PostType {
+  return Boolean(type && type !== "destination_review");
+}
+
 export const ALL_POST_TYPES: PostType[] = (
   Object.keys(POST_TYPE_META) as PostType[]
 );

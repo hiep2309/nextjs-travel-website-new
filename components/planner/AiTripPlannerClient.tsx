@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
 import { getDefaultPlannerForm } from "@/lib/planner/i18n";
@@ -18,6 +18,7 @@ import type { PlannerFormData, TripPlan, TripPlanMeta } from "@/lib/planner/type
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { usePlannerCooldown } from "@/hooks/usePlannerCooldown";
+import PlannerAuthGate from "./PlannerAuthGate";
 import PlannerForm from "./PlannerForm";
 import PlannerFallbackBanner from "./PlannerFallbackBanner";
 import PlannerLoading from "./PlannerLoading";
@@ -50,7 +51,7 @@ export default function AiTripPlannerClient() {
   const t = useTranslations("AiPlanner");
   const locale = useLocale() as AppLocale;
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const reduceMotion = useReducedMotion();
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -101,7 +102,7 @@ export default function AiTripPlannerClient() {
   }, [plan, isMobile, reduceMotion]);
 
   const generate = async () => {
-    if (isCoolingDown) return;
+    if (!user || isCoolingDown) return;
     setLoading(true);
     setError(null);
     setErrorCode(null);
@@ -128,8 +129,21 @@ export default function AiTripPlannerClient() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center py-16 text-white">
+        <Loader2 className="size-8 animate-spin text-violet-400" aria-hidden />
+        <span className="sr-only">{t("authChecking")}</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <PlannerAuthGate />;
+  }
+
   return (
-    <div className="relative min-h-[100dvh] pb-20 pt-20 text-white sm:pt-24 sm:pb-16">
+    <div className="relative pb-20 pt-20 text-white sm:pt-24 sm:pb-16">
       <div
         className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-40"
         style={{ backgroundImage: "url('/signup_pic.jpg')" }}

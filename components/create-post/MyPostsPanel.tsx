@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import { pickLocalized } from "@/lib/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
@@ -152,13 +152,7 @@ export default function MyPostsPanel({ authorId, refreshKey = 0 }: Props) {
                     className="flex min-w-0 flex-1 gap-3 transition hover:opacity-90"
                   >
                     <span className="relative h-14 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-800">
-                      <Image
-                        src={resolvePostCoverImage(p)}
-                        alt=""
-                        fill
-                        className="object-cover"
-                        sizes="64px"
-                      />
+                      <FlexibleImage src={resolvePostCoverImage(p)} alt="" sizes="64px" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-xs font-bold leading-snug text-white">

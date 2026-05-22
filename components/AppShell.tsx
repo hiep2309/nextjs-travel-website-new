@@ -21,7 +21,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         aria-hidden
       />
       <Navbar />
-      <main className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
+      <main className="relative z-0 min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
       <Footer />
     </>
   );

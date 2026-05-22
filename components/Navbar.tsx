@@ -90,7 +90,7 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="fixed top-0 left-0 z-[1000] w-full border-b border-white/10 bg-slate-950 shadow-lg shadow-black/40">
+      <header className="pointer-events-auto fixed top-0 left-0 z-[1100] w-full border-b border-white/10 bg-slate-950 shadow-lg shadow-black/40">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
             <div className="relative h-10 w-10 md:h-12 md:w-12">

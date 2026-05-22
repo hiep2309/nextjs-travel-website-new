@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/lib/i18n/navigation";
 import type { AppLocale } from "@/i18n/routing";
 import { pickLocalized } from "@/lib/i18n/content";

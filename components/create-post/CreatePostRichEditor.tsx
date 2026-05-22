@@ -2,7 +2,7 @@
  * Editor rich text (TipTap) dùng trong đăng bài — đậm, nghiêng, list, link, trích dẫn, ảnh inline.
  *
  * Giới hạn độ dài nội dung thuần `MAX_CHARS`; đồng bộ HTML ra parent qua `onDocChange`.
- * Ảnh chèn tại con trỏ qua `onUploadImage` (upload Storage, trả URL).
+ * Ảnh chèn tại con trỏ: link http(s), upload Storage (`onUploadImage`), dán/kéo file.
  */
 "use client";
 
@@ -24,10 +24,14 @@ import {
   Strikethrough,
   Underline as UnderlineIcon,
   ImagePlus,
+  Image as ImageIcon,
   Loader2,
 } from "lucide-react";
 
-const MAX_CHARS = 5000;
+import { looksLikeImageUrl, parseImageUrl } from "@/lib/parseImageUrl";
+import { POST_CONTENT_PLAIN_MAX } from "@/lib/postContentLimits";
+
+const MAX_CHARS = POST_CONTENT_PLAIN_MAX;
 const INLINE_IMG_MAX_MB = 10;
 
 type Props = {
@@ -44,6 +48,7 @@ export function CreatePostRichEditor({ initialHtml, onDocChange, onUploadImage }
   onUploadRef.current = onUploadImage;
 
   const insertImageRef = useRef<(file: File, pos?: number) => Promise<void>>(async () => {});
+  const insertImageUrlRef = useRef<(url: string) => void>(() => {});
 
   const editor = useEditor(
     {
@@ -87,6 +92,15 @@ export function CreatePostRichEditor({ initialHtml, onDocChange, onUploadImage }
           return true;
         },
         handlePaste: (_view, event) => {
+          const text = event.clipboardData?.getData("text/plain")?.trim();
+          if (text && !text.includes("\n") && looksLikeImageUrl(text)) {
+            const parsed = parseImageUrl(text);
+            if (parsed) {
+              event.preventDefault();
+              insertImageUrlRef.current(parsed);
+              return true;
+            }
+          }
           if (!onUploadRef.current) return false;
           const file = Array.from(event.clipboardData?.files ?? []).find((f) => f.type.startsWith("image/"));
           if (!file) return false;
@@ -109,6 +123,9 @@ export function CreatePostRichEditor({ initialHtml, onDocChange, onUploadImage }
 
   useEffect(() => {
     if (!editor) return;
+    insertImageUrlRef.current = (url: string) => {
+      editor.chain().focus().setImage({ src: url, alt: "" }).run();
+    };
     insertImageRef.current = async (file: File, pos?: number) => {
       const upload = onUploadRef.current;
       if (!upload) return;
@@ -129,7 +146,7 @@ export function CreatePostRichEditor({ initialHtml, onDocChange, onUploadImage }
         setUploadingInline(false);
       }
     };
-  }, [editor]);
+  }, [editor, te]);
 
   const setLink = () => {
     if (!editor) return;
@@ -142,6 +159,18 @@ export function CreatePostRichEditor({ initialHtml, onDocChange, onUploadImage }
       return;
     }
     editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+  };
+
+  const insertImageUrl = () => {
+    if (!editor) return;
+    const url = window.prompt(te("imageUrlPrompt"), "https://");
+    if (url === null) return;
+    const parsed = parseImageUrl(url);
+    if (!parsed) {
+      window.alert(te("imageUrlInvalid"));
+      return;
+    }
+    editor.chain().focus().setImage({ src: parsed, alt: "" }).run();
   };
 
   const onInlineImageChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -225,6 +254,15 @@ export function CreatePostRichEditor({ initialHtml, onDocChange, onUploadImage }
           <button type="button" className={`${tb} ${editor.isActive("link") ? tbActive : ""}`} onClick={setLink} aria-label={te("link")}>
             <Link2 className="size-4" />
           </button>
+          <button
+            type="button"
+            className={tb}
+            onClick={insertImageUrl}
+            aria-label={te("imageUrl")}
+            title={te("imageUrlTitle")}
+          >
+            <ImageIcon className="size-4" />
+          </button>
           {onUploadImage ? (
             <button
               type="button"
@@ -241,11 +279,7 @@ export function CreatePostRichEditor({ initialHtml, onDocChange, onUploadImage }
       ) : null}
       <EditorContent editor={editor} />
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-3 py-2 text-xs text-white/45">
-        {onUploadImage ? (
-          <span className="text-white/40">{te("imageHint")}</span>
-        ) : (
-          <span />
-        )}
+        <span className="text-white/40">{te("imageHint")}</span>
         <span className={plainLen > MAX_CHARS ? "font-semibold text-amber-400" : ""}>
           {plainLen}/{MAX_CHARS}
         </span>

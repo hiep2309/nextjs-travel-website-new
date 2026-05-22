@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { routing, type AppLocale } from "@/i18n/routing";
 import type { LocalizedSlug } from "@/lib/i18n/types";
+import {
+  POST_DESCRIPTION_MAX,
+  POST_HTML_MAX,
+  POST_TITLE_MAX,
+} from "@/lib/postContentLimits";
 import { runPostTranslationPipeline } from "@/lib/translation/pipeline";
 import type { TranslationProvider } from "@/lib/translation/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
-
-const TITLE_MAX = 200;
-const DESC_MAX = 2000;
-const HTML_MAX = 50000;
 
 function parseLocale(raw: unknown, fallback: AppLocale = "vi"): AppLocale {
   if (typeof raw === "string" && routing.locales.includes(raw as AppLocale)) {
@@ -45,7 +46,13 @@ type PostBody = {
   slugSuffix?: unknown;
 };
 
-function validatePostBody(body: unknown) {
+function validatePostBody(body: unknown): { ok: true; data: NonNullable<ReturnType<typeof parseValidBody>> } | { ok: false; error: string } {
+  const parsed = parseValidBody(body);
+  if (!parsed) return { ok: false, error: "Invalid post translation input" };
+  return { ok: true, data: parsed };
+}
+
+function parseValidBody(body: unknown) {
   if (!body || typeof body !== "object") return null;
   const b = body as PostBody;
 
@@ -53,9 +60,12 @@ function validatePostBody(body: unknown) {
   const description = String(b.description ?? "").trim();
   const contentHtml = String(b.contentHtml ?? "").trim();
 
-  if (!title || title.length > TITLE_MAX) return null;
-  if (!description || description.length > DESC_MAX) return null;
-  if (!contentHtml || contentHtml.length > HTML_MAX) return null;
+  if (!title) return null;
+  if (title.length > POST_TITLE_MAX) return null;
+  if (!description) return null;
+  if (description.length > POST_DESCRIPTION_MAX) return null;
+  if (!contentHtml) return null;
+  if (contentHtml.length > POST_HTML_MAX) return null;
 
   const plain = contentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   if (!plain) return null;
@@ -84,10 +94,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const data = validatePostBody(body);
-    if (!data) {
-      return NextResponse.json({ error: "Invalid post translation input" }, { status: 400 });
+    const validated = validatePostBody(body);
+    if (!validated.ok) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
     }
+    const data = validated.data;
 
     const result = await runPostTranslationPipeline(
       {

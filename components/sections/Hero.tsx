@@ -7,7 +7,7 @@
  */
 "use client";
 
-import Image from "next/image";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -399,11 +399,9 @@ const Hero = () => {
             <div className="grid items-center gap-5 md:grid-cols-2 md:gap-6">
                 <div className="relative order-2 aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/15 md:order-1">
                   {featuredCardImage.trim() ? (
-                    <Image
+                    <FlexibleImage
                       src={featuredCardImage}
                       alt=""
-                      fill
-                      className="object-cover"
                       sizes="(max-width: 768px) 100vw, 380px"
                       priority
                     />

@@ -6,10 +6,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { Link, useRouter } from "@/i18n/navigation";
 import { auth } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Gift, X } from "lucide-react";
 import { createUserProfile } from "@/lib/user";
 

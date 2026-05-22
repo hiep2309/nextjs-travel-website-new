@@ -1,7 +1,6 @@
 "use client";
 
-import Image from "next/image";
-import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 
 type Props = {
   src?: string;
@@ -30,15 +29,13 @@ export default function CardImage({
   return (
     <div className={className}>
       {trimmed ? (
-        <Image
+        <FlexibleImage
           src={trimmed}
           alt={alt}
-          fill
           className={`${imageClassName}${hoverScale ? " transition duration-700 ease-out group-hover:scale-[1.03]" : ""}`}
           sizes={sizes}
           priority={priority}
-          placeholder={placeholder ? "blur" : undefined}
-          blurDataURL={placeholder ? BLUR_DATA_URL_LIGHT : undefined}
+          placeholder={placeholder}
         />
       ) : (
         <div className="absolute inset-0 bg-slate-800/90" aria-hidden />

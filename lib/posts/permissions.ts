@@ -15,7 +15,7 @@ export function canEditPost(
   role: string | null | undefined,
   uid: string | null | undefined,
   authorId?: string | null,
-  status?: string | null,
+  _status?: string | null,
 ): boolean {
   if (!uid) return false;
   if (role === "admin") return true;
