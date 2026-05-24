@@ -15,6 +15,10 @@ import {
 import { useTranslations } from "next-intl";
 import { fadeUp } from "@/lib/planner/motionPresets";
 import {
+  FREE_MAX_DAYS,
+  PREMIUM_MAX_DAYS,
+} from "@/lib/planner/plannerConfig";
+import {
   PACE_OPTIONS,
   TRANSPORT_OPTIONS,
   TRAVEL_STYLES,
@@ -28,11 +32,18 @@ const glass =
 const touchBtn =
   "touch-manipulation min-h-[44px] active:scale-[0.98] transition-transform";
 
+type UsageInfo = {
+  count: number;
+  limit: number;
+  remaining: number;
+};
+
 type Props = {
   value: PlannerFormData;
   onChange: (next: PlannerFormData) => void;
   onSubmit: () => void;
   loading: boolean;
+  usage?: UsageInfo | null;
 };
 
 const transportIcons: Record<Transportation, typeof Car> = {
@@ -42,9 +53,10 @@ const transportIcons: Record<Transportation, typeof Car> = {
   Train,
 };
 
-export default function PlannerForm({ value, onChange, onSubmit, loading }: Props) {
+export default function PlannerForm({ value, onChange, onSubmit, loading, usage }: Props) {
   const t = useTranslations("AiPlanner");
   const reduceMotion = useReducedMotion();
+  const maxDays = value.premiumMode ? PREMIUM_MAX_DAYS : FREE_MAX_DAYS;
 
   const set = <K extends keyof PlannerFormData>(key: K, v: PlannerFormData[K]) => {
     onChange({ ...value, [key]: v });
@@ -70,6 +82,18 @@ export default function PlannerForm({ value, onChange, onSubmit, loading }: Prop
       </div>
       <p className="mb-5 text-sm leading-relaxed text-white/60 sm:mb-6">{t("subtitle")}</p>
 
+      {usage ? (
+        <p
+          className={`mb-4 rounded-xl border px-3 py-2 text-xs ${
+            usage.remaining <= 0
+              ? "border-amber-400/30 bg-amber-950/30 text-amber-100/90"
+              : "border-white/10 bg-black/20 text-white/70"
+          }`}
+        >
+          {usage.remaining <= 0 ? t("dailyLimitHint") : t("dailyUsage", { remaining: usage.remaining, limit: usage.limit })}
+        </p>
+      ) : null}
+
       <form
         className="space-y-4 sm:space-y-5"
         onSubmit={(e) => {
@@ -92,11 +116,13 @@ export default function PlannerForm({ value, onChange, onSubmit, loading }: Prop
             <input
               type="number"
               min={1}
-              max={14}
+              max={maxDays}
               inputMode="numeric"
               required
               value={value.days}
-              onChange={(e) => set("days", Math.max(1, Math.min(14, Number(e.target.value) || 1)))}
+              onChange={(e) =>
+                set("days", Math.max(1, Math.min(maxDays, Number(e.target.value) || 1)))
+              }
               className={inputCls}
             />
           </Field>
@@ -173,6 +199,19 @@ export default function PlannerForm({ value, onChange, onSubmit, loading }: Prop
             ))}
           </div>
         </ChipGroup>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
+          <input
+            type="checkbox"
+            checked={Boolean(value.premiumMode)}
+            onChange={(e) => set("premiumMode", e.target.checked)}
+            className="mt-1 size-4 rounded border-white/20 accent-violet-500"
+          />
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-white">{t("premiumMode")}</span>
+            <span className="mt-0.5 block text-xs text-white/55">{t("premiumModeDesc")}</span>
+          </span>
+        </label>
 
         <motion.button
           type="submit"

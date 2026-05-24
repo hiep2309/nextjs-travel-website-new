@@ -4,7 +4,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { AppLocale } from "@/i18n/routing";
@@ -24,7 +24,6 @@ import type { ProvinceDef } from "@/lib/vietnamProvinces";
 import { TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
 import { DestinationRelatedCard } from "@/components/cards";
 import { relatedDestinationToCard } from "@/lib/cards/adapters";
-import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { useAuth } from "@/hooks/useAuth";
 import { useDestinationPageModel } from "@/hooks/useDestinationPageModel";
 import {
@@ -143,15 +142,12 @@ export default function DestinationDetailClient({ province }: Props) {
       <section className="relative">
         <div className="relative h-[min(52vh,480px)] w-full sm:h-[min(58vh,560px)]">
           {data.heroImage.trim() ? (
-            <Image
+            <FlexibleImage
               src={data.heroImage}
               alt=""
-              fill
               className="object-cover"
               sizes="100vw"
               priority
-              placeholder="blur"
-              blurDataURL={BLUR_DATA_URL_LIGHT}
             />
           ) : (
             <div className="absolute inset-0 bg-slate-800" aria-hidden />
@@ -258,14 +254,11 @@ export default function DestinationDetailClient({ province }: Props) {
                 >
                   <div className="relative aspect-[16/10]">
                     {ex.image.trim() ? (
-                      <Image
+                      <FlexibleImage
                         src={ex.image}
                         alt=""
-                        fill
                         className="object-cover transition group-hover:scale-105"
                         sizes="(max-width:768px)100vw,400px"
-                        placeholder="blur"
-                        blurDataURL={BLUR_DATA_URL_LIGHT}
                       />
                     ) : (
                       <div className="absolute inset-0 bg-slate-800/90" aria-hidden />
@@ -326,15 +319,7 @@ export default function DestinationDetailClient({ province }: Props) {
               {data.gallery.map((src, i) => (
                 <div key={`g-${i}`} className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/10">
                   {src.trim() ? (
-                    <Image
-                      src={src}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="200px"
-                      placeholder="blur"
-                      blurDataURL={BLUR_DATA_URL_LIGHT}
-                    />
+                    <FlexibleImage src={src} alt="" className="object-cover" sizes="200px" />
                   ) : (
                     <div className="absolute inset-0 bg-slate-800/90" aria-hidden />
                   )}
@@ -404,14 +389,11 @@ export default function DestinationDetailClient({ province }: Props) {
 
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-blue-600/25 to-slate-900/80">
             <div className="relative h-32">
-              <Image
+              <FlexibleImage
                 src={TRAVEL_IMAGE_URLS.oldTown}
                 alt=""
-                fill
                 className="object-cover opacity-90"
                 sizes="340px"
-                placeholder="blur"
-                blurDataURL={BLUR_DATA_URL_LIGHT}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent" />
             </div>

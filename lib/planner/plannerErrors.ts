@@ -11,6 +11,8 @@ export type PlannerErrorCode =
   | "API_KEY"
   | "BLOCKED"
   | "EMPTY"
+  | "UNAUTHORIZED"
+  | "DAILY_LIMIT"
   | "UNKNOWN";
 
 export class PlannerError extends Error {

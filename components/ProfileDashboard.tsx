@@ -6,7 +6,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   Bookmark,
@@ -33,15 +32,14 @@ import { auth, db, storage } from "@/lib/firebase";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
 import { ContentCardOverlay } from "@/components/cards";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import ProfileItinerariesPanel from "@/components/itinerary/ProfileItinerariesPanel";
 import ProfilePostDraftsPanel from "@/components/create-post/ProfilePostDraftsPanel";
 import { buildDestinationModelForProvince } from "@/hooks/useDestinationPageModel";
-import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
 import { getProvinceBySlug } from "@/lib/provinceSlug";
 import { useAuth } from "@/hooks/useAuth";
 import type { MergedProfile } from "@/hooks/useUserProfile";
 import {
-  formatRelativeTimeVi,
   getDestinationHistory,
   getPostHistory,
   getSavedDestinationSlugs,
@@ -74,18 +72,34 @@ function defaultPostImage() {
 
 type ActivityItem = { label: string; title: string; href: string; at: number; thumb: string };
 
+type ProfileT = ReturnType<typeof useTranslations<"Profile">>;
+
+function formatRelativeTime(ts: number, t: ProfileT, locale: AppLocale): string {
+  const sec = Math.floor((Date.now() - ts) / 1000);
+  if (sec < 45) return t("justNow");
+  const min = Math.floor(sec / 60);
+  if (min < 60) return t("minutesAgo", { count: min });
+  const h = Math.floor(min / 60);
+  if (h < 24) return t("hoursAgo", { count: h });
+  const d = Math.floor(h / 24);
+  if (d < 7) return t("daysAgo", { count: d });
+  const localeTag = locale === "vi" ? "vi-VN" : locale === "ko" ? "ko-KR" : "en-US";
+  return new Date(ts).toLocaleDateString(localeTag);
+}
+
 function buildActivityFeed(
   uid: string,
   locale: AppLocale,
-  t: (key: string, values?: Record<string, string | number>) => string,
+  tDest: (key: string, values?: Record<string, string | number>) => string,
+  tProfile: ProfileT,
 ): ActivityItem[] {
   const items: ActivityItem[] = [];
   for (const { slug, at } of getDestinationHistory(uid).slice(0, 12)) {
     const p = getProvinceBySlug(slug);
     if (!p) continue;
-    const m = buildDestinationModelForProvince(p, locale, t);
+    const m = buildDestinationModelForProvince(p, locale, tDest);
     items.push({
-      label: "Đã xem",
+      label: tProfile("activityViewed"),
       title: m.headline,
       href: `/destinations/${slug}`,
       at,
@@ -94,7 +108,7 @@ function buildActivityFeed(
   }
   for (const s of getSavedPosts(uid)) {
     items.push({
-      label: "Bài đã lưu",
+      label: tProfile("activitySavedPost"),
       title: s.title,
       href: `/posts/${s.id}`,
       at: s.savedAt,
@@ -104,9 +118,9 @@ function buildActivityFeed(
   for (const { slug, stars, at } of getUserDestinationRatings(uid)) {
     const p = getProvinceBySlug(slug);
     if (!p) continue;
-    const m = buildDestinationModelForProvince(p, locale, t);
+    const m = buildDestinationModelForProvince(p, locale, tDest);
     items.push({
-      label: `Đánh giá ${stars}★`,
+      label: tProfile("activityRated", { stars }),
       title: m.headline,
       href: `/destinations/${slug}`,
       at,
@@ -115,7 +129,7 @@ function buildActivityFeed(
   }
   for (const r of getUserPostRatings(uid)) {
     items.push({
-      label: `Đánh giá ${r.stars}★`,
+      label: tProfile("activityRated", { stars: r.stars }),
       title: r.title,
       href: `/posts/${r.id}`,
       at: r.at,
@@ -132,6 +146,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
   const locale = useLocale() as AppLocale;
   const tProfile = useTranslations("Profile");
   const tDest = useTranslations("Destinations");
+  const tNav = useTranslations("Nav");
+  const tCommon = useTranslations("Common");
   const { logout } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarLocalUrl, setAvatarLocalUrl] = useState<string | null>(null);
@@ -176,11 +192,11 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Vui lòng chọn một file ảnh.");
+      alert(tProfile("avatarInvalidType"));
       return;
     }
     if (file.size > AVATAR_MAX_MB * 1024 * 1024) {
-      alert(`Ảnh tối đa ${AVATAR_MAX_MB}MB.`);
+      alert(tProfile("avatarTooLarge", { max: AVATAR_MAX_MB }));
       return;
     }
 
@@ -205,7 +221,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
       setAvatarLocalUrl(url);
     } catch (err) {
       console.error(err);
-      alert("Không đổi được ảnh. Kiểm tra kết nối và quyền Storage của dự án Firebase.");
+      alert(tProfile("avatarUploadErr"));
     } finally {
       setAvatarUploading(false);
     }
@@ -235,16 +251,18 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
           href: `/destinations/${slug}`,
           at: 0,
           sub: subLine(slug),
-          chip: "ĐỊA ĐIỂM",
+          chip: tProfile("chipDestination"),
         });
       }
       return out;
     };
 
+    const rel = (at: number) => formatRelativeTime(at, tProfile, locale);
+
     let list: ContentRow[] = [];
 
     if (tab === "saved") {
-      const destSaved = destRowsForSlugs(savedSlugs, () => "Đã lưu vào danh sách");
+      const destSaved = destRowsForSlugs(savedSlugs, () => tProfile("subSavedToList"));
       const posts: ContentRow[] = savedPosts.map((s) => ({
         key: `p-${s.id}`,
         kind: "post",
@@ -252,8 +270,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         image: s.image || defaultPostImage(),
         href: `/posts/${s.id}`,
         at: s.savedAt,
-        sub: `Đã lưu ${formatRelativeTimeVi(s.savedAt)}`,
-        chip: "BÀI VIẾT",
+        sub: tProfile("subSavedAt", { time: rel(s.savedAt) }),
+        chip: tProfile("chipPost"),
       }));
       list = [...destSaved, ...posts];
     } else if (tab === "history") {
@@ -269,8 +287,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
             image: m.heroImage,
             href: `/destinations/${h.slug}`,
             at: h.at,
-            sub: `Xem ${formatRelativeTimeVi(h.at)}`,
-            chip: "ĐỊA ĐIỂM",
+            sub: tProfile("subViewedAt", { time: rel(h.at) }),
+            chip: tProfile("chipDestination"),
           };
         })
         .filter(Boolean) as ContentRow[];
@@ -281,8 +299,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         image: h.image || defaultPostImage(),
         href: `/posts/${h.id}`,
         at: h.at,
-        sub: `Xem ${formatRelativeTimeVi(h.at)}`,
-        chip: "BÀI VIẾT",
+        sub: tProfile("subViewedAt", { time: rel(h.at) }),
+        chip: tProfile("chipPost"),
       }));
       list = [...dest, ...posts];
     } else {
@@ -298,8 +316,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
             image: m.heroImage,
             href: `/destinations/${r.slug}`,
             at: r.at,
-            sub: `Bạn chấm ${r.stars} sao · ${formatRelativeTimeVi(r.at)}`,
-            chip: "ĐỊA ĐIỂM",
+            sub: tProfile("subRated", { stars: r.stars, time: rel(r.at) }),
+            chip: tProfile("chipDestination"),
             extra: `${r.stars}`,
           };
         })
@@ -311,8 +329,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         image: r.image || defaultPostImage(),
         href: `/posts/${r.id}`,
         at: r.at,
-        sub: `Bạn chấm ${r.stars} sao · ${formatRelativeTimeVi(r.at)}`,
-        chip: "BÀI VIẾT",
+        sub: tProfile("subRated", { stars: r.stars, time: rel(r.at) }),
+        chip: tProfile("chipPost"),
         extra: `${r.stars}`,
       }));
       list = [...dest, ...posts];
@@ -324,7 +342,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
     const unknownLast = (a: ContentRow, b: ContentRow) => {
       const atA = a.at || 0;
       const atB = b.at || 0;
-      if (atA === 0 && atB === 0) return a.title.localeCompare(b.title, "vi");
+      if (atA === 0 && atB === 0) return a.title.localeCompare(b.title, locale);
       if (atA === 0) return 1;
       if (atB === 0) return -1;
       return sort === "newest" ? atB - atA : atA - atB;
@@ -345,16 +363,23 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
       places: uniqDest.size,
       drafts: getPostDraft(profile.uid) ? 1 : 0,
     });
-  }, [tab, filter, sort, tick, profile.uid, locale, tDest]);
+  }, [tab, filter, sort, tick, profile.uid, locale, tDest, tProfile]);
 
   useEffect(() => {
-    setActivityFeed(buildActivityFeed(profile.uid, locale, tDest));
-  }, [tick, profile.uid, locale, tDest]);
+    setActivityFeed(buildActivityFeed(profile.uid, locale, tDest, tProfile));
+  }, [tick, profile.uid, locale, tDest, tProfile]);
 
   const handleLogout = async () => {
     await logout();
     router.push("/");
   };
+
+  const emptyTitle =
+    tab === "saved"
+      ? tProfile("emptySaved")
+      : tab === "history"
+        ? tProfile("emptyViewed")
+        : tProfile("emptyReviews");
 
   const tabs: { id: TabId; label: string; icon: typeof Bookmark }[] = [
     { id: "itineraries", label: tProfile("itineraries"), icon: Sparkles },
@@ -370,7 +395,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         {/* Sidebar */}
         <aside className="mb-8 shrink-0 lg:mb-0 lg:w-64 lg:pt-2">
           <div className={`${glass} p-4`}>
-            <p className="px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Menu</p>
+            <p className="px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">{tProfile("menu")}</p>
             <nav className="mt-3 space-y-1">
               {tabs.map(({ id, label, icon: Icon }) => (
                 <button
@@ -394,14 +419,14 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/65 transition hover:bg-white/10 hover:text-white"
               >
                 <Compass className="size-4" aria-hidden />
-                Khám phá
+                {tNav("explore")}
               </Link>
               <Link
                 href="/create-post"
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/65 transition hover:bg-white/10 hover:text-white"
               >
                 <PenSquare className="size-4" aria-hidden />
-                Đăng bài
+                {tProfile("writePost")}
               </Link>
               {isAdmin ? (
                 <Link
@@ -409,7 +434,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                   className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-amber-200/90 transition hover:bg-amber-500/15"
                 >
                   <LayoutDashboard className="size-4" aria-hidden />
-                  Dashboard
+                  {tNav("dashboard")}
                 </Link>
               ) : null}
             </div>
@@ -440,15 +465,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
                 <div className="relative mx-auto shrink-0 sm:mx-0">
                   <div className="relative h-28 w-28 overflow-hidden rounded-full ring-2 ring-white/25">
-                    <Image
-                      src={avatarSrc}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="112px"
-                      placeholder="blur"
-                      blurDataURL={BLUR_DATA_URL_LIGHT}
-                    />
+                    <FlexibleImage src={avatarSrc} alt="" sizes="112px" className="object-cover" />
                   </div>
                   <input
                     ref={avatarInputRef}
@@ -462,12 +479,12 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                     disabled={avatarUploading}
                     onClick={() => avatarInputRef.current?.click()}
                     className="absolute bottom-0 right-0 flex size-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-2 ring-black/50 transition hover:bg-blue-500 disabled:opacity-60"
-                    aria-label="Đổi ảnh đại diện"
+                    aria-label={tProfile("changeAvatarAria")}
                   >
                     <Camera className="size-4" aria-hidden />
                   </button>
                   <p className="mt-2 text-center text-[11px] text-white/45 sm:text-left">
-                    {avatarUploading ? "Đang tải ảnh…" : "Chọn ảnh từ thư viện thiết bị"}
+                    {avatarUploading ? tProfile("avatarUploading") : tProfile("avatarPickHint")}
                   </p>
                 </div>
                 <div className="min-w-0 flex-1 text-center sm:text-left">
@@ -481,41 +498,41 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                       }`}
                     >
                       {isAdmin ? <Shield className="size-3" aria-hidden /> : <User className="size-3" aria-hidden />}
-                      {isAdmin ? "Quản trị viên" : "Thành viên"}
+                      {isAdmin ? tNav("admin") : tNav("member")}
                     </span>
                   </div>
                   {profile.email ? <p className="mt-2 truncate text-sm text-white/55">{profile.email}</p> : null}
                   <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-white/40 sm:text-left">
                     <MapPin className="size-3.5 shrink-0" aria-hidden />
-                    Việt Nam
+                    {tCommon("vietnam")}
                   </p>
 
                   <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-center sm:text-left">
                       <p className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-white/40 sm:justify-start">
                         <Bookmark className="size-3" aria-hidden />
-                        Đã lưu
+                        {tProfile("saved")}
                       </p>
                       <p className="mt-1 text-lg font-bold text-white">{counts.saved}</p>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-center sm:text-left">
                       <p className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-white/40 sm:justify-start">
                         <History className="size-3" aria-hidden />
-                        Lịch sử xem
+                        {tProfile("statHistory")}
                       </p>
                       <p className="mt-1 text-lg font-bold text-white">{counts.history}</p>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-center sm:text-left">
                       <p className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-white/40 sm:justify-start">
                         <Star className="size-3" aria-hidden />
-                        Đánh giá
+                        {tProfile("reviews")}
                       </p>
                       <p className="mt-1 text-lg font-bold text-white">{counts.reviews}</p>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-center sm:text-left">
                       <p className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-white/40 sm:justify-start">
                         <BookOpen className="size-3" aria-hidden />
-                        Địa điểm
+                        {tProfile("statPlaces")}
                       </p>
                       <p className="mt-1 text-lg font-bold text-white">{counts.places}</p>
                     </div>
@@ -550,9 +567,9 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
               <div className="flex flex-wrap gap-2">
                 {(
                   [
-                    ["all", "Tất cả"],
-                    ["destination", "Địa điểm"],
-                    ["post", "Bài viết"],
+                    ["all", tProfile("filterAll")],
+                    ["destination", tProfile("filterDestination")],
+                    ["post", tProfile("filterPost")],
                   ] as const
                 ).map(([id, label]) => (
                   <button
@@ -569,30 +586,27 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
               </div>
               <label className="flex items-center gap-2 text-xs text-white/50">
                 <Clock className="size-3.5" aria-hidden />
-                <span className="sr-only">Sắp xếp</span>
+                <span className="sr-only">{tProfile("sortLabel")}</span>
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value as "newest" | "oldest")}
                   className="rounded-lg border border-white/15 bg-[#12161f] px-3 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 >
-                  <option value="newest">Mới nhất</option>
-                  <option value="oldest">Cũ nhất</option>
+                  <option value="newest">{tProfile("sortNewest")}</option>
+                  <option value="oldest">{tProfile("sortOldest")}</option>
                 </select>
               </label>
             </div>
 
             {rows.length === 0 ? (
               <div className={`${glass} mt-6 flex flex-col items-center justify-center px-6 py-16 text-center`}>
-                <p className="text-sm font-medium text-white/75">Chưa có mục nào trong danh sách này.</p>
-                <p className="mt-2 max-w-sm text-xs text-white/45">
-                  Lưu địa điểm hoặc bài viết, xem trang chi tiết để lưu lịch sử và chấm sao — dữ liệu được giữ trên
-                  trình duyệt của bạn.
-                </p>
+                <p className="text-sm font-medium text-white/75">{emptyTitle}</p>
+                <p className="mt-2 max-w-sm text-xs text-white/45">{tProfile("emptyListHint")}</p>
                 <Link
                   href="/explore"
                   className="mt-6 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-blue-500"
                 >
-                  Đi khám phá
+                  {tProfile("emptyExploreCta")}
                 </Link>
               </div>
             ) : (
@@ -621,32 +635,24 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
               className="mt-10 flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/35 bg-red-500/10 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 sm:w-auto sm:px-10"
             >
               <LogOut className="size-4" aria-hidden />
-              Đăng xuất
+              {tNav("logout")}
             </button>
           </div>
 
           {/* Right column */}
           <aside className="mt-12 w-full shrink-0 space-y-6 lg:mt-8 lg:w-72 xl:w-80">
             <div className={`${glass} p-5`}>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400/90">Hoạt động gần đây</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400/90">{tProfile("recentActivity")}</h3>
               <ul className="mt-4 space-y-4">
                 {activityFeed.length === 0 ? (
-                  <li className="text-xs text-white/45">Chưa có hoạt động. Hãy mở vài trang địa điểm hoặc bài viết.</li>
+                  <li className="text-xs text-white/45">{tProfile("emptyActivity")}</li>
                 ) : (
                   activityFeed.map((a, i) => (
                     <li key={`${a.href}-${a.at}-${i}`}>
                       <Link href={a.href} className="flex gap-3 rounded-xl p-1 transition hover:bg-white/5">
                         <div className="relative h-14 w-16 shrink-0 overflow-hidden rounded-lg">
                           {a.thumb.trim() ? (
-                            <Image
-                              src={a.thumb}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              sizes="64px"
-                              placeholder="blur"
-                              blurDataURL={BLUR_DATA_URL_LIGHT}
-                            />
+                            <FlexibleImage src={a.thumb} alt="" sizes="64px" className="object-cover" />
                           ) : (
                             <div className="absolute inset-0 bg-white/10" aria-hidden />
                           )}
@@ -654,7 +660,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                         <div className="min-w-0">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-violet-300/90">{a.label}</p>
                           <p className="mt-0.5 line-clamp-2 text-sm font-medium text-white/85">{a.title}</p>
-                          <p className="mt-0.5 text-[11px] text-white/40">{formatRelativeTimeVi(a.at)}</p>
+                          <p className="mt-0.5 text-[11px] text-white/40">{formatRelativeTime(a.at, tProfile, locale)}</p>
                         </div>
                       </Link>
                     </li>
@@ -668,13 +674,13 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                 <BookOpen className="absolute bottom-3 right-4 size-10 text-white/25" aria-hidden />
               </div>
               <div className="p-5">
-                <p className="text-xs font-bold uppercase text-amber-400/90">Chia sẻ hành trình</p>
-                <p className="mt-2 text-sm text-white/55">Viết bài hoặc khám phá điểm đến mới trên nền tảng.</p>
+                <p className="text-xs font-bold uppercase text-amber-400/90">{tProfile("shareJourney")}</p>
+                <p className="mt-2 text-sm text-white/55">{tProfile("shareJourneyDesc")}</p>
                 <Link
                   href="/create-post"
                   className="mt-4 flex w-full items-center justify-center rounded-xl border border-white/20 bg-white/5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
                 >
-                  Viết bài
+                  {tProfile("writeBtn")}
                 </Link>
               </div>
             </div>

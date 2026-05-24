@@ -13,6 +13,8 @@ export type PlannerFormData = {
   transportation: Transportation;
   pace: Pace;
   locale?: AppLocale;
+  /** Use gemini-2.5-flash for richer plans (uses more quota). */
+  premiumMode?: boolean;
 };
 
 export type TripActivity = {
@@ -52,6 +54,14 @@ export type TripPlanMeta = {
   source: TripPlanSource;
   fallbackReason?: TripPlanFallbackReason;
   cachedAt?: number;
+  cacheLayer?: "memory" | "firestore";
+  model?: string;
+  tokensUsed?: number;
+  usage?: {
+    count: number;
+    limit: number;
+    remaining: number;
+  };
 };
 
 export type TripPlanResult = {

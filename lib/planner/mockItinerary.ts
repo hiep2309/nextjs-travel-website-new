@@ -2,7 +2,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { formatVnd, parseVndCost } from "@/lib/planner/parseCost";
 import type { PlannerFormData, TripDay, TripPlan } from "@/lib/planner/types";
 
-type MockDest = "danang" | "hanoi" | "haiphong" | "generic";
+type MockDest = "danang" | "hanoi" | "haiphong" | "hcmc" | "generic";
 
 type DayTemplate = {
   theme: Record<AppLocale, string>;
@@ -354,6 +354,71 @@ const TEMPLATES: Record<MockDest, DestTemplate> = {
       },
     ],
   },
+  hcmc: {
+    destination: { vi: "TP. Hồ Chí Minh", en: "Ho Chi Minh City", ko: "호치민" },
+    tripTitle: {
+      vi: "Sài Gòn — Ẩm thực & di sản",
+      en: "Saigon — Food & heritage",
+      ko: "사이공 — 미식 & 유산",
+    },
+    days: [
+      {
+        theme: {
+          vi: "Quận 1 & Dinh Độc Lập",
+          en: "District 1 & Independence Palace",
+          ko: "1군 & 독립궁",
+        },
+        activities: [
+          {
+            time: "08:30",
+            place_name: { vi: "Dinh Độc Lập", en: "Independence Palace", ko: "독립궁" },
+            description: {
+              vi: "Tham quan di tích lịch sử trung tâm.",
+              en: "Central historic palace tour.",
+              ko: "중심 역사 유적 관람.",
+            },
+            estimated_cost: "65.000 VND",
+            category: "culture",
+            tips: { vi: "Mặc lịch sự.", en: "Dress modestly.", ko: "단정한 복장." },
+          },
+          {
+            time: "12:00",
+            place_name: { vi: "Cơm tấm Ba Ghiền", en: "Com tam Ba Ghien", ko: "콤탐 바 지엔" },
+            description: {
+              vi: "Cơm tấm sườn nướng đặc trưng Sài Gòn.",
+              en: "Classic Saigon broken rice.",
+              ko: "사이공 대표 콤탐.",
+            },
+            estimated_cost: "80.000 VND",
+            category: "food",
+            tips: { vi: "Thêm bì chả.", en: "Add pork toppings.", ko: "토핑 추가." },
+          },
+          {
+            time: "17:00",
+            place_name: { vi: "Phố đi bộ Nguyễn Huệ", en: "Nguyen Hue Walking Street", ko: "응우옌후에 보행자 거리" },
+            description: {
+              vi: "Dạo phố, ngắm nhà hát thành phố.",
+              en: "Evening stroll and city views.",
+              ko: "저녁 산책과 야경.",
+            },
+            estimated_cost: "0 VND",
+            category: "sightseeing",
+            tips: { vi: "Cuối tuần có sự kiện.", en: "Events on weekends.", ko: "주말 이벤트." },
+          },
+        ],
+      },
+    ],
+    hidden_gems: [
+      {
+        name: { vi: "Chợ Lớn", en: "Cholon", ko: "쵸론" },
+        description: {
+          vi: "Khu phố Hoa, chùa Bà Thiên Hậu.",
+          en: "Chinatown temples and markets.",
+          ko: "중국계 거리 사원.",
+        },
+      },
+    ],
+  },
   generic: {
     destination: { vi: "Việt Nam", en: "Vietnam", ko: "베트남" },
     tripTitle: {
@@ -426,6 +491,7 @@ function resolveMockDest(destination: string): MockDest {
   if (/đà nẵng|da nang|danang|다낭/.test(d)) return "danang";
   if (/hà nội|ha noi|hanoi|하노이/.test(d)) return "hanoi";
   if (/hải phòng|hai phong|haiphong|하이퐁/.test(d)) return "haiphong";
+  if (/sài gòn|saigon|ho chi minh|hcmc|hồ chí minh|호치민/.test(d)) return "hcmc";
   return "generic";
 }
 

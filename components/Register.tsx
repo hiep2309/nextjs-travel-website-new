@@ -131,7 +131,7 @@ const Register = () => {
       <div className="flex h-auto w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl md:h-[min(85vh,880px)] md:flex-row md:rounded-[40px]">
         
         {/* BÊN TRÁI: FORM */}
-        <div className="flex w-full flex-col justify-between overflow-y-auto p-6 sm:p-10 md:w-1/2 md:p-12 lg:p-16">
+        <div className="flex w-full flex-col justify-between overflow-hidden p-6 sm:p-10 md:w-1/2 md:p-12 lg:p-16">
           <div>
             <div className="mb-8 flex items-center gap-2 sm:mb-12">
              <div className="relative h-12 w-12 shrink-0 sm:h-14 sm:w-14">

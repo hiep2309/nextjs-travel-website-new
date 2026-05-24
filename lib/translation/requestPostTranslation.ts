@@ -1,6 +1,7 @@
 import type { AppLocale } from "@/i18n/routing";
 import type { LocalizedSlug } from "@/lib/i18n/types";
 import type { PostLocaleWritePayload } from "@/lib/firestore/multilingual";
+import { getTranslationAuthHeaders } from "@/lib/translation/getAuthHeaders";
 import type { TranslationProvider } from "@/lib/translation/types";
 
 export type RequestPostTranslationBody = {
@@ -23,9 +24,10 @@ export type RequestPostTranslationResponse = {
 export async function requestPostTranslation(
   body: RequestPostTranslationBody,
 ): Promise<PostLocaleWritePayload> {
+  const authHeaders = await getTranslationAuthHeaders();
   const res = await fetch("/api/translate/post", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(body),
     cache: "no-store",
   });

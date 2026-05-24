@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import NotificationBell from "@/components/NotificationBell";
 
 function userInitials(user: User) {
@@ -34,13 +35,9 @@ function UserAvatar({
 }) {
   if (user.photoURL) {
     return (
-      <Image
-        src={user.photoURL}
-        alt=""
-        width={40}
-        height={40}
-        className={`rounded-full border border-white/20 object-cover ${className}`}
-      />
+      <div className={`relative shrink-0 overflow-hidden rounded-full border border-white/20 ${className}`}>
+        <FlexibleImage src={user.photoURL} alt="" sizes="44px" className="object-cover" />
+      </div>
     );
   }
   return (

@@ -13,7 +13,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import Image from "next/image";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
@@ -98,10 +98,9 @@ export default function SavedItineraryCard({ item, index, view, onDelete }: Prop
         className={`relative shrink-0 overflow-hidden ${isList ? "sm:w-72" : "w-full"}`}
       >
         <div className={`relative ${isList ? "aspect-[16/10] sm:h-full sm:min-h-[200px]" : "aspect-[16/10]"}`}>
-          <Image
+          <FlexibleImage
             src={item.coverImage}
             alt=""
-            fill
             className="object-cover transition duration-700 group-hover:scale-105"
             sizes={isList ? "288px" : "(max-width:768px) 100vw, 33vw"}
           />

@@ -1,4 +1,5 @@
 import type { AppLocale } from "@/i18n/routing";
+import { getTranslationAuthHeaders } from "@/lib/translation/getAuthHeaders";
 
 const clientCache = new Map<string, string>();
 
@@ -8,8 +9,9 @@ function cacheKey(text: string, from: string, to: string) {
 
 async function fetchChunk(text: string, from: AppLocale, to: AppLocale): Promise<string> {
   try {
+    const authHeaders = await getTranslationAuthHeaders();
     const params = new URLSearchParams({ q: text, from, to });
-    const res = await fetch(`/api/translate?${params}`);
+    const res = await fetch(`/api/translate?${params}`, { headers: authHeaders });
     if (!res.ok) return text;
     const data = (await res.json()) as { text?: string; provider?: string };
     return data.text?.trim() || text;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { routing, type AppLocale } from "@/i18n/routing";
+import { requireAuth, isAuthResponse } from "@/lib/server/requireAuth";
 import { translateMany, translateText } from "@/lib/translation";
 
 function parseLocale(raw: string | null, fallback: AppLocale = "vi"): AppLocale {
@@ -7,8 +8,11 @@ function parseLocale(raw: string | null, fallback: AppLocale = "vi"): AppLocale 
   return fallback;
 }
 
-/** Machine translation API — Gemini when configured, MyMemory fallback. */
+/** Machine translation API — Gemini when configured, MyMemory fallback. Requires auth. */
 export async function GET(req: Request) {
+  const authResult = await requireAuth(req);
+  if (isAuthResponse(authResult)) return authResult;
+
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
   const from = parseLocale(searchParams.get("from"), "vi");
@@ -35,6 +39,9 @@ export async function GET(req: Request) {
 /** Batch translate — body: `{ texts: string[], from, to }` */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth(req);
+    if (isAuthResponse(authResult)) return authResult;
+
     const body = (await req.json()) as {
       texts?: unknown;
       from?: string;

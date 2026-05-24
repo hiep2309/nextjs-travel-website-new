@@ -7,7 +7,11 @@ import { useTranslations } from "next-intl";
 
 const STEP_KEYS = ["step1", "step2", "step3"] as const;
 
-export default function PlannerLoading() {
+type Props = {
+  streamPreview?: string;
+};
+
+export default function PlannerLoading({ streamPreview }: Props) {
   const t = useTranslations("AiPlanner");
   const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(0);
@@ -53,6 +57,11 @@ export default function PlannerLoading() {
           />
         ))}
       </div>
+      {streamPreview ? (
+        <p className="mt-4 max-w-md truncate font-mono text-[10px] text-violet-300/70 sm:text-xs">
+          {streamPreview}
+        </p>
+      ) : null}
     </div>
   );
 }

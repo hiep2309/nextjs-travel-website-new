@@ -9,7 +9,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/lib/i18n/navigation";
@@ -49,7 +48,7 @@ import {
   Users,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import { useAuth } from "@/hooks/useAuth";
 import { notifyPostApproved } from "@/lib/posts/notifyAuthor";
 import { extractPostSourceFields } from "@/lib/translation/extractPostSource";
@@ -78,23 +77,26 @@ type UserRow = {
 
 const SIDEBAR_W = "lg:w-64";
 
-function formatRelativeTime(seconds?: number): string {
+type DashboardT = ReturnType<typeof useTranslations<"Dashboard">>;
+
+function formatRelativeTime(seconds: number | undefined, t: DashboardT): string {
   if (!seconds) return "—";
   const d = Math.max(0, Math.floor(Date.now() / 1000) - seconds);
-  if (d < 60) return "Vừa xong";
-  if (d < 3600) return `${Math.floor(d / 60)} phút trước`;
-  if (d < 86400) return `${Math.floor(d / 3600)} giờ trước`;
-  return `${Math.floor(d / 86400)} ngày trước`;
+  if (d < 60) return t("justNow");
+  if (d < 3600) return t("minutesAgo", { count: Math.floor(d / 60) });
+  if (d < 86400) return t("hoursAgo", { count: Math.floor(d / 3600) });
+  return t("daysAgo", { count: Math.floor(d / 86400) });
 }
 
-function formatDate(seconds?: number): string {
+function formatDate(seconds: number | undefined, locale: AppLocale): string {
   if (!seconds) return "—";
   const date = new Date(seconds * 1000);
-  return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const localeTag = locale === "vi" ? "vi-VN" : locale === "ko" ? "ko-KR" : "en-US";
+  return date.toLocaleDateString(localeTag, { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 /** Đường chart giả lập (SVG) — không có Analytics API trong dự án */
-function TrafficSparkline() {
+function TrafficSparkline({ note }: { note: string }) {
   const pts =
     "0,42 12,38 24,45 36,32 48,40 60,28 72,35 84,22 96,30 108,25 120,18 132,24 144,15 156,20 168,12 180,16 192,8 200,12";
   return (
@@ -121,9 +123,7 @@ function TrafficSparkline() {
           points={pts}
         />
       </svg>
-      <p className="absolute bottom-3 left-3 text-[11px] text-slate-400">
-        Dữ liệu minh họa — tích hợp Analytics sau
-      </p>
+      <p className="absolute bottom-3 left-3 text-[11px] text-slate-400">{note}</p>
     </div>
   );
 }
@@ -139,7 +139,8 @@ function postDisplayTitle(
 export default function DashboardPage() {
   const locale = useLocale() as AppLocale;
   const t = useTranslations("Dashboard");
-  const tp = useTranslations("Posts");
+  const tNav = useTranslations("Nav");
+  const tNotif = useTranslations("Notifications");
   const { user, role, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const [allPosts, setAllPosts] = useState<PostRow[]>([]);
@@ -171,7 +172,7 @@ export default function DashboardPage() {
         );
         setUsersList(usersSnap.docs.map((d) => ({ id: d.id, role: d.data().role as string | undefined })));
       } catch {
-        if (alive) setBanner({ type: "err", text: "Không tải được dữ liệu dashboard." });
+        if (alive) setBanner({ type: "err", text: t("loadDataErr") });
       } finally {
         if (alive) setLoadingData(false);
       }
@@ -179,7 +180,7 @@ export default function DashboardPage() {
     return () => {
       alive = false;
     };
-  }, [role]);
+  }, [role, t]);
 
   const pendingPosts = useMemo(() => allPosts.filter((p) => p.status === "pending"), [allPosts]);
   const approvedPosts = useMemo(() => allPosts.filter((p) => p.status === "approved"), [allPosts]);
@@ -205,12 +206,17 @@ export default function DashboardPage() {
 
   const stats = useMemo(
     () => [
-      { label: "Tổng bài viết", value: totalPosts, delta: "+—", up: true },
-      { label: "Đã duyệt", value: approvedPosts.length, delta: "+—", up: true },
-      { label: "Chờ duyệt", value: pendingPosts.length, delta: pendingPosts.length ? "mới" : "0", up: false },
-      { label: "Người dùng", value: roleCounts.total || usersList.length, delta: "+—", up: true },
+      { label: t("statTotalPosts"), value: totalPosts, delta: t("statDeltaPlaceholder"), up: true },
+      { label: t("statApproved"), value: approvedPosts.length, delta: t("statDeltaPlaceholder"), up: true },
+      {
+        label: t("statPending"),
+        value: pendingPosts.length,
+        delta: pendingPosts.length ? t("statDeltaNew") : "0",
+        up: false,
+      },
+      { label: t("statUsers"), value: roleCounts.total || usersList.length, delta: t("statDeltaPlaceholder"), up: true },
     ],
-    [totalPosts, approvedPosts.length, pendingPosts.length, roleCounts.total, usersList.length],
+    [t, totalPosts, approvedPosts.length, pendingPosts.length, roleCounts.total, usersList.length],
   );
 
   const handleTranslatePost = async (postId: string) => {
@@ -297,38 +303,44 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!banner) return;
-    const t = window.setTimeout(() => setBanner(null), 4000);
-    return () => clearTimeout(t);
+    const timerId = window.setTimeout(() => setBanner(null), 4000);
+    return () => clearTimeout(timerId);
   }, [banner]);
 
   if (authLoading || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-slate-600">
-        <p className="text-sm">Đang xác thực…</p>
+      <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-[#f4f6f9] text-slate-600">
+        <p className="text-sm">{t("verifyingAuth")}</p>
+      </div>
+    );
+  }
+
+  if (role === null) {
+    return (
+      <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-[#f4f6f9] text-slate-600">
+        <p className="text-sm">{t("loadingRole")}</p>
       </div>
     );
   }
 
   const isAdmin = role === "admin";
-  const displayName = user.displayName || user.email?.split("@")[0] || "Admin";
+  const displayName = user.displayName || user.email?.split("@")[0] || t("adminFallback");
 
   if (!isAdmin) {
     return (
       <div className="min-h-[calc(100dvh-4rem)] bg-[#f4f6f9] px-4 py-10 text-slate-800 lg:px-8">
         <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-          <h1 className="text-xl font-bold">Trang thành viên</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Chỉ quản trị viên mới xem được bảng điều khiển đầy đủ.
-          </p>
+          <h1 className="text-xl font-bold">{t("memberPage")}</h1>
+          <p className="mt-2 text-sm text-slate-600">{t("memberHint")}</p>
           <Link
             href="/create-post"
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
           >
             <PenSquare className="size-4" />
-            Đăng bài mới
+            {t("newPost")}
           </Link>
           <Link href="/" className="mt-4 block text-sm font-medium text-blue-600 hover:underline">
-            Về trang chủ
+            {t("backHome")}
           </Link>
         </div>
       </div>
@@ -336,7 +348,6 @@ export default function DashboardPage() {
   }
 
   return (
-    <>
     <div className="fixed inset-x-0 top-16 bottom-0 z-20 flex overflow-hidden bg-[#f4f6f9] text-slate-800">
         {/* Sidebar */}
         <aside
@@ -348,38 +359,38 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-white">VN Insight</p>
-              <p className="text-[10px] text-slate-500">TravelAdmin</p>
+              <p className="text-[10px] text-slate-500">{t("brandSub")}</p>
             </div>
           </div>
 
           <nav className="flex-1 overflow-y-auto px-3 py-4 text-sm">
             <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Chung
+              {t("sectionGeneral")}
             </p>
             <Link
               href="/dashboard"
               className="mb-1 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 font-medium text-white"
             >
               <LayoutGrid className="size-4 shrink-0" />
-              Tổng quan
+              {t("overview")}
             </Link>
 
             <p className="mt-5 px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Quản lý nội dung
+              {t("sectionContent")}
             </p>
             <Link
               href="/explore"
               className="mb-1 flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/10"
             >
               <FileText className="size-4 shrink-0" />
-              Bài viết
+              {t("posts")}
             </Link>
             <Link
               href="/create-post"
               className="mb-1 flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/10"
             >
               <PenSquare className="size-4 shrink-0" />
-              Thêm bài
+              {t("addPost")}
             </Link>
             <button
               type="button"
@@ -387,7 +398,7 @@ export default function DashboardPage() {
               onClick={() => router.push("/explore")}
             >
               <MapPin className="size-4 shrink-0" />
-              Điểm đến
+              {t("destinations")}
             </button>
             <button
               type="button"
@@ -395,16 +406,16 @@ export default function DashboardPage() {
               onClick={() => router.push("/guides")}
             >
               <FolderOpen className="size-4 shrink-0" />
-              Hướng dẫn
+              {t("guides")}
             </button>
 
             <p className="mt-5 px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Kiểm duyệt
+              {t("sectionModeration")}
             </p>
             <div className="mb-1 flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
               <span className="flex items-center gap-2">
                 <FileText className="size-4" />
-                Bài chờ duyệt
+                {t("pendingPostsLabel")}
               </span>
               <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
                 {pendingPosts.length}
@@ -412,13 +423,13 @@ export default function DashboardPage() {
             </div>
             <div className="mb-1 flex items-center justify-between rounded-lg px-3 py-2 opacity-60">
               <span className="flex items-center gap-2">
-                <span className="text-xs">Bình luận</span>
+                <span className="text-xs">{t("comments")}</span>
               </span>
               <span className="text-[10px] text-slate-500">—</span>
             </div>
 
             <p className="mt-5 px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Người dùng
+              {t("sectionUsers")}
             </p>
             <button
               type="button"
@@ -426,19 +437,19 @@ export default function DashboardPage() {
               onClick={() => router.push("/profile")}
             >
               <Users className="size-4 shrink-0" />
-              Hồ sơ & tài khoản
+              {t("profileAccounts")}
             </button>
             <div className="flex items-center gap-2 rounded-lg px-3 py-2 opacity-70">
               <Shield className="size-4 shrink-0" />
-              <span>Vai trò (Firestore)</span>
+              <span>{t("rolesFirestore")}</span>
             </div>
 
             <p className="mt-5 px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Hệ thống
+              {t("sectionSystem")}
             </p>
             <div className="flex items-center gap-2 rounded-lg px-3 py-2 opacity-70">
               <BarChart3 className="size-4 shrink-0" />
-              Thống kê
+              {t("analytics")}
             </div>
           </nav>
 
@@ -448,7 +459,7 @@ export default function DashboardPage() {
               className="flex items-center justify-center gap-2 rounded-lg border border-white/15 py-2.5 text-xs font-medium text-white hover:bg-white/10"
             >
               <ExternalLink className="size-3.5" />
-              Xem website
+              {t("viewWebsite")}
             </Link>
           </div>
         </aside>
@@ -462,7 +473,7 @@ export default function DashboardPage() {
               <input
                 type="search"
                 readOnly
-                placeholder="Tìm kiếm bài viết, điểm đến, người dùng…"
+                placeholder={t("searchPlaceholder")}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none ring-blue-500/20 focus:border-blue-400 focus:ring-2"
               />
             </div>
@@ -470,7 +481,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                aria-label="Thông báo"
+                aria-label={tNotif("aria")}
               >
                 <Bell className="size-5" />
                 <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
@@ -479,22 +490,18 @@ export default function DashboardPage() {
               </button>
               <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
                 <div className="relative size-9 overflow-hidden rounded-full ring-2 ring-slate-200">
-                  <Image
+                  <FlexibleImage
                     src={
                       user.photoURL ||
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email ?? "")}`
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email ?? "U")}`
                     }
                     alt=""
-                    fill
-                    className="object-cover"
                     sizes="36px"
-                    placeholder="blur"
-                    blurDataURL={BLUR_DATA_URL_LIGHT}
                   />
                 </div>
                 <div className="hidden text-left sm:block">
                   <p className="text-sm font-semibold text-slate-900">{displayName}</p>
-                  <p className="text-xs text-slate-500">Quản trị viên</p>
+                  <p className="text-xs text-slate-500">{t("administrator")}</p>
                 </div>
               </div>
             </div>
@@ -506,32 +513,32 @@ export default function DashboardPage() {
                 href="/explore"
                 className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium shadow-sm ring-1 ring-slate-200"
               >
-                Bài viết
+                {t("posts")}
               </Link>
               <Link
                 href="/create-post"
                 className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium shadow-sm ring-1 ring-slate-200"
               >
-                Thêm bài
+                {t("addPost")}
               </Link>
               <Link
                 href="/profile"
                 className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-medium shadow-sm ring-1 ring-slate-200"
               >
-                Hồ sơ
+                {t("profileShort")}
               </Link>
               <Link
                 href="/"
                 className="shrink-0 rounded-lg bg-[#1e2a3a] px-3 py-2 text-xs font-medium text-white"
               >
-                Website
+                {t("websiteShort")}
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
                 className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
               >
-                Đăng xuất
+                {tNav("logout")}
               </button>
             </div>
             {banner ? (
@@ -548,7 +555,7 @@ export default function DashboardPage() {
             ) : null}
 
             {loadingData ? (
-              <p className="text-sm text-slate-500">Đang tải dữ liệu…</p>
+              <p className="text-sm text-slate-500">{t("loadingData")}</p>
             ) : (
               <>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -563,7 +570,7 @@ export default function DashboardPage() {
                         className={`mt-1 text-xs font-medium ${s.up ? "text-emerald-600" : "text-amber-600"}`}
                       >
                         {s.delta}{" "}
-                        <span className="text-slate-400 max-[420px]:hidden">so với tháng trước (minh họa)</span>
+                        <span className="text-slate-400 max-[420px]:hidden">{t("statCompareHint")}</span>
                       </p>
                     </div>
                   ))}
@@ -572,27 +579,29 @@ export default function DashboardPage() {
                 <div className="grid gap-6 xl:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                      <h2 className="font-bold text-slate-900">Lượt truy cập</h2>
+                      <h2 className="font-bold text-slate-900">{t("trafficTitle")}</h2>
                       <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-                        30 ngày qua
+                        {t("trafficPeriod")}
                       </span>
                     </div>
-                    <TrafficSparkline />
+                    <TrafficSparkline note={t("trafficNote")} />
                   </div>
 
                   <div id="pending-posts" className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm scroll-mt-24">
                     <div className="mb-4 flex items-center justify-between gap-2">
-                      <h2 className="font-bold text-slate-900">Bài viết chờ duyệt</h2>
+                      <h2 className="font-bold text-slate-900">{t("pendingTitle")}</h2>
                       {pendingPosts.length > 0 ? (
-                        <span className="text-xs font-medium text-slate-500">{pendingPosts.length} bài</span>
+                        <span className="text-xs font-medium text-slate-500">
+                          {t("pendingCount", { count: pendingPosts.length })}
+                        </span>
                       ) : null}
                     </div>
                     {pendingPreview.length === 0 ? (
-                      <p className="py-8 text-center text-sm text-slate-500">Không có bài chờ.</p>
+                      <p className="py-8 text-center text-sm text-slate-500">{t("emptyPending")}</p>
                     ) : (
                       <ul className="space-y-3">
                         {pendingPreview.map((post) => {
-                          const title = postDisplayTitle(post, locale, "Không tiêu đề");
+                          const title = postDisplayTitle(post, locale, t("untitled"));
                           const author = post.authorName || post.authorId || "—";
                           return (
                             <li
@@ -602,15 +611,7 @@ export default function DashboardPage() {
                               <div className="flex min-w-0 flex-1 items-center gap-3">
                               <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-slate-200">
                                 {post.image ? (
-                                  <Image
-                                    src={post.image}
-                                    alt=""
-                                    fill
-                                    className="object-cover"
-                                    sizes="48px"
-                                    placeholder="blur"
-                                    blurDataURL={BLUR_DATA_URL_LIGHT}
-                                  />
+                                  <FlexibleImage src={post.image} alt="" sizes="48px" />
                                 ) : null}
                               </div>
                               <div className="min-w-0 flex-1">
@@ -621,7 +622,7 @@ export default function DashboardPage() {
                                   {title}
                                 </Link>
                                 <p className="text-xs text-slate-500">
-                                  {author} · {formatRelativeTime(post.createdAt?.seconds)}
+                                  {author} · {formatRelativeTime(post.createdAt?.seconds, t)}
                                 </p>
                               </div>
                               </div>
@@ -681,16 +682,16 @@ export default function DashboardPage() {
 
                 <div className="grid gap-6 xl:grid-cols-3">
                   <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm xl:col-span-2">
-                    <h2 className="mb-4 font-bold text-slate-900">Bài viết mới nhất</h2>
+                    <h2 className="mb-4 font-bold text-slate-900">{t("latestTitle")}</h2>
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[520px] text-left text-sm">
                         <thead>
                           <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                            <th className="pb-3 font-medium">Tiêu đề</th>
-                            <th className="pb-3 font-medium">Tác giả</th>
-                            <th className="pb-3 font-medium">Khu vực</th>
-                            <th className="pb-3 font-medium">Trạng thái</th>
-                            <th className="pb-3 font-medium">Ngày</th>
+                            <th className="pb-3 font-medium">{t("colTitle")}</th>
+                            <th className="pb-3 font-medium">{t("colAuthor")}</th>
+                            <th className="pb-3 font-medium">{t("colRegion")}</th>
+                            <th className="pb-3 font-medium">{t("colStatus")}</th>
+                            <th className="pb-3 font-medium">{t("colDate")}</th>
                             <th className="pb-3" />
                           </tr>
                         </thead>
@@ -704,15 +705,7 @@ export default function DashboardPage() {
                                   <div className="flex items-center gap-2">
                                     <div className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-slate-100">
                                       {post.image ? (
-                                        <Image
-                                          src={post.image}
-                                          alt=""
-                                          fill
-                                          className="object-cover"
-                                          sizes="40px"
-                                          placeholder="blur"
-                                          blurDataURL={BLUR_DATA_URL_LIGHT}
-                                        />
+                                        <FlexibleImage src={post.image} alt="" sizes="40px" />
                                       ) : null}
                                     </div>
                                     <span className="line-clamp-1 font-medium text-slate-900">{title}</span>
@@ -730,11 +723,11 @@ export default function DashboardPage() {
                                         : "bg-amber-100 text-amber-800"
                                     }`}
                                   >
-                                    {approved ? "Đã duyệt" : "Chờ duyệt"}
+                                    {approved ? t("statusApproved") : t("statusPending")}
                                   </span>
                                 </td>
                                 <td className="py-3 text-slate-600">
-                                  {formatDate(post.createdAt?.seconds)}
+                                  {formatDate(post.createdAt?.seconds, locale)}
                                 </td>
                                 <td className="py-3 text-right">
                                   <div className="inline-flex items-center gap-0.5">
@@ -795,42 +788,42 @@ export default function DashboardPage() {
                       href="/explore"
                       className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
-                      Xem tất cả bài viết
+                      {t("viewAllPosts")}
                     </Link>
                   </div>
 
                   <div className="space-y-6">
                     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-                      <h2 className="font-bold text-slate-900">Thống kê nhanh</h2>
+                      <h2 className="font-bold text-slate-900">{t("quickStatsTitle")}</h2>
                       <ul className="mt-4 space-y-3 text-sm">
                         <li className="flex justify-between">
-                          <span className="text-slate-600">Bài chờ duyệt</span>
+                          <span className="text-slate-600">{t("quickPending")}</span>
                           <span className="font-semibold text-slate-900">{pendingPosts.length}</span>
                         </li>
                         <li className="flex justify-between">
-                          <span className="text-slate-600">Đã duyệt</span>
+                          <span className="text-slate-600">{t("quickApproved")}</span>
                           <span className="font-semibold text-slate-900">{approvedPosts.length}</span>
                         </li>
                         <li className="flex justify-between">
-                          <span className="text-slate-600">Người dùng (Firestore)</span>
+                          <span className="text-slate-600">{t("quickUsers")}</span>
                           <span className="font-semibold text-slate-900">{roleCounts.total}</span>
                         </li>
                         <li className="flex justify-between">
-                          <span className="text-slate-600">Tổng bài</span>
+                          <span className="text-slate-600">{t("quickTotalPosts")}</span>
                           <span className="font-semibold text-slate-900">{totalPosts}</span>
                         </li>
                       </ul>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-                      <h2 className="font-bold text-slate-900">Vai trò</h2>
+                      <h2 className="font-bold text-slate-900">{t("rolesTitle")}</h2>
                       <ul className="mt-4 space-y-2 text-sm">
                         <li className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                          <span className="text-slate-600">Quản trị</span>
+                          <span className="text-slate-600">{t("roleAdmin")}</span>
                           <span className="font-bold text-slate-900">{roleCounts.admin}</span>
                         </li>
                         <li className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                          <span className="text-slate-600">Thành viên</span>
+                          <span className="text-slate-600">{t("roleMember")}</span>
                           <span className="font-bold text-slate-900">{roleCounts.user}</span>
                         </li>
                       </ul>
@@ -839,7 +832,7 @@ export default function DashboardPage() {
                         onClick={() => router.push("/profile")}
                         className="mt-3 flex w-full items-center justify-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
                       >
-                        Chi tiết <ChevronRight className="size-3" />
+                        {t("detailsLink")} <ChevronRight className="size-3" />
                       </button>
                     </div>
 
@@ -849,7 +842,7 @@ export default function DashboardPage() {
                       className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-700 hover:bg-red-100"
                     >
                       <LogOut className="size-4" />
-                      Đăng xuất
+                      {tNav("logout")}
                     </button>
                   </div>
                 </div>
@@ -858,8 +851,5 @@ export default function DashboardPage() {
           </div>
         </div>
     </div>
-    {/* Giữ chỗ trong layout để footer không nhảy lên dưới navbar */}
-    <div className="min-h-[calc(100dvh-4rem)]" aria-hidden />
-    </>
   );
 }

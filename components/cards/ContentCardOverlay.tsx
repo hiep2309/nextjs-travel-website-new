@@ -1,9 +1,8 @@
 "use client";
 
 import { Bookmark, Star } from "lucide-react";
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
-import { BLUR_DATA_URL_LIGHT } from "@/lib/imagePlaceholder";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import { glassCard } from "@/components/ui/cardStyles";
 
 type Props = {
@@ -32,14 +31,11 @@ export default function ContentCardOverlay({
     <Link href={href} className={glassCard.overlay}>
       <div className="relative aspect-[16/11] w-full">
         {image.trim() ? (
-          <Image
+          <FlexibleImage
             src={image}
             alt=""
-            fill
             className="object-cover transition duration-500 group-hover:scale-105"
             sizes="(max-width:640px)100vw,360px"
-            placeholder="blur"
-            blurDataURL={BLUR_DATA_URL_LIGHT}
           />
         ) : (
           <div className="absolute inset-0 bg-white/[0.08]" aria-hidden />

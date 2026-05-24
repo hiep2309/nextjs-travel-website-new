@@ -12,7 +12,7 @@ export class TripPlanValidationError extends Error {
   }
 }
 
-/** Validate parsed Gemini output before returning to the client. */
+/** Validate parsed AI output before returning to the client. */
 export function validateTripPlan(data: unknown): TripPlan {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new TripPlanValidationError("Invalid itinerary structure", "INVALID_PLAN");

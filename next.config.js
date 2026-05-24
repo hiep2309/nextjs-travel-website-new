@@ -11,6 +11,8 @@ const nextConfig = {
   /** Giảm kích thước bundle khi import nhiều icon từ lucide-react */
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    /** Tránh webpack bundle firebase-admin → lỗi vendor-chunks/@opentelemetry */
+    serverComponentsExternalPackages: ["firebase-admin"],
   },
   images: {
     formats: ["image/avif", "image/webp"],

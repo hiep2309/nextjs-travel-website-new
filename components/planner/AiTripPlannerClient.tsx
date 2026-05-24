@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
+import { auth } from "@/lib/firebase";
 import { getDefaultPlannerForm } from "@/lib/planner/i18n";
 import { getItineraryById } from "@/lib/itinerary/getItineraries";
 import { panelEnter } from "@/lib/planner/motionPresets";
+import { GENERATE_DEBOUNCE_MS } from "@/lib/planner/plannerConfig";
 import {
   PlannerError,
   requestTripPlan,
@@ -23,6 +25,12 @@ import PlannerForm from "./PlannerForm";
 import PlannerFallbackBanner from "./PlannerFallbackBanner";
 import PlannerLoading from "./PlannerLoading";
 import TripResults from "./TripResults";
+
+type UsageInfo = {
+  count: number;
+  limit: number;
+  remaining: number;
+};
 
 function resolveErrorMessage(
   code: PlannerErrorCode | null,
@@ -40,6 +48,10 @@ function resolveErrorMessage(
       return t("errorQuota");
     case "BLOCKED":
       return t("errorBlocked");
+    case "DAILY_LIMIT":
+      return t("errorDailyLimit");
+    case "UNAUTHORIZED":
+      return t("errorUnauthorized");
     case "API_KEY":
       return fallback;
     default:
@@ -55,14 +67,34 @@ export default function AiTripPlannerClient() {
   const isMobile = useIsMobile();
   const reduceMotion = useReducedMotion();
   const resultsRef = useRef<HTMLDivElement>(null);
+  const lastGenerateRef = useRef(0);
   const [form, setForm] = useState<PlannerFormData>(() => getDefaultPlannerForm(locale));
   const [loading, setLoading] = useState(false);
+  const [streamPreview, setStreamPreview] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<PlannerErrorCode | null>(null);
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const { isCoolingDown, remainingSec, startCooldown } = usePlannerCooldown();
   const [planMeta, setPlanMeta] = useState<TripPlanMeta | null>(null);
   const [loadedItineraryId, setLoadedItineraryId] = useState<string | null>(null);
+  const [usage, setUsage] = useState<UsageInfo | null>(null);
+
+  const refreshUsage = useCallback(async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    try {
+      const token = await currentUser.getIdToken();
+      const res = await fetch("/api/ai-trip", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { usage?: UsageInfo };
+      if (data.usage) setUsage(data.usage);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     setForm(getDefaultPlannerForm(locale));
@@ -71,7 +103,12 @@ export default function AiTripPlannerClient() {
     setError(null);
     setErrorCode(null);
     setLoadedItineraryId(null);
+    setStreamPreview("");
   }, [locale]);
+
+  useEffect(() => {
+    if (user) void refreshUsage();
+  }, [user, refreshUsage]);
 
   useEffect(() => {
     const itineraryId = searchParams.get("itinerary");
@@ -85,7 +122,7 @@ export default function AiTripPlannerClient() {
         setPlan(row.plan);
         setLoadedItineraryId(row.id);
       } catch {
-        /* ignore — user can regenerate */
+        /* ignore */
       }
     })();
     return () => {
@@ -102,32 +139,56 @@ export default function AiTripPlannerClient() {
   }, [plan, isMobile, reduceMotion]);
 
   const generate = async () => {
-    if (!user || isCoolingDown) return;
+    if (!user || isCoolingDown || loading) return;
+
+    const now = Date.now();
+    if (now - lastGenerateRef.current < GENERATE_DEBOUNCE_MS) return;
+    lastGenerateRef.current = now;
+
     setLoading(true);
     setError(null);
     setErrorCode(null);
     setPlan(null);
     setPlanMeta(null);
+    setStreamPreview("");
+
     if (isMobile) {
       resultsRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     }
+
     try {
-      const result = await requestTripPlan(form, locale);
+      const result = await requestTripPlan(form, locale, {
+        onStatus: (phase) => {
+          if (phase === "cache_hit") setStreamPreview(t("streamCacheHit"));
+        },
+        onToken: (text) => {
+          setStreamPreview((prev) => (prev + text).slice(-120));
+        },
+      });
+
       setPlan(result.plan);
       setPlanMeta(result.meta);
+      if (result.meta.usage) setUsage(result.meta.usage);
+
       if (result.meta.source === "fallback" && result.meta.fallbackReason === "quota") {
         startCooldown();
       }
+
+      void refreshUsage();
     } catch (err) {
       const code = err instanceof PlannerError ? err.code : null;
       const fallback = err instanceof Error ? err.message : t("errorGeneric");
       setErrorCode(code);
       setError(resolveErrorMessage(code, fallback, t));
       if (code === "QUOTA") startCooldown();
+      void refreshUsage();
     } finally {
       setLoading(false);
+      setStreamPreview("");
     }
   };
+
+  const submitDisabled = loading || isCoolingDown;
 
   if (authLoading) {
     return (
@@ -160,7 +221,8 @@ export default function AiTripPlannerClient() {
             value={form}
             onChange={setForm}
             onSubmit={() => void generate()}
-            loading={loading || isCoolingDown}
+            loading={submitDisabled}
+            usage={usage}
           />
 
           <div ref={resultsRef} className="min-w-0 scroll-mt-24 lg:scroll-mt-28">
@@ -191,13 +253,15 @@ export default function AiTripPlannerClient() {
                       <p className="text-sm font-semibold text-red-50">{error}</p>
                       {errorCode === "API_KEY" || error.includes("GEMINI_API_KEY") ? (
                         <p className="mt-2 text-xs leading-relaxed text-red-200/80">{t("errorApiKey")}</p>
+                      ) : errorCode === "DAILY_LIMIT" ? (
+                        <p className="mt-2 text-xs leading-relaxed text-red-200/80">{t("dailyLimitHint")}</p>
                       ) : (
                         <p className="mt-1.5 text-xs text-red-200/70">{t("errorParseHint")}</p>
                       )}
                       <button
                         type="button"
                         onClick={() => void generate()}
-                        disabled={loading || isCoolingDown}
+                        disabled={submitDisabled}
                         className="touch-manipulation mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-2.5 text-sm font-semibold text-red-50 transition hover:bg-red-500/25 active:scale-[0.98] disabled:opacity-60"
                       >
                         <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden />
@@ -215,7 +279,7 @@ export default function AiTripPlannerClient() {
                   key="loading"
                   {...(reduceMotion ? {} : { variants: panelEnter, initial: "hidden", animate: "show", exit: "exit" })}
                 >
-                  <PlannerLoading />
+                  <PlannerLoading streamPreview={streamPreview} />
                 </motion.div>
               ) : plan ? (
                 <motion.div

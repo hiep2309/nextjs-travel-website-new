@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Pencil, Share2, Sparkles, Trash2 } from "lucide-react";
-import Image from "next/image";
+import FlexibleImage from "@/components/ui/FlexibleImage";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -139,7 +139,7 @@ export default function SavedItineraryDetailClient({ id }: Props) {
           className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-2xl backdrop-blur-xl"
         >
           <div className="relative aspect-[21/9] min-h-[180px]">
-            <Image src={item.coverImage} alt="" fill className="object-cover" priority sizes="100vw" />
+            <FlexibleImage src={item.coverImage} alt="" className="object-cover" priority sizes="100vw" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6">
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-600/40 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-100 ring-1 ring-violet-400/40">

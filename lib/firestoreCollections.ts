@@ -5,6 +5,8 @@ export const COLLECTIONS = {
   users: "users",
   posts: "posts",
   savedItineraries: "saved_itineraries",
+  tripPlanCache: "trip_plan_cache",
+  plannerDailyUsage: "planner_daily_usage",
 } as const;
 
 /**

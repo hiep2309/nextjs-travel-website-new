@@ -52,7 +52,7 @@ const Login = () => {
       <div className="flex w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl md:h-[min(85vh,880px)] md:flex-row md:rounded-[40px]">
         
         {/* LEFT SIDE: FORM (Đồng bộ UI VietNam Insight) */}
-        <div className="flex w-full flex-col justify-center overflow-y-auto md:w-1/2 md:min-h-0 p-6 sm:p-10 md:p-12 lg:p-16">
+        <div className="flex w-full flex-col justify-center overflow-hidden md:w-1/2 md:min-h-0 p-6 sm:p-10 md:p-12 lg:p-16">
           
           {/* Logo Section */}
           <div className="mb-8 flex items-center gap-3 sm:mb-10">

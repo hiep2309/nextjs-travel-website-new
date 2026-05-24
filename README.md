@@ -37,18 +37,37 @@ npm run start    # chạy bản build
 npm run lint     # ESLint
 ```
 
-## Biến môi trường (tùy chọn)
+## Biến môi trường
 
-Tạo file **`.env.local`** ở thư mục gốc nếu muốn thời tiết theo GPS trên hero:
+Tạo file **`.env.local`** ở thư mục gốc:
 
 ```env
+# Bắt buộc cho AI Trip Planner + dịch bài (Gemini)
+GEMINI_API_KEY=<Google AI Studio API key>
+
+# Tùy chọn — thời tiết theo GPS trên hero (OpenWeatherMap)
 NEXT_PUBLIC_WEATHER_KEY=<API key OpenWeatherMap>
+
 # URL gốc site (SEO: Open Graph, sitemap) — production ví dụ: https://your-domain.vercel.app
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Tùy chọn — xác thực token server + cache/quota Firestore cho AI planner
+# JSON một dòng của Firebase service account (Admin SDK)
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+
+# Tùy chọn — ghi đè model Gemini
+# GEMINI_MODEL=gemini-flash-latest
+# GEMINI_MODEL_PREMIUM=gemini-2.5-flash
 ```
 
-Không có biến này: phần thời tiết theo vị trí thiết bị sẽ không gọi API (ứng dụng vẫn chạy bình thường).  
-`NEXT_PUBLIC_SITE_URL` mặc định `http://localhost:3000` — **nên đặt đúng domain** khi deploy để `metadataBase`, sitemap và ảnh OG chính xác.
+| Biến | Mô tả |
+|------|--------|
+| `GEMINI_API_KEY` | Dịch máy (`/api/translate`), dịch bài đăng, AI lập lịch trình. Không có key → planner dùng mock; dịch fallback MyMemory. |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Cho phép API verify Bearer token, lưu cache lịch trình và quota ngày trên Firestore. Không có → chỉ cache bộ nhớ (mất khi restart). |
+| `NEXT_PUBLIC_WEATHER_KEY` | Thời tiết theo vị trí thiết bị. Không có → bỏ qua phần thời tiết. |
+| `NEXT_PUBLIC_SITE_URL` | Mặc định `http://localhost:3000` — **nên đặt đúng domain** khi deploy. |
+
+**Lưu ý bảo mật:** các route `/api/translate`, `/api/translate/post`, `/api/ai-trip` yêu cầu đăng nhập (Firebase ID token). Không commit `.env.local` lên git.
 
 ## SEO & ảnh
 

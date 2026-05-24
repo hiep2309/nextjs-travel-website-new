@@ -6,6 +6,7 @@ import {
   POST_HTML_MAX,
   POST_TITLE_MAX,
 } from "@/lib/postContentLimits";
+import { requireAuth, isAuthResponse } from "@/lib/server/requireAuth";
 import { runPostTranslationPipeline } from "@/lib/translation/pipeline";
 import type { TranslationProvider } from "@/lib/translation/types";
 
@@ -87,6 +88,9 @@ function parseValidBody(body: unknown) {
 /** AI translation pipeline for Firestore posts (title + description + HTML → vi/en/ko). */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAuth(req);
+    if (isAuthResponse(authResult)) return authResult;
+
     let body: unknown;
     try {
       body = await req.json();
