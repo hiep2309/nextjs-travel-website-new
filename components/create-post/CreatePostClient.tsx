@@ -17,8 +17,9 @@ import { canEditPost } from "@/lib/posts/permissions";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useTravelTimeLabels } from "@/hooks/useTravelTimeLabels";
 import { requestPostTranslation } from "@/lib/translation/requestPostTranslation";
+import { stripHtmlToPlain } from "@/lib/translation/htmlUtils";
 import { normalizeLocalizedSlug, normalizeLocalizedString, buildPostLocaleWritePayload } from "@/lib/firestore/multilingual";
-import type { LocalizedSlug } from "@/lib/i18n/types";
+import type { LocalizedSlug, LocalizedString, LocalizedHtml } from "@/lib/i18n/types";
 import {
   Bookmark,
   ChevronRight,
@@ -416,7 +417,7 @@ export default function CreatePostClient() {
       setBanner({ kind: "err", text: t("errTravelTime") });
       return;
     }
-    const plainText = docHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const plainText = stripHtmlToPlain(docHtml);
     const contentLen = plainText.length;
     if (!plainText || contentLen > MAX_CHARS) {
       setBanner({
@@ -474,12 +475,9 @@ export default function CreatePostClient() {
         });
       } catch (translateErr) {
         console.warn("[CreatePost] translation failed, saving Vietnamese only", translateErr);
-        const titleMap = normalizeLocalizedString(editMeta?.existingTitle, titleTrim);
-        titleMap.vi = titleTrim;
-        const descMap = normalizeLocalizedString(editMeta?.existingDescription, plainText);
-        descMap.vi = plainText;
-        const htmlMap = normalizeLocalizedString(editMeta?.existingContentHtml, docHtml);
-        htmlMap.vi = sanitizeBasicHtml(docHtml);
+        const titleMap: LocalizedString = { vi: titleTrim };
+        const descMap: LocalizedString = { vi: plainText };
+        const htmlMap: LocalizedHtml = { vi: sanitizeBasicHtml(docHtml) };
         localePayload = buildPostLocaleWritePayload(titleMap, descMap, htmlMap, {
           sourceLocale: "vi",
           existingSlugs: editMeta?.existingSlugs,

@@ -1,9 +1,11 @@
 import type { AppLocale } from "@/i18n/routing";
 import type { LocalizedHtml, LocalizedString } from "@/lib/i18n/types";
+import type { ExtendedTargetLocale } from "@/lib/glossary/glossary";
 
-export type TranslationProvider = "auto" | "gemini" | "mymemory";
+/** @deprecated Gemini-only — kept for API compatibility. */
+export type TranslationProvider = "gemini";
 
-export type TranslationContext = "travel-post" | "general";
+export type TranslationContext = "travel-post" | "travel-post-html" | "general";
 
 export type TranslateTextOptions = {
   text: string;
@@ -13,9 +15,15 @@ export type TranslateTextOptions = {
   context?: TranslationContext;
 };
 
+export type TranslateHtmlOptions = {
+  context?: TranslationContext;
+};
+
+export type TranslateBatchOptions = Omit<TranslateTextOptions, "text">;
+
 export type TranslateTextResult = {
   text: string;
-  provider: "gemini" | "mymemory" | "none";
+  provider: "gemini" | "none";
   cached: boolean;
 };
 
@@ -31,3 +39,5 @@ export type TranslatePostResult = {
   description: LocalizedString;
   contentHtml: LocalizedHtml;
 };
+
+export type TargetLocale = ExtendedTargetLocale;

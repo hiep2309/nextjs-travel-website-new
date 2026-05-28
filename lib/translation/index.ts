@@ -1,9 +1,9 @@
 /**
- * Translation helpers — machine translation for Firestore content (not UI strings).
+ * Translation pipeline — production multilingual CMS (Gemini-only, pre-translated content).
  *
- * - **Read** localized DB fields → `getTranslation()` from `@/lib/getTranslation`
- * - **Write** localized fields → `buildLocalizedString` / `translatePostFields`
- * - **UI** copy → next-intl `messages/*.json`
+ * - **UI strings** → next-intl `messages/*.json`
+ * - **DB content** → pre-translate on create/edit via `runPostTranslationPipeline`
+ * - **Read** → `getTranslation()` / `useLocalizedPost` (no realtime AI on page load)
  */
 export type {
   TranslatePostInput,
@@ -12,10 +12,22 @@ export type {
   TranslateTextResult,
   TranslationContext,
   TranslationProvider,
+  TargetLocale,
 } from "./types";
 
-export { stripHtmlToPlain, plainToSimpleHtml } from "./htmlUtils";
-export { translateText, translateMany } from "./translateText";
+export { stripHtmlToPlain } from "@/lib/html/htmlValidator";
+export { plainToSimpleHtml } from "./htmlUtils";
+export {
+  translateText,
+  translateMany,
+  translateHtmlContent,
+  translateToEnglish,
+  translateToKorean,
+  translateToJapanese,
+  translateBatch,
+  isGeminiTranslationAvailable,
+} from "./translation.service";
+export { isTranslationFailed, containsVietnamese } from "./translationValidator";
 export { translateTextClient } from "./translateTextClient";
 export {
   buildLocalizedStringServer,
@@ -30,4 +42,3 @@ export type {
 } from "./requestPostTranslation";
 export { extractPostSourceFields } from "./extractPostSource";
 export type { PostSourceFields } from "./extractPostSource";
-export { isGeminiTranslationAvailable } from "./providers/gemini";

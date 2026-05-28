@@ -10,6 +10,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import AuthPromptModal from "@/components/itinerary/AuthPromptModal";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocalizedTripPlan } from "@/hooks/useLocalizedTripPlan";
 import { saveItinerary, updateItineraryPlan } from "@/lib/itinerary/saveItinerary";
 import type { PlannerFormData, TripPlan, TripPlanMeta } from "@/lib/planner/types";
 import { easeOut } from "@/lib/planner/motionPresets";
@@ -26,12 +27,20 @@ type TabId = "overview" | "map" | "cost" | number;
 type Props = {
   plan: TripPlan;
   form: PlannerFormData;
+  planSourceLocale?: AppLocale;
   planMeta?: TripPlanMeta | null;
   savedItineraryId?: string | null;
   onSaved?: (id: string) => void;
 };
 
-export default function TripResults({ plan, form, planMeta, savedItineraryId, onSaved }: Props) {
+export default function TripResults({
+  plan,
+  form,
+  planSourceLocale,
+  planMeta,
+  savedItineraryId,
+  onSaved,
+}: Props) {
   const t = useTranslations("AiPlanner");
   const locale = useLocale() as AppLocale;
   const { user } = useAuth();
@@ -43,6 +52,8 @@ export default function TripResults({ plan, form, planMeta, savedItineraryId, on
   const [showAuth, setShowAuth] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [toastError, setToastError] = useState(false);
+  const sourceLocale = planSourceLocale ?? form.locale ?? "vi";
+  const { plan: viewPlan, localizing } = useLocalizedTripPlan(plan, sourceLocale);
 
   useEffect(() => {
     if (savedItineraryId) setSavedId(savedItineraryId);
@@ -53,19 +64,19 @@ export default function TripResults({ plan, form, planMeta, savedItineraryId, on
   const tabs = useMemo(() => {
     const list: { id: TabId; label: string }[] = [
       { id: "overview", label: t("tabOverview") },
-      ...plan.days.map((d) => ({ id: d.day as TabId, label: t("dayTab", { n: d.day }) })),
+      ...(viewPlan?.days ?? plan.days).map((d) => ({ id: d.day as TabId, label: t("dayTab", { n: d.day }) })),
       { id: "map", label: t("tabMap") },
       { id: "cost", label: t("tabCost") },
     ];
     return list;
-  }, [plan.days, t]);
+  }, [plan.days, viewPlan?.days, t]);
 
   const travelStyleLabel = t(`style_${form.travelStyle}`);
   const transportLabel = t(`transport_${form.transportation}`);
   const paceLabel = t(`pace_${form.pace}`);
 
-  const activeDay =
-    typeof tab === "number" ? plan.days.find((d) => d.day === tab) : plan.days[0];
+  const days = viewPlan?.days ?? plan.days;
+  const activeDay = typeof tab === "number" ? days.find((d) => d.day === tab) : days[0];
 
   const selectTab = (id: TabId) => {
     const nextIndex = tabs.findIndex((item) => item.id === id);
@@ -117,10 +128,11 @@ export default function TripResults({ plan, form, planMeta, savedItineraryId, on
   };
 
   const handleShare = async () => {
-    const text = `${plan.trip_title}\n${plan.destination}\n${plan.total_estimated_cost}`;
+    const sharePlan = viewPlan ?? plan;
+    const text = `${sharePlan.trip_title}\n${sharePlan.destination}\n${sharePlan.total_estimated_cost}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: plan.trip_title, text });
+        await navigator.share({ title: sharePlan.trip_title, text });
         return;
       } catch {
         /* cancelled */
@@ -174,7 +186,7 @@ export default function TripResults({ plan, form, planMeta, savedItineraryId, on
       initial={reduceMotion ? false : { opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45 }}
-      className={`${glass} p-4 sm:p-6 lg:p-7`}
+      className={`${glass} p-4 sm:p-6 lg:p-7 ${localizing ? "opacity-80" : ""}`}
     >
       <div className="flex flex-col gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-start sm:justify-between sm:pb-5">
         <div className="min-w-0">
@@ -192,7 +204,7 @@ export default function TripResults({ plan, form, planMeta, savedItineraryId, on
             ) : null}
           </div>
           <p className="mt-1 line-clamp-2 text-xs text-white/55 sm:text-sm">
-            {plan.trip_title} · {form.days} {t("daysShort")} · {travelStyleLabel} · {transportLabel} ·{" "}
+            {(viewPlan ?? plan).trip_title} · {form.days} {t("daysShort")} · {travelStyleLabel} · {transportLabel} ·{" "}
             {paceLabel} · {form.travelers} {t("people")}
           </p>
         </div>
@@ -267,16 +279,18 @@ export default function TripResults({ plan, form, planMeta, savedItineraryId, on
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                     <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4">
                       <p className="text-[10px] uppercase tracking-wider text-white/70 sm:text-xs">
-                        {plan.destination}
+                        {(viewPlan ?? plan).destination}
                       </p>
-                      <h3 className="line-clamp-2 text-base font-bold text-white sm:text-lg">{plan.trip_title}</h3>
+                      <h3 className="line-clamp-2 text-base font-bold text-white sm:text-lg">
+                        {(viewPlan ?? plan).trip_title}
+                      </h3>
                     </div>
                   </div>
                 </div>
-                {plan.days[0] ? (
-                  <TripTimeline day={plan.days[0]} animateKey={`overview-${plan.days[0].day}`} />
+                {days[0] ? (
+                  <TripTimeline day={days[0]} animateKey={`overview-${days[0].day}`} />
                 ) : null}
-                {plan.days[1] ? (
+                {days[1] ? (
                   <button
                     type="button"
                     onClick={() => selectTab(2)}
@@ -287,11 +301,11 @@ export default function TripResults({ plan, form, planMeta, savedItineraryId, on
                 ) : null}
               </div>
               <div className="order-1 space-y-4 lg:order-2">
-                <CostSummary plan={plan} budgetRaw={form.budget} />
+                <CostSummary plan={viewPlan ?? plan} budgetRaw={form.budget} />
                 <div className="hidden sm:block">
-                  <TripMap days={plan.days} activeDay={plan.days[0]?.day} />
+                  <TripMap days={days} activeDay={days[0]?.day} />
                 </div>
-                <HiddenGems gems={plan.hidden_gems} limit={2} />
+                <HiddenGems gems={(viewPlan ?? plan).hidden_gems} limit={2} />
               </div>
             </div>
           )}
@@ -299,12 +313,12 @@ export default function TripResults({ plan, form, planMeta, savedItineraryId, on
           {typeof tab === "number" && activeDay ? (
             <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[1fr_300px] lg:gap-6">
               <TripTimeline day={activeDay} animateKey={`day-${tab}`} />
-              <TripMap days={plan.days} activeDay={tab} />
+              <TripMap days={days} activeDay={tab} />
             </div>
           ) : null}
 
-          {tab === "map" && <TripMap days={plan.days} />}
-          {tab === "cost" && <CostSummary plan={plan} budgetRaw={form.budget} />}
+          {tab === "map" && <TripMap days={days} />}
+          {tab === "cost" && <CostSummary plan={viewPlan ?? plan} budgetRaw={form.budget} />}
         </motion.div>
       </AnimatePresence>
     </motion.div>

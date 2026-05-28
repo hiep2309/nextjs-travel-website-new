@@ -249,6 +249,7 @@ export default function DashboardPage() {
                 title: payload.title,
                 description: payload.description,
                 contentHtml: payload.contentHtml,
+                translations: payload.translations,
                 slugs: payload.slugs,
                 sourceLocale: payload.sourceLocale,
               }

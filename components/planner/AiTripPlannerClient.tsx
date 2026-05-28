@@ -74,6 +74,7 @@ export default function AiTripPlannerClient() {
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<PlannerErrorCode | null>(null);
   const [plan, setPlan] = useState<TripPlan | null>(null);
+  const [planSourceLocale, setPlanSourceLocale] = useState<AppLocale>(locale);
   const { isCoolingDown, remainingSec, startCooldown } = usePlannerCooldown();
   const [planMeta, setPlanMeta] = useState<TripPlanMeta | null>(null);
   const [loadedItineraryId, setLoadedItineraryId] = useState<string | null>(null);
@@ -97,13 +98,7 @@ export default function AiTripPlannerClient() {
   }, []);
 
   useEffect(() => {
-    setForm(getDefaultPlannerForm(locale));
-    setPlan(null);
-    setPlanMeta(null);
-    setError(null);
-    setErrorCode(null);
-    setLoadedItineraryId(null);
-    setStreamPreview("");
+    setForm((prev) => ({ ...prev, locale }));
   }, [locale]);
 
   useEffect(() => {
@@ -120,6 +115,7 @@ export default function AiTripPlannerClient() {
         if (cancelled || !row) return;
         setForm(row.form);
         setPlan(row.plan);
+        setPlanSourceLocale(row.locale ?? row.form.locale ?? "vi");
         setLoadedItineraryId(row.id);
       } catch {
         /* ignore */
@@ -167,6 +163,7 @@ export default function AiTripPlannerClient() {
       });
 
       setPlan(result.plan);
+      setPlanSourceLocale(locale);
       setPlanMeta(result.meta);
       if (result.meta.usage) setUsage(result.meta.usage);
 
@@ -289,6 +286,7 @@ export default function AiTripPlannerClient() {
                   <TripResults
                     plan={plan}
                     form={form}
+                    planSourceLocale={planSourceLocale}
                     planMeta={planMeta}
                     savedItineraryId={loadedItineraryId}
                     onSaved={setLoadedItineraryId}

@@ -30,9 +30,97 @@ service cloud.firestore {
         && next == prev + 1;
     }
 
+    function commentCountBumpOnly() {
+      let prev = resource.data.keys().hasAny(["commentCount"]) && resource.data.commentCount is int
+        ? resource.data.commentCount
+        : 0;
+      let next = request.resource.data.commentCount;
+      return request.auth != null
+        && (resource.data.status == "approved" || resource.data.status == "pending")
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["commentCount"])
+        && next is int
+        && (next == prev + 1 || next == prev - 1)
+        && next >= 0;
+    }
+
+    function postData(postId) {
+      return get(/databases/$(database)/documents/posts/$(postId)).data;
+    }
+
+    function canReadPost(postId) {
+      let post = postData(postId);
+      return post.status == "approved"
+        || (request.auth != null && request.auth.uid == post.authorId)
+        || isAdmin();
+    }
+
+    function validCommentImages(images) {
+      return images is list && images.size() <= 5;
+    }
+
+    function validCommentCreate() {
+      let data = request.resource.data;
+      return request.auth != null
+        && data.userId == request.auth.uid
+        && data.postId is string
+        && canReadPost(data.postId)
+        && data.content is string
+        && data.content.size() <= 2000
+        && (data.content.size() > 0 || data.images.size() > 0)
+        && validCommentImages(data.images)
+        && data.likeCount == 0
+        && data.replyCount == 0
+        && data.isEdited == false
+        && data.username is string
+        && data.userAvatar is string
+        && (data.parentId == null || data.parentId is string)
+        && (
+          !data.keys().hasAny(["replyToUserId"])
+          || data.replyToUserId == null
+          || data.replyToUserId is string
+        )
+        && (
+          !data.keys().hasAny(["replyToUsername"])
+          || data.replyToUsername == null
+          || data.replyToUsername is string
+        );
+    }
+
+    function authorCommentEditOnly() {
+      return request.auth != null
+        && request.auth.uid == resource.data.userId
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["content", "images", "updatedAt", "isEdited"])
+        && request.resource.data.content is string
+        && request.resource.data.content.size() <= 2000
+        && (request.resource.data.content.size() > 0 || request.resource.data.images.size() > 0)
+        && validCommentImages(request.resource.data.images)
+        && request.resource.data.isEdited == true;
+    }
+
+    function likeCountBumpOnly() {
+      let prev = resource.data.likeCount is int ? resource.data.likeCount : 0;
+      let next = request.resource.data.likeCount;
+      return request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likeCount"])
+        && next is int
+        && (next == prev + 1 || next == prev - 1)
+        && next >= 0;
+    }
+
+    function replyCountBumpOnly() {
+      let prev = resource.data.replyCount is int ? resource.data.replyCount : 0;
+      let next = request.resource.data.replyCount;
+      return request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["replyCount"])
+        && next is int
+        && (next == prev + 1 || next == prev - 1)
+        && next >= 0;
+    }
+
     match /users/{userId} {
-      allow read: if request.auth != null
-        && (request.auth.uid == userId || isAdmin());
+      // Public read — display name + avatar for comments, posts, navbar
+      allow read: if true;
       allow create: if request.auth != null && request.auth.uid == userId;
       allow update: if request.auth != null && request.auth.uid == userId;
       allow delete: if request.auth != null && request.auth.uid == userId;
@@ -54,12 +142,50 @@ service cloud.firestore {
 
       allow update: if isAdmin()
         || viewCountOnlyBump()
+        || commentCountBumpOnly()
         || (request.auth != null
           && request.auth.uid == resource.data.authorId
           && request.resource.data.authorId == resource.data.authorId);
 
       allow delete: if isAdmin()
         || (request.auth != null && request.auth.uid == resource.data.authorId);
+    }
+
+    match /comments/{commentId} {
+      allow read: if canReadPost(resource.data.postId);
+
+      allow create: if validCommentCreate();
+
+      allow update: if isAdmin()
+        || authorCommentEditOnly()
+        || likeCountBumpOnly()
+        || replyCountBumpOnly();
+
+      allow delete: if isAdmin()
+        || (request.auth != null && request.auth.uid == resource.data.userId);
+    }
+
+    match /commentLikes/{likeId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.commentId is string
+        && request.resource.data.postId is string
+        && canReadPost(request.resource.data.postId);
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /commentReports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.commentId is string
+        && request.resource.data.postId is string
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() <= 500
+        && request.resource.data.status == "pending";
+      allow update, delete: if isAdmin();
     }
 
     match /notifications/{notificationId} {
@@ -84,6 +210,10 @@ service cloud.firestore {
     }
 
     match /planner_daily_usage/{usageId} {
+      allow read, write: if false;
+    }
+
+    match /translations/{cacheId} {
       allow read, write: if false;
     }
   }

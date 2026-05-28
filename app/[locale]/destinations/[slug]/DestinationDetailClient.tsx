@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import FlexibleImage from "@/components/ui/FlexibleImage";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -22,8 +22,17 @@ import {
 } from "lucide-react";
 import type { ProvinceDef } from "@/lib/vietnamProvinces";
 import { TRAVEL_IMAGE_URLS } from "@/lib/travelImageUrls";
-import { DestinationRelatedCard } from "@/components/cards";
-import { relatedDestinationToCard } from "@/lib/cards/adapters";
+import { DestinationRelatedCard, PostCardVertical } from "@/components/cards";
+import { relatedDestinationToCard, travelPostToContentCard } from "@/lib/cards/adapters";
+import { ExplorePostCardSkeleton } from "@/components/ui/Skeleton";
+import ProvinceImageViewer from "@/components/gallery/ProvinceImageViewer";
+import { useLocalizedPost } from "@/hooks/useLocalizedPost";
+import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
+import { useProvincePosts } from "@/hooks/useProvincePosts";
+import { resolvePostType } from "@/lib/postCategories";
+import { collectImagesFromPosts } from "@/lib/posts/postsByProvince";
+import { getPostViewCount } from "@/lib/posts/sortPosts";
+import type { TravelPost } from "@/lib/travelPost";
 import { useAuth } from "@/hooks/useAuth";
 import { useDestinationPageModel } from "@/hooks/useDestinationPageModel";
 import {
@@ -41,6 +50,27 @@ const ACCENT = {
 };
 
 type Props = { province: ProvinceDef };
+
+function DestinationProvincePostCard({ post }: { post: TravelPost }) {
+  const t = useTranslations("Explore");
+  const tc = useTranslations("Common");
+  const { title, description } = useLocalizedPost(post);
+  const typeLabels = usePostTypeLabels();
+  const card = travelPostToContentCard(post, {
+    title: title || tc("notFound"),
+    description,
+    badge: typeLabels.label(resolvePostType(post)),
+    badgeVariant: "amber",
+  });
+
+  return (
+    <PostCardVertical
+      card={card}
+      emptyDescription={t("noDesc")}
+      regionFallback={tc("vietnam")}
+    />
+  );
+}
 
 function numberLocale(locale: AppLocale): string {
   if (locale === "vi") return "vi-VN";
@@ -60,6 +90,27 @@ export default function DestinationDetailClient({ province }: Props) {
   const [myStars, setMyStars] = useState<number | null>(null);
   const [hoverStar, setHoverStar] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const { posts: provincePosts, loading: postsLoading } = useProvincePosts(province.name);
+
+  const regionViewCount = useMemo(
+    () => provincePosts.reduce((sum, post) => sum + getPostViewCount(post), 0),
+    [provincePosts],
+  );
+
+  const provinceImages = useMemo(() => collectImagesFromPosts(provincePosts), [provincePosts]);
+  const galleryPreview = provinceImages.slice(0, 4);
+  const galleryHref = `/destinations/${data.slug}/gallery`;
+
+  const viewerLabels = {
+    close: t("galleryClose"),
+    zoomOut: t("galleryZoomOut"),
+    zoomIn: t("galleryZoomIn"),
+    fullscreen: t("galleryFullscreen"),
+    exitFullscreen: t("galleryExitFullscreen"),
+    download: t("galleryDownload"),
+    counter: (current: number, total: number) => t("galleryCounter", { current, total }),
+  };
 
   useEffect(() => {
     recordDestinationView(data.slug, activityUid);
@@ -186,10 +237,11 @@ export default function DestinationDetailClient({ province }: Props) {
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Eye className="size-4 text-amber-400" />
-                {data.views.toLocaleString(fmt)} {tc("views")}
+                {regionViewCount > 0
+                  ? `${regionViewCount.toLocaleString(fmt)} ${tc("views")}`
+                  : t("viewsNone")}
               </span>
             </div>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/85">{data.localized.summary}</p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -246,29 +298,23 @@ export default function DestinationDetailClient({ province }: Props) {
 
           <section id="trai-nghiem" className="scroll-mt-28">
             <h2 className="mb-6 text-xl font-bold text-white">{t("mustDo")}</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {data.experiences.map((ex) => (
-                <div
-                  key={ex.title}
-                  className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]"
-                >
-                  <div className="relative aspect-[16/10]">
-                    {ex.image.trim() ? (
-                      <FlexibleImage
-                        src={ex.image}
-                        alt=""
-                        className="object-cover transition group-hover:scale-105"
-                        sizes="(max-width:768px)100vw,400px"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-slate-800/90" aria-hidden />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                    <p className="absolute bottom-3 left-3 right-3 text-sm font-bold text-white">{ex.title}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {postsLoading ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <ExplorePostCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : provincePosts.length === 0 ? (
+              <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-8 text-center text-sm text-slate-400">
+                {t("noProvincePosts")}
+              </p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {provincePosts.map((post) => (
+                  <DestinationProvincePostCard key={post.id} post={post} />
+                ))}
+              </div>
+            )}
           </section>
 
           <section id="kinh-nghiem" className="scroll-mt-28">
@@ -286,46 +332,49 @@ export default function DestinationDetailClient({ province }: Props) {
             </ul>
           </section>
 
-          <section id="chi-phi" className="scroll-mt-28">
-            <h2 className="mb-6 text-xl font-bold text-white">{t("costTitle")}</h2>
-            <div className="overflow-hidden rounded-2xl border border-white/10">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 bg-white/[0.06] text-white/80">
-                    <th className="px-4 py-3 font-semibold">{t("costItem")}</th>
-                    <th className="px-4 py-3 font-semibold">{t("costEst")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.costs.map((row) => (
-                    <tr key={row.item} className="border-b border-white/5 text-slate-300 last:border-0">
-                      <td className="px-4 py-3">{row.item}</td>
-                      <td className="px-4 py-3 font-medium text-amber-200/90">{row.price}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
           <section id="hinh-anh" className="scroll-mt-28">
             <div className="mb-4 flex items-center justify-between gap-4">
               <h2 className="text-xl font-bold text-white">{t("gallery")}</h2>
-              <Link href="/explore" className="text-sm font-semibold text-amber-400 hover:underline">
-                {t("viewAllGallery")}
-              </Link>
+              {provinceImages.length > 0 ? (
+                <Link href={galleryHref} className="text-sm font-semibold text-amber-400 hover:underline">
+                  {t("viewAllGallery")}
+                </Link>
+              ) : null}
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {data.gallery.map((src, i) => (
-                <div key={`g-${i}`} className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/10">
-                  {src.trim() ? (
-                    <FlexibleImage src={src} alt="" className="object-cover" sizes="200px" />
-                  ) : (
-                    <div className="absolute inset-0 bg-slate-800/90" aria-hidden />
-                  )}
-                </div>
-              ))}
-            </div>
+            {postsLoading ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="aspect-[4/5] animate-pulse rounded-xl bg-white/10" />
+                ))}
+              </div>
+            ) : galleryPreview.length === 0 ? (
+              <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-8 text-center text-sm text-slate-400">
+                {t("noProvinceGallery")}
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {galleryPreview.map(({ url, postId }) => {
+                  const imageIndex = provinceImages.findIndex(
+                    (img) => img.url === url && img.postId === postId,
+                  );
+                  return (
+                    <button
+                      key={`${postId}-${url}`}
+                      type="button"
+                      onClick={() => setViewerIndex(imageIndex >= 0 ? imageIndex : 0)}
+                      className="group relative aspect-[4/5] overflow-hidden rounded-xl border border-white/10 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+                    >
+                      <FlexibleImage
+                        src={url}
+                        alt=""
+                        className="object-cover transition group-hover:scale-105"
+                        sizes="200px"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           <section id="lien-quan" className="scroll-mt-28">
@@ -349,10 +398,6 @@ export default function DestinationDetailClient({ province }: Props) {
               <div>
                 <dt className="text-slate-500">{t("idealTimeLabel")}</dt>
                 <dd className="mt-0.5 text-slate-200">{data.quickInfo.idealTime}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">{t("estCostLabel")}</dt>
-                <dd className="mt-0.5 text-slate-200">{data.quickInfo.estCost}</dd>
               </div>
               <div>
                 <dt className="text-slate-500">{t("suitabilityLabel")}</dt>
@@ -475,6 +520,15 @@ export default function DestinationDetailClient({ province }: Props) {
           </Link>
         </aside>
       </div>
+
+      {viewerIndex !== null && provinceImages.length > 0 ? (
+        <ProvinceImageViewer
+          images={provinceImages}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+          labels={viewerLabels}
+        />
+      ) : null}
     </div>
   );
 }

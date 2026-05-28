@@ -77,10 +77,10 @@ function ProvinceChip({
       type="button"
       onClick={() => onPick(index)}
       title={`${localizedName} — ${regionLabel}`}
-      className={`group relative flex h-[150px] w-[120px] shrink-0 snap-center flex-col overflow-hidden rounded-xl border text-left shadow-lg transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80 sm:h-[158px] sm:w-[128px] ${
+      className={`group relative flex h-[150px] w-[120px] shrink-0 snap-center flex-col overflow-hidden rounded-xl border text-left shadow-lg transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/80 sm:h-[158px] sm:w-[128px] ${
         index === activeIndex
-          ? "z-[1] scale-[1.06] border-2 border-white shadow-xl shadow-black/50 ring-2 ring-amber-400/70 snap-center"
-          : "border-white/25 bg-slate-900/40 hover:border-white/50 hover:scale-[1.02] snap-center"
+          ? "z-[1] scale-[1.06] border-2 border-violet-300/70 shadow-xl shadow-violet-950/40 ring-2 ring-violet-400/80 snap-center"
+          : "border-white/25 bg-slate-900/60 hover:border-white/50 hover:scale-[1.02] snap-center"
       }`}
       aria-label={t("selectProvince", { name: localizedName, region: regionLabel })}
       aria-current={index === activeIndex ? "true" : undefined}
@@ -92,11 +92,11 @@ function ProvinceChip({
       <div ref={thumbRef} className="relative min-h-0 w-full flex-1 bg-slate-800">
         <ThumbImage src={province.image} eager={index < 12} />
       </div>
-      <div className="shrink-0 border-t border-white/10 bg-black/85 px-1.5 py-2 backdrop-blur-md">
-        <p className="line-clamp-1 text-[7px] font-semibold uppercase leading-tight tracking-wide text-white/65">
+      <div className="shrink-0 border-t border-white/10 bg-gradient-to-t from-black/95 via-black/90 to-black/80 px-1.5 py-2 backdrop-blur-md">
+        <p className="line-clamp-1 text-[7px] font-semibold uppercase leading-tight tracking-wide text-white/75">
           {regionLabel.toLocaleUpperCase()}
         </p>
-        <p className="mt-0.5 line-clamp-2 break-words text-[11px] font-bold leading-snug text-white">
+        <p className="mt-0.5 line-clamp-2 break-words text-[11px] font-bold leading-snug text-white drop-shadow-sm">
           {localizedName}
         </p>
       </div>
@@ -115,6 +115,7 @@ function rectRelativeTo(root: DOMRect, inner: DOMRect) {
 
 export default function ProvinceShowcase() {
   const t = useTranslations("Province");
+  const tDest = useTranslations("Destinations");
   const [activeIndex, setActiveIndex] = useState(defaultIndex);
   const [heroSrc, setHeroSrc] = useState(provinces[defaultIndex].image);
   const [fly, setFly] = useState<FlyState | null>(null);
@@ -132,6 +133,11 @@ export default function ProvinceShowcase() {
   const activeLocalized = useLocalizedProvince(activeProvince);
   const activeRegionLabel = useRegionLabel(activeProvince.region);
   const heroSummary = activeLocalized.summary;
+  const heroIntro = tDest("introBody", {
+    name: activeLocalized.name,
+    region: activeRegionLabel,
+    summary: heroSummary,
+  });
   activeIndexRef.current = activeIndex;
 
   const startFlyFromThumb = useCallback((index: number) => {
@@ -306,45 +312,75 @@ export default function ProvinceShowcase() {
               </div>
             ) : null}
 
-            <div className="absolute inset-0 z-[15] bg-gradient-to-r from-black/78 via-black/40 to-black/55" />
-            <div className="absolute inset-0 z-[15] bg-gradient-to-t from-black/72 via-black/10 to-black/35" />
+            <div className="absolute inset-0 z-[15] bg-gradient-to-r from-black/88 via-black/55 to-black/45" />
+            <div className="absolute inset-0 z-[15] bg-gradient-to-t from-black/92 via-black/35 to-transparent" />
 
-            <div className="absolute left-4 top-8 z-20 max-w-[min(100%,620px)] pr-4 sm:left-7 sm:top-12 lg:left-10 lg:top-14">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80 sm:text-xs">
-                {activeRegionLabel.toLocaleUpperCase()} · {t("vietnam")}
-              </p>
-              <h2 className="mb-5 text-4xl font-black uppercase leading-[0.92] tracking-tight sm:mb-6 sm:text-6xl lg:text-7xl">
-                {activeLocalized.name.toLocaleUpperCase()}
-              </h2>
-              <Link
-                href={`/destinations/${provinceNameToSlug(activeProvince.name)}`}
-                className="mb-5 inline-flex items-center rounded-full bg-black/50 px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-black/60 sm:mb-6"
-              >
-                {t("cta")}
-              </Link>
-              <p className="max-w-[520px] text-sm font-medium leading-relaxed text-white/90 sm:text-base">
-                {heroSummary}
-              </p>
-            </div>
-
-            <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent pb-3 pt-6 sm:pb-4 sm:pt-8">
-              <div className="mx-auto flex max-w-[1200px] flex-col gap-2 px-4 sm:flex-row sm:items-end sm:px-6 lg:px-8">
-                <p className="max-w-[28rem] text-[10px] font-semibold uppercase leading-snug tracking-[0.2em] text-white/70 sm:text-[11px]">
-                  {t("countLabel", { count: provinces.length })}
+            <div className="absolute left-4 top-6 z-20 max-w-[min(100%,580px)] sm:left-6 sm:top-8 lg:left-8 lg:top-10">
+              <div className="rounded-2xl border border-white/10 bg-black/65 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-6 lg:rounded-3xl lg:p-7">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90 sm:text-xs">
+                  <MapPin className="size-3.5 shrink-0 text-violet-300" aria-hidden />
+                  {activeRegionLabel.toLocaleUpperCase()} · {t("vietnam")}
                 </p>
-                <span
-                  className="ml-auto shrink-0 rounded-full border border-white/25 bg-black/45 px-3 py-1 text-[11px] font-semibold tabular-nums text-white/95 backdrop-blur-md"
+                <h2 className="mt-3 text-3xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-5xl lg:text-6xl">
+                  {activeLocalized.name.toLocaleUpperCase()}
+                </h2>
+                <div
+                  className="mt-4 h-0.5 w-14 rounded-full bg-gradient-to-r from-violet-500 to-blue-500 sm:mt-5"
+                  aria-hidden
+                />
+                <Link
+                  href={`/destinations/${provinceNameToSlug(activeProvince.name)}`}
+                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-900/30 transition hover:from-violet-500 hover:to-blue-500 sm:mt-6"
+                >
+                  <MapPin className="size-4 shrink-0 opacity-90" aria-hidden />
+                  {t("cta")}
+                  <ChevronRight className="size-4 shrink-0 opacity-90" aria-hidden />
+                </Link>
+                <p
+                  key={activeProvince.name}
+                  className="mt-5 text-sm leading-relaxed text-white/92 sm:mt-6 sm:text-[15px] sm:leading-7"
                   aria-live="polite"
                 >
-                  {activeIndex + 1} / {provinces.length}
-                </span>
+                  {heroIntro}
+                </p>
+              </div>
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/95 via-black/70 to-transparent pb-3 pt-14 sm:pb-4 sm:pt-16 lg:pt-20">
+              <div className="mx-auto flex max-w-[1200px] justify-end px-4 sm:px-6 lg:px-8">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-2 py-1.5 shadow-lg backdrop-blur-md">
+                  <button
+                    type="button"
+                    onClick={goPrevProvince}
+                    disabled={activeIndex <= 0}
+                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition hover:bg-white/15 disabled:pointer-events-none disabled:opacity-35 sm:size-10"
+                    aria-label={t("prevProvince")}
+                  >
+                    <ChevronLeft className="size-5 stroke-[2.25]" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goNextProvince}
+                    disabled={activeIndex >= provinces.length - 1}
+                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white text-slate-900 transition hover:bg-white/95 disabled:pointer-events-none disabled:opacity-35 sm:size-10"
+                    aria-label={t("nextProvince")}
+                  >
+                    <ChevronRight className="size-5 stroke-[2.25]" aria-hidden />
+                  </button>
+                  <span
+                    className="shrink-0 rounded-full bg-black/40 px-3 py-1 text-[11px] font-semibold tabular-nums text-white"
+                    aria-live="polite"
+                  >
+                    {activeIndex + 1} / {provinces.length}
+                  </span>
+                </div>
               </div>
               <div
                 ref={scrollerRef}
                 tabIndex={0}
                 role="listbox"
-                aria-label={t("countLabel", { count: provinces.length })}
-                className="hide-scrollbar mx-auto mt-3 flex max-w-[1200px] flex-row flex-nowrap gap-3 overflow-x-auto overscroll-x-contain pb-2 pt-1 pl-[max(1rem,calc(50%-60px))] pr-[max(1rem,calc(50%-60px))] sm:pl-[max(1.5rem,calc(50%-64px))] sm:pr-[max(1.5rem,calc(50%-64px))] focus:outline-none"
+                aria-label={t("carouselAria")}
+                className="hide-scrollbar mx-auto mt-5 flex max-w-[1200px] flex-row flex-nowrap gap-3 overflow-x-auto overscroll-x-contain pb-2 pt-1 pl-[max(1rem,calc(50%-60px))] pr-[max(1rem,calc(50%-60px))] sm:mt-6 sm:pl-[max(1.5rem,calc(50%-64px))] sm:pr-[max(1.5rem,calc(50%-64px))] focus:outline-none"
               >
                 {provinces.map((province, index) => (
                   <ProvinceChip
@@ -361,26 +397,6 @@ export default function ProvinceShowcase() {
                     }}
                   />
                 ))}
-              </div>
-              <div className="mx-auto mt-2 flex max-w-[1200px] justify-end gap-2 px-4 pb-3 sm:px-6 lg:px-8">
-                <button
-                  type="button"
-                  onClick={goPrevProvince}
-                  disabled={activeIndex <= 0}
-                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-white bg-transparent text-white shadow-md transition hover:bg-white/15 disabled:pointer-events-none disabled:opacity-35"
-                  aria-label={t("prevProvince")}
-                >
-                  <ChevronLeft className="size-5 stroke-[2.25]" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={goNextProvince}
-                  disabled={activeIndex >= provinces.length - 1}
-                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-white bg-white text-slate-900 shadow-md transition hover:bg-white/95 disabled:pointer-events-none disabled:opacity-35"
-                  aria-label={t("nextProvince")}
-                >
-                  <ChevronRight className="size-5 stroke-[2.25]" aria-hidden />
-                </button>
               </div>
             </div>
           </div>

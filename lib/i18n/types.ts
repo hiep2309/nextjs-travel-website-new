@@ -28,6 +28,17 @@ export type TranslationStatus = "draft" | "machine" | "reviewed" | "published";
 
 export type TranslationStatusMap = Partial<Record<AppLocale, TranslationStatus>>;
 
+/** Per-locale post copy stored in Firestore (`translations.ko.content`, …). */
+export type PostLocaleTranslation = {
+  title: string;
+  description: string;
+  content: string;
+};
+
+export type PostTranslations = Partial<
+  Record<AppLocale | "ja", PostLocaleTranslation>
+>;
+
 /** Shared metadata on every multilingual Firestore document */
 export type LocalizedDocumentBase = {
   sourceLocale?: AppLocale;
@@ -49,6 +60,8 @@ export type MultilingualPost = LocalizedDocumentBase &
     title: LocalizedString;
     description: LocalizedString;
     contentHtml: LocalizedHtml;
+    /** Canonical nested translations — preferred for rendering. */
+    translations?: PostTranslations;
     image?: string;
     images?: string[];
     thumb?: string;

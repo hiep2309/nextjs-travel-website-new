@@ -5,12 +5,11 @@ import {
   type PostLocaleWritePayload,
 } from "@/lib/firestore/multilingual";
 import { translatePostFields } from "@/lib/translation/buildLocalizedContent";
-import { isGeminiTranslationAvailable } from "@/lib/translation/providers/gemini";
-import type { TranslatePostInput, TranslationProvider } from "@/lib/translation/types";
+import { isGeminiTranslationAvailable } from "@/lib/translation/translation.service";
+import type { TranslatePostInput } from "@/lib/translation/types";
 
 export type PostTranslationPipelineOptions = {
   sourceLocale?: AppLocale;
-  provider?: TranslationProvider;
   existingSlugs?: LocalizedSlug;
   slugSuffix?: string;
 };
@@ -20,18 +19,17 @@ export type PostTranslationPipelineResult = {
   geminiConfigured: boolean;
 };
 
-/** Full post translation pipeline — AI (Gemini) with MyMemory fallback. */
+/**
+ * Pre-translate post on create/edit — generates vi/en/ko fields before Firestore write.
+ * Frontend renders stored locales only (no realtime page translation).
+ */
 export async function runPostTranslationPipeline(
   input: TranslatePostInput,
   options: PostTranslationPipelineOptions = {},
 ): Promise<PostTranslationPipelineResult> {
   const sourceLocale = options.sourceLocale ?? input.sourceLocale ?? "vi";
-  const provider = options.provider ?? "auto";
 
-  const fields = await translatePostFields(
-    { ...input, sourceLocale },
-    { sourceLocale, provider },
-  );
+  const fields = await translatePostFields({ ...input, sourceLocale }, { sourceLocale });
 
   const payload = buildPostLocaleWritePayload(
     fields.title,

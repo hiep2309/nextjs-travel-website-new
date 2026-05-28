@@ -8,7 +8,6 @@ import {
 } from "@/lib/postContentLimits";
 import { requireAuth, isAuthResponse } from "@/lib/server/requireAuth";
 import { runPostTranslationPipeline } from "@/lib/translation/pipeline";
-import type { TranslationProvider } from "@/lib/translation/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,11 +18,6 @@ function parseLocale(raw: unknown, fallback: AppLocale = "vi"): AppLocale {
     return raw as AppLocale;
   }
   return fallback;
-}
-
-function parseProvider(raw: unknown): TranslationProvider {
-  if (raw === "gemini" || raw === "mymemory" || raw === "auto") return raw;
-  return "auto";
 }
 
 function parseSlugs(raw: unknown): LocalizedSlug | undefined {
@@ -42,7 +36,6 @@ type PostBody = {
   description?: unknown;
   contentHtml?: unknown;
   sourceLocale?: unknown;
-  provider?: unknown;
   existingSlugs?: unknown;
   slugSuffix?: unknown;
 };
@@ -76,7 +69,6 @@ function parseValidBody(body: unknown) {
     description,
     contentHtml,
     sourceLocale: parseLocale(b.sourceLocale),
-    provider: parseProvider(b.provider),
     existingSlugs: parseSlugs(b.existingSlugs),
     slugSuffix:
       typeof b.slugSuffix === "string" && b.slugSuffix.trim()
@@ -113,7 +105,6 @@ export async function POST(req: Request) {
       },
       {
         sourceLocale: data.sourceLocale,
-        provider: data.provider,
         existingSlugs: data.existingSlugs,
         slugSuffix: data.slugSuffix,
       },
@@ -144,7 +135,6 @@ export async function GET() {
       description: "string",
       contentHtml: "string",
       sourceLocale: "vi | en | ko",
-      provider: "auto | gemini | mymemory",
     },
   });
 }

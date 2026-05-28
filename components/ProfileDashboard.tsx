@@ -20,6 +20,7 @@ import {
   LogOut,
   MapPin,
   PenSquare,
+  Pencil,
   Shield,
   Sparkles,
   Star,
@@ -27,7 +28,14 @@ import {
 } from "lucide-react";
 import { doc, setDoc } from "firebase/firestore";
 import { reload, updateProfile } from "firebase/auth";
+import {
+  DISPLAY_NAME_MAX,
+  DISPLAY_NAME_MIN,
+  validateDisplayName,
+} from "@/lib/comments/displayName";
+import { DisplayNameUpdateError, updateUserDisplayName } from "@/lib/user";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { prepareImageForUpload } from "@/lib/imageUploadPrep";
 import { auth, db, storage } from "@/lib/firebase";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
@@ -150,8 +158,12 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
   const tCommon = useTranslations("Common");
   const { logout } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const profileContentRef = useRef<HTMLDivElement>(null);
   const [avatarLocalUrl, setAvatarLocalUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState(profile.name);
+  const [displayNameSaving, setDisplayNameSaving] = useState(false);
+  const [editingDisplayName, setEditingDisplayName] = useState(false);
   const [tick, setTick] = useState(0);
   const [tab, setTab] = useState<TabId>("itineraries");
   const [filter, setFilter] = useState<FilterId>("all");
@@ -165,6 +177,10 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
     drafts: 0,
   });
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
+
+  useEffect(() => {
+    setDisplayNameDraft(profile.name);
+  }, [profile.name]);
 
   useEffect(() => {
     const bump = () => setTick((t) => t + 1);
@@ -205,27 +221,87 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
 
     setAvatarUploading(true);
     try {
-      const rawExt = (file.name.split(".").pop() || "jpg").replace(/[^a-z0-9]/gi, "");
-      const ext = rawExt.slice(0, 6) || "jpg";
+      const prepared = await prepareImageForUpload(file);
+      const ext =
+        prepared.type === "image/webp"
+          ? "webp"
+          : prepared.type === "image/png"
+            ? "png"
+            : "jpg";
       const path = `avatars/${cur.uid}/${Date.now()}.${ext}`;
       const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file, { contentType: file.type || "image/jpeg" });
+      await uploadBytes(storageRef, prepared, { contentType: prepared.type || "image/jpeg" });
       const url = await getDownloadURL(storageRef);
       await updateProfile(cur, { photoURL: url });
       await reload(cur);
       await setDoc(
         doc(db, "users", cur.uid),
-        { photoURL: url },
+        { photoURL: url, updatedAt: new Date().toISOString() },
         { merge: true },
       );
       setAvatarLocalUrl(url);
     } catch (err) {
-      console.error(err);
-      alert(tProfile("avatarUploadErr"));
+      console.error("[Profile] avatar upload failed:", err);
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code?: string }).code)
+          : "";
+      if (code === "storage/unauthorized") {
+        alert(tProfile("avatarPermissionErr"));
+      } else {
+        alert(tProfile("avatarUploadErr"));
+      }
     } finally {
       setAvatarUploading(false);
     }
   };
+
+  const displayNameTrimmed = displayNameDraft.trim().replace(/\s+/g, " ");
+  const displayNameChanged = displayNameTrimmed !== profile.name;
+
+  const handleSaveDisplayName = async () => {
+    const parsed = validateDisplayName(displayNameDraft);
+    if (!parsed.ok) {
+      if (parsed.error === "tooShort") {
+        alert(tProfile("displayNameErrTooShort", { min: DISPLAY_NAME_MIN }));
+      } else if (parsed.error === "tooLong") {
+        alert(tProfile("displayNameErrTooLong", { max: DISPLAY_NAME_MAX }));
+      } else if (parsed.error === "generic") {
+        alert(tProfile("displayNameErrGeneric"));
+      } else if (parsed.error === "invalid") {
+        alert(tProfile("displayNameErrInvalid"));
+      } else {
+        alert(tProfile("displayNameErrEmpty"));
+      }
+      return;
+    }
+
+    if (parsed.value === profile.name) return;
+
+    const cur = auth.currentUser;
+    if (!cur) return;
+
+    setDisplayNameSaving(true);
+    try {
+      await updateUserDisplayName(cur, parsed.value);
+      setDisplayNameDraft(parsed.value);
+      setEditingDisplayName(false);
+    } catch (err) {
+      if (err instanceof DisplayNameUpdateError && err.code !== "auth") {
+        alert(tProfile("displayNameErrGeneric"));
+      } else {
+        alert(tProfile("displayNameErrSave"));
+      }
+    } finally {
+      setDisplayNameSaving(false);
+    }
+  };
+
+  const handleCancelDisplayName = () => {
+    setDisplayNameDraft(profile.name);
+    setEditingDisplayName(false);
+  };
+
   const isAdmin = profile.role === "admin";
 
   useEffect(() => {
@@ -374,6 +450,76 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
     router.push("/");
   };
 
+  const scrollToProfileContent = () => {
+    profileContentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleTabChange = (nextTab: TabId) => {
+    setTab(nextTab);
+    if (nextTab === "saved" || nextTab === "history" || nextTab === "reviews") {
+      setFilter("all");
+    }
+  };
+
+  const handleStatNavigate = (target: "saved" | "history" | "reviews" | "places") => {
+    if (target === "places") {
+      const uid = profile.uid;
+      const savedDestinations = getSavedDestinationSlugs(uid);
+      const viewedDestinations = getDestinationHistory(uid);
+      if (savedDestinations.length > 0) {
+        setTab("saved");
+        setFilter("destination");
+      } else if (viewedDestinations.length > 0) {
+        setTab("history");
+        setFilter("destination");
+      } else {
+        setTab("reviews");
+        setFilter("destination");
+      }
+    } else {
+      setTab(target);
+      setFilter("all");
+    }
+    scrollToProfileContent();
+  };
+
+  const isPlacesStatActive = filter === "destination" && (tab === "saved" || tab === "history" || tab === "reviews");
+
+  const statCards = [
+    {
+      id: "saved" as const,
+      icon: Bookmark,
+      label: tProfile("saved"),
+      value: counts.saved,
+      color: "text-violet-400",
+      active: tab === "saved" && filter === "all",
+    },
+    {
+      id: "history" as const,
+      icon: History,
+      label: tProfile("statHistory"),
+      value: counts.history,
+      color: "text-blue-400",
+      active: tab === "history" && filter === "all",
+    },
+    {
+      id: "reviews" as const,
+      icon: Star,
+      label: tProfile("reviews"),
+      value: counts.reviews,
+      color: "text-amber-400",
+      active: tab === "reviews" && filter === "all",
+    },
+    {
+      id: "places" as const,
+      icon: MapPin,
+      label: tProfile("statPlaces"),
+      value: counts.places,
+      color: "text-teal-400",
+      active: isPlacesStatActive,
+    },
+  ];
+
   const emptyTitle =
     tab === "saved"
       ? tProfile("emptySaved")
@@ -401,7 +547,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setTab(id)}
+                  onClick={() => handleTabChange(id)}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
                     tab === id
                       ? "bg-gradient-to-r from-violet-600/40 to-blue-600/30 text-white ring-1 ring-violet-400/30"
@@ -461,11 +607,13 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
             <p className="mt-2 max-w-xl text-sm text-white/55">{tProfile("subtitle")}</p>
 
             {/* Profile header */}
-            <div className={`${glass} mt-8 p-6 sm:p-8`}>
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+            <div className={`${glass} relative mt-8 overflow-hidden`}>
+              <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-start sm:p-8">
                 <div className="relative mx-auto shrink-0 sm:mx-0">
-                  <div className="relative h-28 w-28 overflow-hidden rounded-full ring-2 ring-white/25">
-                    <FlexibleImage src={avatarSrc} alt="" sizes="112px" className="object-cover" />
+                  <div className="rounded-full bg-gradient-to-br from-violet-500 via-blue-500 to-cyan-400 p-[3px] shadow-lg shadow-violet-500/25">
+                    <div className="relative h-24 w-24 overflow-hidden rounded-full bg-[#0b0e14] sm:h-28 sm:w-28">
+                      <FlexibleImage src={avatarSrc} alt="" sizes="112px" className="object-cover" />
+                    </div>
                   </div>
                   <input
                     ref={avatarInputRef}
@@ -478,68 +626,126 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                     type="button"
                     disabled={avatarUploading}
                     onClick={() => avatarInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 flex size-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-2 ring-black/50 transition hover:bg-blue-500 disabled:opacity-60"
+                    className="absolute bottom-0 right-0 flex size-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-2 ring-[#0b0e14] transition hover:bg-blue-500 disabled:opacity-60"
                     aria-label={tProfile("changeAvatarAria")}
                   >
                     <Camera className="size-4" aria-hidden />
                   </button>
-                  <p className="mt-2 text-center text-[11px] text-white/45 sm:text-left">
-                    {avatarUploading ? tProfile("avatarUploading") : tProfile("avatarPickHint")}
-                  </p>
+                  {avatarUploading ? (
+                    <p className="absolute -bottom-6 left-1/2 w-max -translate-x-1/2 text-[10px] text-white/45">
+                      {tProfile("avatarUploading")}
+                    </p>
+                  ) : null}
                 </div>
-                <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                    <h2 className="text-xl font-bold sm:text-2xl">{profile.name}</h2>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                        isAdmin
-                          ? "bg-amber-500/20 text-amber-200 ring-1 ring-amber-400/40"
-                          : "bg-white/10 text-white/80 ring-1 ring-white/20"
-                      }`}
-                    >
-                      {isAdmin ? <Shield className="size-3" aria-hidden /> : <User className="size-3" aria-hidden />}
-                      {isAdmin ? tNav("admin") : tNav("member")}
-                    </span>
-                  </div>
-                  {profile.email ? <p className="mt-2 truncate text-sm text-white/55">{profile.email}</p> : null}
-                  <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-white/40 sm:text-left">
-                    <MapPin className="size-3.5 shrink-0" aria-hidden />
-                    {tCommon("vietnam")}
-                  </p>
 
-                  <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-center sm:text-left">
-                      <p className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-white/40 sm:justify-start">
-                        <Bookmark className="size-3" aria-hidden />
-                        {tProfile("saved")}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 text-center sm:text-left">
+                      <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-[1.75rem]">
+                          {profile.name}
+                        </h2>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                            isAdmin
+                              ? "bg-amber-500/20 text-amber-200 ring-1 ring-amber-400/40"
+                              : "bg-violet-500/25 text-violet-100 ring-1 ring-violet-400/35"
+                          }`}
+                        >
+                          {isAdmin ? <Shield className="size-3" aria-hidden /> : <User className="size-3" aria-hidden />}
+                          {isAdmin ? tNav("admin") : tNav("member")}
+                        </span>
+                      </div>
+                      {profile.email ? (
+                        <p className="mt-2 truncate text-sm text-white/50">{profile.email}</p>
+                      ) : null}
+                      <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-white/45 sm:justify-start">
+                        <MapPin className="size-3.5 shrink-0 text-white/35" aria-hidden />
+                        {tCommon("vietnam")}
                       </p>
-                      <p className="mt-1 text-lg font-bold text-white">{counts.saved}</p>
+                      <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/45">{tProfile("displayNameHint")}</p>
+
+                      {editingDisplayName ? (
+                        <form
+                          className="mt-4 max-w-md text-left"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void handleSaveDisplayName();
+                          }}
+                        >
+                          <label htmlFor="profile-display-name" className="sr-only">
+                            {tProfile("displayNameLabel")}
+                          </label>
+                          <input
+                            id="profile-display-name"
+                            type="text"
+                            value={displayNameDraft}
+                            onChange={(e) => setDisplayNameDraft(e.target.value)}
+                            maxLength={DISPLAY_NAME_MAX}
+                            autoComplete="nickname"
+                            autoFocus
+                            placeholder={tProfile("displayNamePlaceholder")}
+                            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-blue-400/50 focus:ring-2 focus:ring-blue-500/25"
+                          />
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="submit"
+                              disabled={displayNameSaving || !displayNameChanged}
+                              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {displayNameSaving ? tProfile("displayNameSaving") : tProfile("displayNameSave")}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={displayNameSaving}
+                              onClick={handleCancelDisplayName}
+                              className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
+                            >
+                              {tProfile("displayNameCancel")}
+                            </button>
+                          </div>
+                        </form>
+                      ) : null}
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-center sm:text-left">
-                      <p className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-white/40 sm:justify-start">
-                        <History className="size-3" aria-hidden />
-                        {tProfile("statHistory")}
-                      </p>
-                      <p className="mt-1 text-lg font-bold text-white">{counts.history}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-center sm:text-left">
-                      <p className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-white/40 sm:justify-start">
-                        <Star className="size-3" aria-hidden />
-                        {tProfile("reviews")}
-                      </p>
-                      <p className="mt-1 text-lg font-bold text-white">{counts.reviews}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-center sm:text-left">
-                      <p className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-white/40 sm:justify-start">
-                        <BookOpen className="size-3" aria-hidden />
-                        {tProfile("statPlaces")}
-                      </p>
-                      <p className="mt-1 text-lg font-bold text-white">{counts.places}</p>
-                    </div>
+
+                    {!editingDisplayName ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditingDisplayName(true)}
+                        className="mx-auto inline-flex shrink-0 items-center gap-2 rounded-full border border-white/15 bg-black/20 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:border-blue-400/30 hover:bg-blue-500/10 hover:text-blue-200 sm:mx-0"
+                      >
+                        <Pencil className="size-4" aria-hidden />
+                        {tProfile("displayNameEdit")}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
+
+              <div className="border-t border-white/10" />
+
+              <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:gap-4 sm:p-6">
+                {statCards.map(({ id, icon: Icon, label, value, color, active }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => handleStatNavigate(id)}
+                    aria-current={active ? "true" : undefined}
+                    className={`rounded-2xl border px-4 py-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
+                      active
+                        ? "border-white/25 bg-white/[0.08] ring-1 ring-white/15"
+                        : "border-white/10 bg-black/25 hover:border-white/20 hover:bg-black/35"
+                    }`}
+                  >
+                    <Icon className={`size-5 ${color}`} aria-hidden />
+                    <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-white/40">{label}</p>
+                    <p className="mt-1 text-2xl font-bold tabular-nums text-white">{value}</p>
+                  </button>
+                ))}
+              </div>
             </div>
+
+            <div ref={profileContentRef} className="scroll-mt-28">
 
             {/* Tabs + filters (duplicate tab pills for mobile clarity — main tab state from sidebar) */}
             <div className="mt-8 flex flex-wrap gap-2 border-b border-white/10 pb-4 lg:hidden">
@@ -547,7 +753,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setTab(id)}
+                  onClick={() => handleTabChange(id)}
                   className={`rounded-full px-4 py-2 text-xs font-bold transition ${
                     tab === id ? "bg-white text-[#0b0e14]" : "bg-white/5 text-white/65 hover:bg-white/10"
                   }`}
@@ -628,6 +834,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
             )}
             </>
             )}
+
+            </div>
 
             <button
               type="button"

@@ -16,6 +16,10 @@ import { useLocalizedPost } from "@/hooks/useLocalizedPost";
 import type { AppLocale } from "@/i18n/routing";
 import type { TravelPost } from "@/lib/travelPost";
 import { resolvePostCoverImage } from "@/lib/posts/coverImage";
+import {
+  VIEW_COUNT_BUMPED_EVENT,
+  type ViewCountBumpedDetail,
+} from "@/lib/posts/bumpPostView";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import dynamic from "next/dynamic";
 import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
@@ -352,6 +356,15 @@ const Hero = () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(intervalId);
     };
+  }, []);
+
+  useEffect(() => {
+    const onViewCountBumped = (event: Event) => {
+      const { postId, viewCount } = (event as CustomEvent<ViewCountBumpedDetail>).detail;
+      setTopPost((prev) => (prev?.id === postId ? { ...prev, viewCount } : prev));
+    };
+    window.addEventListener(VIEW_COUNT_BUMPED_EVENT, onViewCountBumped);
+    return () => window.removeEventListener(VIEW_COUNT_BUMPED_EVENT, onViewCountBumped);
   }, []);
 
   const displayPost: PopularPost = topPost ?? HOI_AN_DEFAULT;

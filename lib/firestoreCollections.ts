@@ -4,6 +4,9 @@
 export const COLLECTIONS = {
   users: "users",
   posts: "posts",
+  comments: "comments",
+  commentLikes: "commentLikes",
+  commentReports: "commentReports",
   savedItineraries: "saved_itineraries",
   tripPlanCache: "trip_plan_cache",
   plannerDailyUsage: "planner_daily_usage",
@@ -18,6 +21,10 @@ export const COLLECTIONS = {
  *   "title": { "vi": "...", "en": "...", "ko": "..." },
  *   "description": { "vi": "...", "en": "...", "ko": "..." },
  *   "contentHtml": { "vi": "<p>…</p>", "en": "<p>…</p>", "ko": "<p>…</p>" },
+ *   "translations": {
+ *     "vi": { "title": "…", "description": "…", "content": "<p>…</p>" },
+ *     "ko": { "title": "…", "description": "…", "content": "<p>…</p>" }
+ *   },
  *   "slugs": { "vi": "ha-noi-3-ngay-abc", "en": "hanoi-3-days-abc", "ko": "…" },
  *   "seo": {
  *     "vi": { "title": "… | VN Insight", "description": "…" },

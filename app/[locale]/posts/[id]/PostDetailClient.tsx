@@ -30,7 +30,13 @@ import { resolvePostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useLocalizedPost } from "@/hooks/useLocalizedPost";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
+import {
+  markPostViewBumped,
+  releaseViewBumpInflight,
+  tryAcquireViewBump,
+} from "@/lib/posts/bumpPostView";
 import type { TravelPost } from "@/lib/travelPost";
+import CommentSection from "@/components/comments/CommentSection";
 
 function resolvePostId(postIdProp: string | undefined, params: ReturnType<typeof useParams>) {
   if (postIdProp?.trim()) return postIdProp.trim();
@@ -83,42 +89,55 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
       setPost(null);
       return;
     }
+
+    let cancelled = false;
+
     (async () => {
       setLoading(true);
       setErr("");
       try {
         const snap = await getDoc(doc(db, "posts", id));
+        if (cancelled) return;
+
         if (!snap.exists()) {
           setErr(t("notFound"));
           setPost(null);
-        } else {
-          const normalized = normalizeTravelPost(snap.id, snap.data() as Record<string, unknown>);
-          setPost(normalized);
+          return;
+        }
 
-          const canBumpViews =
-            normalized.status === "approved" || normalized.status === "pending";
-          if (canBumpViews) {
-            void (async () => {
-              try {
-                await updateDoc(doc(db, "posts", id), { viewCount: increment(1) });
-                setPost((prev) =>
-                  prev ? { ...prev, viewCount: (prev.viewCount ?? 0) + 1 } : prev,
-                );
-              } catch (e) {
-                if (process.env.NODE_ENV === "development") {
-                  console.warn("[posts] Không tăng được viewCount (kiểm tra Firestore rules / quyền):", e);
-                }
-              }
-            })();
+        const normalized = normalizeTravelPost(snap.id, snap.data() as Record<string, unknown>);
+        setPost(normalized);
+
+        const canBumpViews =
+          normalized.status === "approved" || normalized.status === "pending";
+        if (canBumpViews && tryAcquireViewBump(id)) {
+          try {
+            await updateDoc(doc(db, "posts", id), { viewCount: increment(1) });
+            const nextCount = (normalized.viewCount ?? 0) + 1;
+            markPostViewBumped(id, nextCount);
+            if (!cancelled) {
+              setPost((prev) => (prev ? { ...prev, viewCount: nextCount } : prev));
+            }
+          } catch (e) {
+            releaseViewBumpInflight(id);
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[posts] Không tăng được viewCount (kiểm tra Firestore rules / quyền):", e);
+            }
           }
         }
       } catch {
-        setErr(t("loadError"));
-        setPost(null);
+        if (!cancelled) {
+          setErr(t("loadError"));
+          setPost(null);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, t]);
 
   useEffect(() => {
@@ -324,11 +343,11 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
               <div
                 className="post-body-html mt-4 text-[15px] leading-relaxed text-white/[0.88]"
                 dangerouslySetInnerHTML={{ __html: localized.contentHtml }}
+                data-content-locale={localized.contentFrom}
+                data-ui-locale={localized.locale}
               />
             ) : (
-              <p className="mt-4 whitespace-pre-wrap leading-relaxed text-white/85">
-                {localized.description || ""}
-              </p>
+              <p className="mt-4 text-sm text-white/55">{t("contentUnavailable")}</p>
             )}
 
             <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.05] p-5">
@@ -361,6 +380,16 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
                 })}
               </div>
             </div>
+
+            {post.status === "approved" ||
+            canEditPost(role, user?.uid, post.authorId, post.status) ? (
+              <CommentSection
+                postId={id}
+                enabled
+                commentCount={post.commentCount}
+                onToast={showToast}
+              />
+            ) : null}
           </>
         )}
       </div>

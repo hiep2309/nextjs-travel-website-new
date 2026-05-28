@@ -1,30 +1,33 @@
 import { NextResponse } from "next/server";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { requireAuth, isAuthResponse } from "@/lib/server/requireAuth";
-import { translateMany, translateText } from "@/lib/translation";
+import { translateMany, translateText, isGeminiTranslationAvailable } from "@/lib/translation";
 
 function parseLocale(raw: string | null, fallback: AppLocale = "vi"): AppLocale {
   if (raw && routing.locales.includes(raw as AppLocale)) return raw as AppLocale;
   return fallback;
 }
 
-/** Machine translation API — Gemini when configured, MyMemory fallback. Requires auth. */
+/** Authenticated Gemini translation API (cached server-side). */
 export async function GET(req: Request) {
   const authResult = await requireAuth(req);
   if (isAuthResponse(authResult)) return authResult;
+
+  if (!isGeminiTranslationAvailable()) {
+    return NextResponse.json({ error: "GEMINI_API_KEY is not configured" }, { status: 503 });
+  }
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
   const from = parseLocale(searchParams.get("from"), "vi");
   const to = parseLocale(searchParams.get("to"), "en");
-  const provider = searchParams.get("provider") === "mymemory" ? "mymemory" : "auto";
 
   if (!q || q.length > 5000) {
     return NextResponse.json({ error: "invalid" }, { status: 400 });
   }
 
   try {
-    const result = await translateText({ text: q, from, to, provider, context: "travel-post" });
+    const result = await translateText({ text: q, from, to, context: "travel-post" });
     return NextResponse.json({
       text: result.text,
       provider: result.provider,
@@ -42,11 +45,14 @@ export async function POST(req: Request) {
     const authResult = await requireAuth(req);
     if (isAuthResponse(authResult)) return authResult;
 
+    if (!isGeminiTranslationAvailable()) {
+      return NextResponse.json({ error: "GEMINI_API_KEY is not configured" }, { status: 503 });
+    }
+
     const body = (await req.json()) as {
       texts?: unknown;
       from?: string;
       to?: string;
-      provider?: string;
     };
 
     const texts = Array.isArray(body.texts)
@@ -59,11 +65,11 @@ export async function POST(req: Request) {
 
     const from = parseLocale(body.from ?? null, "vi");
     const to = parseLocale(body.to ?? null, "en");
-    const provider = body.provider === "mymemory" ? "mymemory" : "auto";
 
-    const translated = await translateMany(texts, from, to, { provider, context: "travel-post" });
+    const translated = await translateMany(texts, from, to, { context: "travel-post" });
     return NextResponse.json({ texts: translated, from, to });
-  } catch {
-    return NextResponse.json({ error: "invalid body" }, { status: 400 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Translation failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

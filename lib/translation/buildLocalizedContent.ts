@@ -1,15 +1,18 @@
 import { locales, type AppLocale } from "@/i18n/routing";
 import type { LocalizedHtml, LocalizedString } from "@/lib/i18n/types";
-import { plainToSimpleHtml, stripHtmlToPlain } from "@/lib/translation/htmlUtils";
-import { translateText } from "@/lib/translation/translateText";
-import type { TranslatePostInput, TranslatePostResult, TranslationProvider } from "@/lib/translation/types";
+import type { ExtendedTargetLocale } from "@/lib/glossary/glossary";
+import {
+  isGeminiTranslationAvailable,
+  translateHtmlContent,
+  translateText,
+} from "@/lib/translation/translation.service";
+import type { TranslatePostInput, TranslatePostResult } from "@/lib/translation/types";
 
 type BuildOptions = {
   sourceLocale?: AppLocale;
-  provider?: TranslationProvider;
 };
 
-/** Build { vi, en, ko } from author source text. Server-side only. */
+/** Build { vi, en, ko } from author source text. Server-side only — Gemini + cache. */
 export async function buildLocalizedStringServer(
   source: string,
   options: BuildOptions = {},
@@ -21,56 +24,57 @@ export async function buildLocalizedStringServer(
   const out: LocalizedString = { vi: "", en: "", ko: "" };
   out[sourceLocale] = trimmed;
 
-  await Promise.all(
-    locales
-      .filter((loc) => loc !== sourceLocale)
-      .map(async (loc) => {
-        const result = await translateText({
-          text: trimmed,
-          from: sourceLocale,
-          to: loc,
-          provider: options.provider,
-          context: "travel-post",
-        });
-        out[loc] = result.text;
-      }),
-  );
+  for (const loc of locales.filter((l) => l !== sourceLocale)) {
+    const result = await translateText({
+      text: trimmed,
+      from: sourceLocale,
+      to: loc,
+      context: "travel-post",
+    });
+    out[loc] = result.text;
+  }
 
   return out;
 }
 
-/** Build localized HTML — keeps source HTML; translates plain text for other locales. */
+/** Pre-translate HTML body into all locales — sequential to avoid rate limits + partial failure. */
 export async function buildLocalizedHtmlServer(
   html: string,
   options: BuildOptions = {},
 ): Promise<LocalizedHtml> {
   const sourceLocale = options.sourceLocale ?? "vi";
   const sourceHtml = html.trim();
-  const plain = stripHtmlToPlain(sourceHtml);
-  if (!plain) return { vi: "", en: "", ko: "" };
+  if (!sourceHtml) return { vi: "", en: "", ko: "" };
 
-  const plainLocales = await buildLocalizedStringServer(plain, options);
   const out: LocalizedHtml = { [sourceLocale]: sourceHtml };
+  const targets = locales.filter((loc) => loc !== sourceLocale);
 
-  for (const loc of locales) {
-    if (loc === sourceLocale) continue;
-    out[loc] = plainToSimpleHtml(plainLocales[loc] ?? "");
+  for (const loc of targets) {
+    console.info(`[translation] HTML body → ${loc} (${sourceHtml.length} chars)`);
+    out[loc] = await translateHtmlContent(
+      sourceHtml,
+      sourceLocale,
+      loc as ExtendedTargetLocale,
+    );
   }
 
   return out;
 }
 
-/** Translate post title, description, and HTML body into all locales. */
+/** Translate post title, description, and HTML body into all locales (pre-translation pipeline). */
 export async function translatePostFields(
   input: TranslatePostInput,
   options: BuildOptions = {},
 ): Promise<TranslatePostResult> {
-  const sourceLocale = options.sourceLocale ?? "vi";
-  const [title, description, contentHtml] = await Promise.all([
-    buildLocalizedStringServer(input.title, options),
-    buildLocalizedStringServer(input.description, options),
-    buildLocalizedHtmlServer(input.contentHtml, { ...options, sourceLocale }),
-  ]);
+  if (!isGeminiTranslationAvailable()) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  const sourceLocale = options.sourceLocale ?? input.sourceLocale ?? "vi";
+
+  const title = await buildLocalizedStringServer(input.title, { sourceLocale });
+  const description = await buildLocalizedStringServer(input.description, { sourceLocale });
+  const contentHtml = await buildLocalizedHtmlServer(input.contentHtml, { sourceLocale });
 
   return { title, description, contentHtml };
 }

@@ -1,7 +1,7 @@
 import type { AppLocale } from "@/i18n/routing";
-import { getTranslation, getTranslationHtml } from "@/lib/getTranslation";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import type { LocalizedSlug } from "@/lib/i18n/types";
+import { resolvePostTranslation } from "@/lib/posts/postTranslations";
 
 export type PostSourceFields = {
   title: string;
@@ -18,14 +18,12 @@ export function extractPostSourceFields(
 ): PostSourceFields {
   const post = normalizeTravelPost(id, raw);
   const sourceLocale = post.sourceLocale ?? "vi";
-  const title = getTranslation(post.title ?? post.name, sourceLocale);
-  const description = getTranslation(post.description, sourceLocale);
-  const contentHtml = getTranslationHtml(post.contentHtml, sourceLocale);
+  const resolved = resolvePostTranslation(post, sourceLocale);
 
   return {
-    title,
-    description: description || title,
-    contentHtml,
+    title: resolved.title,
+    description: resolved.description || resolved.title,
+    contentHtml: resolved.contentHtml,
     sourceLocale,
     existingSlugs: post.slugs,
   };

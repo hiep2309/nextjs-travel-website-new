@@ -1,13 +1,11 @@
-/** Strip HTML to plain text for machine translation. */
-export function stripHtmlToPlain(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+/**
+ * Legacy HTML helpers — prefer `@/lib/html/*` for new code.
+ */
+export { stripHtmlToPlain } from "@/lib/html/htmlValidator";
+export { protectHtmlTags, restoreHtmlTags } from "@/lib/html/placeholderManager";
+export { splitHtmlIntoBlocks } from "@/lib/html/htmlExtractor";
 
-/** Convert plain paragraphs back to simple HTML. */
+/** @deprecated Pre-translation pipeline replaces plain-to-HTML rebuild. */
 export function plainToSimpleHtml(plain: string): string {
   const p = plain.trim();
   if (!p) return "";

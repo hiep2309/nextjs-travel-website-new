@@ -12,6 +12,7 @@ import HiddenGems from "@/components/planner/HiddenGems";
 import TripMap from "@/components/planner/TripMap";
 import TripTimeline from "@/components/planner/TripTimeline";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocalizedTripPlan } from "@/hooks/useLocalizedTripPlan";
 import { deleteItinerary } from "@/lib/itinerary/deleteItinerary";
 import {
   formatItineraryDate,
@@ -35,6 +36,8 @@ export default function SavedItineraryDetailClient({ id }: Props) {
   const [item, setItem] = useState<SavedItineraryRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sourceLocale = (item?.locale ?? item?.form.locale ?? "vi") as AppLocale;
+  const { plan: displayPlan, localizing } = useLocalizedTripPlan(item?.plan ?? null, sourceLocale);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -71,8 +74,9 @@ export default function SavedItineraryDetailClient({ id }: Props) {
 
   const handleShare = async () => {
     if (!item) return;
-    const title = getItineraryTitle(item, locale);
-    const text = `${title}\n${item.plan.total_estimated_cost}`;
+    const sharePlan = displayPlan ?? item.plan;
+    const title = sharePlan.trip_title || getItineraryTitle(item, locale);
+    const text = `${title}\n${sharePlan.total_estimated_cost}`;
     if (navigator.share) {
       try {
         await navigator.share({ title, text });
@@ -114,9 +118,14 @@ export default function SavedItineraryDetailClient({ id }: Props) {
     );
   }
 
-  const title = getItineraryTitle(item, locale);
-  const destination = getItineraryDestination(item, locale);
-  const summary = getItinerarySummary(item, locale);
+  const title = displayPlan?.trip_title || getItineraryTitle(item, locale);
+  const destination = displayPlan?.destination || getItineraryDestination(item, locale);
+  const summary =
+    displayPlan?.days[0]?.activities[0]?.description?.slice(0, 160) ||
+    displayPlan?.days[0]?.theme ||
+    displayPlan?.trip_title ||
+    getItinerarySummary(item, locale);
+  const plan = displayPlan ?? item.plan;
 
   return (
     <div className="relative min-h-[100dvh] pb-20 pt-20 text-white sm:pt-24">
@@ -137,6 +146,7 @@ export default function SavedItineraryDetailClient({ id }: Props) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] shadow-2xl backdrop-blur-xl"
+          style={localizing ? { opacity: 0.85 } : undefined}
         >
           <div className="relative aspect-[21/9] min-h-[180px]">
             <FlexibleImage src={item.coverImage} alt="" className="object-cover" priority sizes="100vw" />
@@ -181,14 +191,14 @@ export default function SavedItineraryDetailClient({ id }: Props) {
 
           <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-[1fr_320px]">
             <div className="space-y-8">
-              {item.plan.days.map((day) => (
+              {plan.days.map((day) => (
                 <TripTimeline key={day.day} day={day} animateKey={`saved-${day.day}`} />
               ))}
             </div>
             <div className="space-y-4">
-              <CostSummary plan={item.plan} budgetRaw={item.budget} />
-              <TripMap days={item.plan.days} />
-              <HiddenGems gems={item.plan.hidden_gems} />
+              <CostSummary plan={plan} budgetRaw={item.budget} />
+              <TripMap days={plan.days} />
+              <HiddenGems gems={plan.hidden_gems} />
             </div>
           </div>
         </motion.div>

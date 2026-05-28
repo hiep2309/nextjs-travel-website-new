@@ -8,8 +8,13 @@ import type {
   LocalizedSeo,
   LocalizedSlug,
   LocalizedString,
+  PostTranslations,
   TranslationStatusMap,
 } from "@/lib/i18n/types";
+import {
+  buildPostTranslationsWritePayload,
+  normalizePostTranslations,
+} from "@/lib/posts/postTranslations";
 import type { TravelPost } from "@/lib/travelPost";
 
 /** Coerce legacy plain string or partial map into LocalizedString. */
@@ -111,6 +116,12 @@ export function normalizeTravelPost(id: string, raw: Record<string, unknown>): T
 
   const description = normalizeLocalizedString(raw.description);
   const contentHtml = normalizeLocalizedHtml(raw.contentHtml);
+  const translations = normalizePostTranslations(
+    raw.translations,
+    title,
+    description,
+    contentHtml,
+  );
   const slugs = normalizeLocalizedSlug(raw.slugs, legacySlug, title);
 
   let seo = raw.seo as LocalizedSeo | undefined;
@@ -127,6 +138,7 @@ export function normalizeTravelPost(id: string, raw: Record<string, unknown>): T
     title,
     description,
     contentHtml,
+    translations,
     slugs,
     seo,
     translationStatus,
@@ -152,6 +164,7 @@ export function normalizeTravelPost(id: string, raw: Record<string, unknown>): T
     tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : undefined,
     createdAt: raw.createdAt as TravelPost["createdAt"],
     viewCount: typeof raw.viewCount === "number" ? raw.viewCount : undefined,
+    commentCount: typeof raw.commentCount === "number" ? raw.commentCount : undefined,
     status: typeof raw.status === "string" ? raw.status : undefined,
     authorId: typeof raw.authorId === "string" ? raw.authorId : undefined,
     authorName: typeof raw.authorName === "string" ? raw.authorName : undefined,
@@ -175,6 +188,7 @@ export type PostLocaleWritePayload = {
   title: LocalizedString;
   description: LocalizedString;
   contentHtml: LocalizedHtml;
+  translations: PostTranslations;
   slugs: LocalizedSlug;
   seo: LocalizedSeo;
   sourceLocale: AppLocale;
@@ -198,6 +212,7 @@ export function buildPostLocaleWritePayload(
     title,
     description,
     contentHtml,
+    translations: buildPostTranslationsWritePayload(title, description, contentHtml),
     slugs,
     seo: buildPostSeo(title, description),
     sourceLocale,
@@ -206,7 +221,7 @@ export function buildPostLocaleWritePayload(
 }
 
 export const MULTILINGUAL_POST_SCHEMA = {
-  required: ["title", "description", "contentHtml"],
-  localizedFields: ["title", "description", "contentHtml", "slugs", "seo"] as const,
+  required: ["title", "description", "contentHtml", "translations"],
+  localizedFields: ["title", "description", "contentHtml", "translations", "slugs", "seo"] as const,
   metaFields: ["sourceLocale", "translationStatus", "updatedAt"] as const,
 } as const;
