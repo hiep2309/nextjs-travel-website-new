@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "translate:posts": "node scripts/translate-posts-ai.mjs",
-    "translate:posts:dry": "node scripts/translate-posts-ai.mjs --dry-run"
+    "translate:posts:dry": "node scripts/translate-posts-ai.mjs --dry-run",
+    "backfill:translations": "node scripts/backfill-post-translations.mjs",
+    "backfill:translations:dry": "node scripts/backfill-post-translations.mjs --dry-run"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

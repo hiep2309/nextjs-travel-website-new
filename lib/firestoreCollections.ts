@@ -18,13 +18,14 @@ export const COLLECTIONS = {
  * ```json
  * {
  *   "sourceLocale": "vi",
- *   "title": { "vi": "...", "en": "...", "ko": "..." },
- *   "description": { "vi": "...", "en": "...", "ko": "..." },
- *   "contentHtml": { "vi": "<p>…</p>", "en": "<p>…</p>", "ko": "<p>…</p>" },
  *   "translations": {
- *     "vi": { "title": "…", "description": "…", "content": "<p>…</p>" },
- *     "ko": { "title": "…", "description": "…", "content": "<p>…</p>" }
+ *     "vi": { "title": "…", "content": "<p>…</p>" },
+ *     "en": { "title": "…", "content": "<p>…</p>" },
+ *     "ko": { "title": "…", "content": "<p>…</p>" }
  *   },
+ *   "title": { "vi": "…", "en": "…", "ko": "…" },
+ *   "description": { "vi": "…", "en": "…", "ko": "…" },
+ *   "contentHtml": { "vi": "<p>…</p>", "en": "<p>…</p>", "ko": "<p>…</p>" },
  *   "slugs": { "vi": "ha-noi-3-ngay-abc", "en": "hanoi-3-days-abc", "ko": "…" },
  *   "seo": {
  *     "vi": { "title": "… | VN Insight", "description": "…" },

@@ -12,9 +12,10 @@ import type {
   TranslationStatusMap,
 } from "@/lib/i18n/types";
 import {
-  buildPostTranslationsWritePayload,
-  normalizePostTranslations,
-} from "@/lib/posts/postTranslations";
+  buildArticleTranslationsWritePayload,
+  deriveLocalizedMapsFromTranslations,
+  normalizeArticleTranslations,
+} from "@/lib/posts/articleTranslations";
 import type { TravelPost } from "@/lib/travelPost";
 
 /** Coerce legacy plain string or partial map into LocalizedString. */
@@ -111,17 +112,24 @@ export function normalizeTravelPost(id: string, raw: Record<string, unknown>): T
   const legacyName = typeof raw.name === "string" ? raw.name : undefined;
   const legacySlug = typeof raw.slug === "string" ? raw.slug : undefined;
 
-  const title = normalizeLocalizedString(raw.title, legacyName);
-  if (!title.vi && legacyName) title.vi = legacyName;
+  const rawTitle = normalizeLocalizedString(raw.title, legacyName);
+  if (!rawTitle.vi && legacyName) rawTitle.vi = legacyName;
 
-  const description = normalizeLocalizedString(raw.description);
-  const contentHtml = normalizeLocalizedHtml(raw.contentHtml);
-  const translations = normalizePostTranslations(
+  const rawDescription = normalizeLocalizedString(raw.description);
+  const rawContentHtml = normalizeLocalizedHtml(raw.contentHtml);
+
+  const translations = normalizeArticleTranslations(
     raw.translations,
-    title,
-    description,
-    contentHtml,
+    rawTitle,
+    rawContentHtml,
+    rawDescription,
   );
+
+  const derived = deriveLocalizedMapsFromTranslations(translations);
+  const title = Object.keys(derived.title).length ? derived.title : rawTitle;
+  const description = Object.keys(derived.description).length ? derived.description : rawDescription;
+  const contentHtml = Object.keys(derived.contentHtml).length ? derived.contentHtml : rawContentHtml;
+
   const slugs = normalizeLocalizedSlug(raw.slugs, legacySlug, title);
 
   let seo = raw.seo as LocalizedSeo | undefined;
@@ -185,43 +193,49 @@ export function flattenLocalizedForSearch(
 }
 
 export type PostLocaleWritePayload = {
-  title: LocalizedString;
-  description: LocalizedString;
-  contentHtml: LocalizedHtml;
+  /** Canonical article copy — primary storage shape. */
   translations: PostTranslations;
   slugs: LocalizedSlug;
   seo: LocalizedSeo;
   sourceLocale: AppLocale;
   translationStatus: TranslationStatusMap;
+  /** Derived mirrors for search / legacy queries. */
+  title: LocalizedString;
+  description: LocalizedString;
+  contentHtml: LocalizedHtml;
 };
 
 /** Fields written on create/update after machine translation. */
 export function buildPostLocaleWritePayload(
   title: LocalizedString,
-  description: LocalizedString,
   contentHtml: LocalizedHtml,
   options?: { sourceLocale?: AppLocale; slugSuffix?: string; existingSlugs?: LocalizedSlug },
 ): PostLocaleWritePayload {
   const sourceLocale = options?.sourceLocale ?? defaultLocale;
+  const translations = buildArticleTranslationsWritePayload(title, contentHtml);
+  const { title: derivedTitle, description, contentHtml: derivedContentHtml } =
+    deriveLocalizedMapsFromTranslations(translations);
+
   const slugs =
     options?.existingSlugs && Object.keys(options.existingSlugs).length > 0
       ? options.existingSlugs
-      : buildPostSlugs(title, options?.slugSuffix);
+      : buildPostSlugs(derivedTitle, options?.slugSuffix);
 
   return {
-    title,
-    description,
-    contentHtml,
-    translations: buildPostTranslationsWritePayload(title, description, contentHtml),
+    translations,
     slugs,
-    seo: buildPostSeo(title, description),
+    seo: buildPostSeo(derivedTitle, description),
     sourceLocale,
     translationStatus: defaultTranslationStatus(sourceLocale),
+    title: derivedTitle,
+    description,
+    contentHtml: derivedContentHtml,
   };
 }
 
 export const MULTILINGUAL_POST_SCHEMA = {
-  required: ["title", "description", "contentHtml", "translations"],
-  localizedFields: ["title", "description", "contentHtml", "translations", "slugs", "seo"] as const,
+  required: ["translations"],
+  localizedFields: ["translations", "slugs", "seo"] as const,
+  derivedFields: ["title", "description", "contentHtml"] as const,
   metaFields: ["sourceLocale", "translationStatus", "updatedAt"] as const,
 } as const;

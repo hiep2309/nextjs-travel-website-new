@@ -476,9 +476,8 @@ export default function CreatePostClient() {
       } catch (translateErr) {
         console.warn("[CreatePost] translation failed, saving Vietnamese only", translateErr);
         const titleMap: LocalizedString = { vi: titleTrim };
-        const descMap: LocalizedString = { vi: plainText };
         const htmlMap: LocalizedHtml = { vi: sanitizeBasicHtml(docHtml) };
-        localePayload = buildPostLocaleWritePayload(titleMap, descMap, htmlMap, {
+        localePayload = buildPostLocaleWritePayload(titleMap, htmlMap, {
           sourceLocale: "vi",
           existingSlugs: editMeta?.existingSlugs,
           slugSuffix: editMeta ? undefined : slugSuffix,

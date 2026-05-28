@@ -28,10 +28,9 @@ export type TranslationStatus = "draft" | "machine" | "reviewed" | "published";
 
 export type TranslationStatusMap = Partial<Record<AppLocale, TranslationStatus>>;
 
-/** Per-locale post copy stored in Firestore (`translations.ko.content`, …). */
+/** Per-locale article copy stored in Firestore (`translations.ko.content`, …). */
 export type PostLocaleTranslation = {
   title: string;
-  description: string;
   content: string;
 };
 

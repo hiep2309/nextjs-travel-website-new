@@ -6,6 +6,7 @@ import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { firebaseConfig } from "@/lib/firebaseConfig";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import { getTranslation, getTranslationSeo } from "@/lib/getTranslation";
+import { resolveArticleTranslation } from "@/lib/posts/articleTranslations";
 import type { AppLocale } from "@/i18n/routing";
 import type { LocalizedString } from "@/lib/i18n/types";
 
@@ -32,10 +33,12 @@ export async function getPostSeoMeta(id: string, locale?: AppLocale): Promise<Po
     if (!snap.exists()) return null;
     const post = normalizeTravelPost(snap.id, snap.data() as Record<string, unknown>);
     const loc = locale ?? "vi";
+    const article = resolveArticleTranslation(post, loc);
     const seoEntry = getTranslationSeo(post.seo, loc);
-    const titleLegacy = getTranslation(post.title, loc) || "Bài viết";
+    const titleLegacy = article.title || getTranslation(post.title, loc) || "Bài viết";
     const descriptionLegacy =
       seoEntry.description ||
+      article.description ||
       getTranslation(post.description, loc).replace(/\s+/g, " ").trim().slice(0, 280) ||
       `${titleLegacy} — VN Insight`;
 

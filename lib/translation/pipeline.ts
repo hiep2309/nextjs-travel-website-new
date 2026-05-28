@@ -31,16 +31,11 @@ export async function runPostTranslationPipeline(
 
   const fields = await translatePostFields({ ...input, sourceLocale }, { sourceLocale });
 
-  const payload = buildPostLocaleWritePayload(
-    fields.title,
-    fields.description,
-    fields.contentHtml,
-    {
-      sourceLocale,
-      existingSlugs: options.existingSlugs,
-      slugSuffix: options.slugSuffix,
-    },
-  );
+  const payload = buildPostLocaleWritePayload(fields.title, fields.contentHtml, {
+    sourceLocale,
+    existingSlugs: options.existingSlugs,
+    slugSuffix: options.slugSuffix,
+  });
 
   return {
     payload,

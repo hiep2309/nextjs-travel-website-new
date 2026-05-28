@@ -28,13 +28,15 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { absoluteUrl } from "@/lib/siteUrl";
 import { resolvePostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
-import { useLocalizedPost } from "@/hooks/useLocalizedPost";
+import { useLocale } from "next-intl";
+import { resolveArticleTranslation } from "@/lib/posts/articleTranslations";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import {
   markPostViewBumped,
   releaseViewBumpInflight,
   tryAcquireViewBump,
 } from "@/lib/posts/bumpPostView";
+import type { AppLocale } from "@/i18n/routing";
 import type { TravelPost } from "@/lib/travelPost";
 import CommentSection from "@/components/comments/CommentSection";
 
@@ -56,8 +58,11 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
   const { user, role, loading: authLoading } = useAuth();
   const activityUid = user?.uid ?? null;
   const recordedViewKeyRef = useRef<string | null>(null);
+  const locale = (useLocale() as AppLocale) || "vi";
   const [post, setPost] = useState<TravelPost | null>(null);
-  const localized = useLocalizedPost(post);
+  const currentArticle = post
+    ? resolveArticleTranslation(post, locale)
+    : { title: "", content: "", description: "", locale: "vi" as AppLocale, usedFallback: false };
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [saved, setSaved] = useState(false);
@@ -145,10 +150,10 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
     const key = `${id}\0${activityUid ?? ""}`;
     if (recordedViewKeyRef.current === key) return;
     recordedViewKeyRef.current = key;
-    const title = localized.title || t("defaultTitle");
+    const title = currentArticle.title || t("defaultTitle");
     const image = post.image || null;
     recordPostView({ id, title, image }, activityUid);
-  }, [id, post, authLoading, activityUid, localized.title, t]);
+  }, [id, post, authLoading, activityUid, currentArticle.title, t]);
 
   useEffect(() => {
     if (!id || authLoading) return;
@@ -160,7 +165,7 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
     post && id
       ? {
           id,
-          title: localized.title || t("defaultTitle"),
+          title: currentArticle.title || t("defaultTitle"),
           image: post.image || null,
         }
       : null;
@@ -210,8 +215,8 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
       ? {
           "@context": "https://schema.org",
           "@type": "Article",
-          headline: localized.title,
-          description: (localized.description || "").slice(0, 500),
+          headline: currentArticle.title,
+          description: (currentArticle.description || "").slice(0, 500),
           image: post.image?.startsWith("http") ? post.image : absoluteUrl("/signup_pic.jpg"),
           mainEntityOfPage: absoluteUrl(`/posts/${id}`),
         }
@@ -338,13 +343,13 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
                 {saved ? t("saved") : t("savePost")}
               </button>
             </div>
-            <h1 className="mt-2 text-3xl font-bold">{localized.title || t("defaultTitle")}</h1>
-            {localized.contentHtml ? (
+            <h1 className="mt-2 text-3xl font-bold">{currentArticle.title || t("defaultTitle")}</h1>
+            {currentArticle.content ? (
               <div
                 className="post-body-html mt-4 text-[15px] leading-relaxed text-white/[0.88]"
-                dangerouslySetInnerHTML={{ __html: localized.contentHtml }}
-                data-content-locale={localized.contentFrom}
-                data-ui-locale={localized.locale}
+                dangerouslySetInnerHTML={{ __html: currentArticle.content }}
+                data-content-locale={currentArticle.locale}
+                data-ui-locale={locale}
               />
             ) : (
               <p className="mt-4 text-sm text-white/55">{t("contentUnavailable")}</p>

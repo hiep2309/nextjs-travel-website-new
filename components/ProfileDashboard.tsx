@@ -537,9 +537,9 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
 
   return (
     <div className="relative min-h-screen pb-16 pt-24 text-white">
-      <div className="relative mx-auto max-w-7xl gap-8 px-4 lg:flex lg:px-8">
-        {/* Sidebar */}
-        <aside className="mb-8 shrink-0 lg:mb-0 lg:w-64 lg:pt-2">
+      <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-4 lg:flex-row lg:px-8">
+        {/* Sidebar — desktop only; mobile uses tab pills below profile header */}
+        <aside className="hidden shrink-0 lg:block lg:w-64 lg:pt-2">
           <div className={`${glass} p-4`}>
             <p className="px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">{tProfile("menu")}</p>
             <nav className="mt-3 space-y-1">
@@ -607,7 +607,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
             <p className="mt-2 max-w-xl text-sm text-white/55">{tProfile("subtitle")}</p>
 
             {/* Profile header */}
-            <div className={`${glass} relative mt-8 overflow-hidden`}>
+            <div className={`${glass} relative mt-5 overflow-hidden sm:mt-8`}>
               <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-start sm:p-8">
                 <div className="relative mx-auto shrink-0 sm:mx-0">
                   <div className="rounded-full bg-gradient-to-br from-violet-500 via-blue-500 to-cyan-400 p-[3px] shadow-lg shadow-violet-500/25">

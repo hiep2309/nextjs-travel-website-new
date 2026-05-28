@@ -62,7 +62,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 
 | Biến | Mô tả |
 |------|--------|
-| `GEMINI_API_KEY` | Dịch máy (`/api/translate`), dịch bài đăng, AI lập lịch trình. Không có key → planner dùng mock; dịch fallback MyMemory. |
+| `GEMINI_API_KEY` | Dịch máy (`/api/translate/post`), dịch bài đăng, AI lập lịch trình. Không có key → bài lưu tiếng Việt; planner dùng mock. |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Cho phép API verify Bearer token, lưu cache lịch trình và quota ngày trên Firestore. Không có → chỉ cache bộ nhớ (mất khi restart). |
 | `NEXT_PUBLIC_WEATHER_KEY` | Thời tiết theo vị trí thiết bị. Không có → bỏ qua phần thời tiết. |
 | `NEXT_PUBLIC_SITE_URL` | Mặc định `http://localhost:3000` — **nên đặt đúng domain** khi deploy. |

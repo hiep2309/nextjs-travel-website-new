@@ -7,6 +7,10 @@ import {
   translateText,
 } from "@/lib/translation/translation.service";
 import type { TranslatePostInput, TranslatePostResult } from "@/lib/translation/types";
+import {
+  buildArticleTranslationsWritePayload,
+  deriveLocalizedMapsFromTranslations,
+} from "@/lib/posts/articleTranslations";
 
 type BuildOptions = {
   sourceLocale?: AppLocale;
@@ -61,7 +65,7 @@ export async function buildLocalizedHtmlServer(
   return out;
 }
 
-/** Translate post title, description, and HTML body into all locales (pre-translation pipeline). */
+/** Translate post title and HTML body into all locales (pre-translation pipeline). */
 export async function translatePostFields(
   input: TranslatePostInput,
   options: BuildOptions = {},
@@ -73,8 +77,11 @@ export async function translatePostFields(
   const sourceLocale = options.sourceLocale ?? input.sourceLocale ?? "vi";
 
   const title = await buildLocalizedStringServer(input.title, { sourceLocale });
-  const description = await buildLocalizedStringServer(input.description, { sourceLocale });
   const contentHtml = await buildLocalizedHtmlServer(input.contentHtml, { sourceLocale });
+
+  const { description } = deriveLocalizedMapsFromTranslations(
+    buildArticleTranslationsWritePayload(title, contentHtml),
+  );
 
   return { title, description, contentHtml };
 }

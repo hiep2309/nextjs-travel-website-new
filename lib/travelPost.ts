@@ -1,5 +1,8 @@
 /**
- * Kiểu bài viết Firestore `posts` — canonical multilingual shape.
+ * Kiểu bài viết Firestore `posts`.
+ *
+ * Canonical article copy → `translations.{vi|en|ko}.{title, content}`
+ * `title`, `description`, `contentHtml` maps are derived on read for search/SEO.
  */
 import type { PostType } from "@/lib/postCategories";
 import type {
@@ -13,10 +16,12 @@ import type {
 export type TravelPost = LocalizedDocumentBase &
   LegacyPostFields & {
     id: string;
+    /** Derived from `translations` on read — not the write source of truth. */
     title: LocalizedString;
     description: LocalizedString;
     contentHtml: LocalizedHtml;
-    translations?: PostTranslations;    image?: string;
+    translations?: PostTranslations;
+    image?: string;
     images?: string[];
     thumb?: string;
     region?: string;
@@ -34,4 +39,3 @@ export type TravelPost = LocalizedDocumentBase &
     authorName?: string;
     number?: number;
   };
-

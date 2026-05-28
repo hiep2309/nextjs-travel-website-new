@@ -1,60 +1,42 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useLocale } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
-import {
-  logPostTranslationDebug,
-  resolvePostTranslation,
-} from "@/lib/posts/postTranslations";
+import { resolveArticleTranslation } from "@/lib/posts/articleTranslations";
 import type { TravelPost } from "@/lib/travelPost";
 
 export type LocalizedPostView = {
   title: string;
+  content: string;
+  /** Plain-text excerpt for cards / SEO */
   description: string;
-  contentHtml: string;
   locale: AppLocale;
-  titleFrom: string;
-  contentFrom: string;
-  usedContentFallback: boolean;
-  availableLocales: string[];
+  usedFallback: boolean;
 };
 
-/** Resolve post title/body for current UI locale from `post.translations` (DB only). */
+/** Resolve post article for current UI locale from Firestore `translations` only. */
 export function useLocalizedPost(post: TravelPost | null | undefined): LocalizedPostView {
   const locale = useLocale() as AppLocale;
 
-  const resolved = useMemo(() => {
+  return useMemo(() => {
     if (!post) {
       return {
         title: "",
+        content: "",
         description: "",
-        contentHtml: "",
         locale,
-        titleFrom: locale,
-        contentFrom: locale,
-        usedContentFallback: false,
-        availableLocales: [] as string[],
+        usedFallback: false,
       };
     }
 
-    const r = resolvePostTranslation(post, locale);
+    const resolved = resolveArticleTranslation(post, locale);
     return {
-      title: r.title,
-      description: r.description,
-      contentHtml: r.contentHtml,
-      locale: r.locale,
-      titleFrom: r.titleFrom,
-      contentFrom: r.contentFrom,
-      usedContentFallback: r.usedContentFallback,
-      availableLocales: r.availableLocales,
+      title: resolved.title,
+      content: resolved.content,
+      description: resolved.description,
+      locale: resolved.locale,
+      usedFallback: resolved.usedFallback,
     };
   }, [post, locale]);
-
-  useEffect(() => {
-    if (!post?.id) return;
-    logPostTranslationDebug(post.id, resolvePostTranslation(post, locale));
-  }, [post, locale]);
-
-  return resolved;
 }
