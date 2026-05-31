@@ -286,7 +286,14 @@
     "deletedOk": "Đã xóa bài viết.",
     "deleteErr": "Không xóa được bài.",
     "approvedToast": "Bài «{title}» đã được duyệt!",
-    "rateAria": "Chấm điểm 1–5 sao"
+    "rateAria": "Chấm điểm 1–5 sao",
+    "translationFallbackNotice": "Bài chưa có bản dịch tiếng Hàn/Anh — đang hiển thị bản tiếng Việt.",
+    "translatePost": "Dịch AI (en/ko)",
+    "translatingPost": "Đang dịch bài…",
+    "translatePostOk": "Đã dịch xong. Trang sẽ tải lại nội dung.",
+    "translatePostErr": "Không dịch được. Kiểm tra GEMINI_API_KEY trên server.",
+    "translateMissing": "Bài thiếu tiêu đề hoặc nội dung để dịch.",
+    "translationLocales": "Bản dịch hiện có: {locales}"
   },
   "PostSections": {
     "destinations": "Địa điểm",
@@ -422,7 +429,20 @@
     "loadEditErr": "Không tải được bài để sửa.",
     "editForbidden": "Bạn không có quyền sửa bài này.",
     "translating": "Đang dịch nội dung bằng AI (en/ko)…",
-    "savedViOnly": "Đã lưu bản tiếng Việt. Bản dịch en/ko giữ nguyên (dịch AI tạm lỗi)."
+    "savingManual": "Đang lưu bản dịch thủ công…",
+    "savedViOnly": "Đã lưu bản tiếng Việt. Bản dịch en/ko giữ nguyên (dịch AI tạm lỗi).",
+    "savedManual": "Đã lưu với bản dịch EN/KO do bạn cung cấp (không dùng AI).",
+    "savedAiManual": "Đã lưu — dùng bản dịch thủ công + AI cho phần còn thiếu.",
+    "manualSectionTitle": "Bản dịch sẵn (EN / KO)",
+    "manualSectionHint": "Dán bản dịch do biên tập viên chuẩn bị — không tốn token AI.",
+    "manualOnlyLabel": "Chỉ dùng bản dịch thủ công (không gọi AI)",
+    "manualOnlyHint": "Bật khi bạn đã có đủ tiêu đề + nội dung EN và KO.",
+    "manualEn": "English",
+    "manualKo": "한국어",
+    "manualTitle": "Tiêu đề",
+    "manualContent": "Nội dung (HTML được phép)",
+    "manualTitlePh": "English title…",
+    "manualContentPh": "<p>Translated body HTML…</p>"
   },
   "Profile": {
     "title": "Trang cá nhân",

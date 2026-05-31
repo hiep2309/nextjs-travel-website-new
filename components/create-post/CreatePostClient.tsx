@@ -13,13 +13,15 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { pickLocalized } from "@/lib/i18n/content";
+import type { LocalizedSlug } from "@/lib/i18n/types";
+import { normalizeLocalizedSlug, normalizeLocalizedString } from "@/lib/firestore/multilingual";
+import { stripHtmlToPlain } from "@/lib/translation/htmlUtils";
 import { canEditPost } from "@/lib/posts/permissions";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useTravelTimeLabels } from "@/hooks/useTravelTimeLabels";
-import { requestPostTranslation } from "@/lib/translation/requestPostTranslation";
-import { stripHtmlToPlain } from "@/lib/translation/htmlUtils";
-import { normalizeLocalizedSlug, normalizeLocalizedString, buildPostLocaleWritePayload } from "@/lib/firestore/multilingual";
-import type { LocalizedSlug, LocalizedString, LocalizedHtml } from "@/lib/i18n/types";
+import { buildPostSavePayload } from "@/lib/posts/buildPostSavePayload";
+import { readManualDraftsFromPost, type ManualArticleDrafts } from "@/lib/posts/manualArticleLocales";
+import ManualTranslationsFields from "./ManualTranslationsFields";
 import {
   Bookmark,
   ChevronRight,
@@ -135,6 +137,9 @@ export default function CreatePostClient() {
   const [compressingImages, setCompressingImages] = useState(false);
   const [banner, setBanner] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [myPostsRefresh, setMyPostsRefresh] = useState(0);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualOnly, setManualOnly] = useState(false);
+  const [manualDrafts, setManualDrafts] = useState<ManualArticleDrafts>({});
 
   const provincesFiltered = useMemo(() => {
     const q = normalizeVietnameseText(destQuery.trim());
@@ -223,6 +228,10 @@ export default function CreatePostClient() {
           existingDescription: data.description,
           existingContentHtml: data.contentHtml,
         });
+        setManualDrafts(readManualDraftsFromPost(data));
+        const loadedManual = readManualDraftsFromPost(data);
+        setManualDrafts(loadedManual);
+        setManualOpen(Boolean(loadedManual.en || loadedManual.ko));
         editLoadedIdRef.current = editPostId;
         setHydrated(true);
       } catch {
@@ -461,27 +470,23 @@ export default function CreatePostClient() {
       const allUrls = [...kept, ...urls, ...externalUrls];
       const primary = allUrls[0]!;
 
-      setBanner({ kind: "ok", text: t("translating") });
+      setBanner({ kind: "ok", text: manualOnly ? t("savingManual") : t("translating") });
       const slugSuffix = Date.now().toString(36);
-      let localePayload;
-      try {
-        localePayload = await requestPostTranslation({
-          title: titleTrim,
-          description: plainText,
-          contentHtml: sanitizeBasicHtml(docHtml),
-          sourceLocale: "vi",
-          existingSlugs: editMeta?.existingSlugs,
-          slugSuffix,
-        });
-      } catch (translateErr) {
-        console.warn("[CreatePost] translation failed, saving Vietnamese only", translateErr);
-        const titleMap: LocalizedString = { vi: titleTrim };
-        const htmlMap: LocalizedHtml = { vi: sanitizeBasicHtml(docHtml) };
-        localePayload = buildPostLocaleWritePayload(titleMap, htmlMap, {
-          sourceLocale: "vi",
-          existingSlugs: editMeta?.existingSlugs,
-          slugSuffix: editMeta ? undefined : slugSuffix,
-        });
+      const { payload: localePayload, source } = await buildPostSavePayload({
+        viTitle: titleTrim,
+        viContentHtml: sanitizeBasicHtml(docHtml),
+        viDescription: plainText,
+        manualDrafts,
+        manualOnly,
+        existingSlugs: editMeta?.existingSlugs,
+        slugSuffix: editMeta ? undefined : slugSuffix,
+      });
+
+      if (source === "manual") {
+        setBanner({ kind: "ok", text: t("savedManual") });
+      } else if (source === "ai+manual") {
+        setBanner({ kind: "ok", text: t("savedAiManual") });
+      } else if (source === "vi-only") {
         setBanner({ kind: "ok", text: t("savedViOnly") });
       }
 
@@ -880,6 +885,15 @@ export default function CreatePostClient() {
                   </div>
                 ) : null}
               </div>
+
+              <ManualTranslationsFields
+                open={manualOpen}
+                onOpenChange={setManualOpen}
+                manualOnly={manualOnly}
+                onManualOnlyChange={setManualOnly}
+                drafts={manualDrafts}
+                onChange={setManualDrafts}
+              />
 
               <div>
                 <label className="text-sm font-semibold text-white/80">{t("fieldTags")}</label>

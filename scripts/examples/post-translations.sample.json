@@ -1,0 +1,12 @@
+{
+  "EXAMPLE_POST_ID": {
+    "en": {
+      "title": "Haiphong travel tips from locals",
+      "content": "<p>Morning: Start at Do Son beach…</p>"
+    },
+    "ko": {
+      "title": "현지인이 알려주는 하이퐁 여행",
+      "content": "<p>아침: 도손 해변에서 시작…</p>"
+    }
+  }
+}

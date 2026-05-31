@@ -7,6 +7,7 @@
 import { defaultLocale, locales, type AppLocale } from "@/i18n/routing";
 import type { LocalizedHtml, LocalizedString, PostTranslations } from "@/lib/i18n/types";
 import type { TravelPost } from "@/lib/travelPost";
+import { normalizeArticleContentHtml } from "@/lib/posts/articleContentHtml";
 
 export type ArticleTranslation = {
   title: string;
@@ -29,7 +30,7 @@ function plainTextExcerpt(html: string, max = 160): string {
 }
 
 function hasArticleEntry(entry: ArticleTranslation | undefined): boolean {
-  return Boolean(entry?.title?.trim() || entry?.content?.trim());
+  return Boolean(entry?.title?.trim() && entry?.content?.trim());
 }
 
 /** Build `translations` from legacy localized maps (read-time migration). */
@@ -45,9 +46,9 @@ export function buildTranslationsFromLegacyMaps(
     const c = contentHtml[loc]?.trim() ?? "";
     const d = description?.[loc]?.trim() ?? "";
     if (t || c) {
-      out[loc] = { title: t, content: c };
+      out[loc] = { title: t, content: normalizeArticleContentHtml(c) };
     } else if (d) {
-      out[loc] = { title: t, content: `<p>${d}</p>` };
+      out[loc] = { title: t, content: normalizeArticleContentHtml(d) };
     }
   }
 
@@ -74,15 +75,22 @@ export function normalizeArticleTranslations(
     const entry = value as Record<string, unknown>;
     const loc = key as AppLocale;
     const entryTitle = typeof entry.title === "string" ? entry.title.trim() : "";
-    const entryContent =
+    let entryContent =
       typeof entry.content === "string"
         ? entry.content.trim()
         : typeof entry.contentHtml === "string"
           ? entry.contentHtml.trim()
           : "";
+    if (!entryContent && typeof entry.description === "string" && entry.description.trim()) {
+      const desc = entry.description.trim();
+      entryContent = desc.includes("<") ? desc : `<p>${desc}</p>`;
+    }
 
     if (entryTitle || entryContent) {
-      parsed[loc] = { title: entryTitle, content: entryContent };
+      parsed[loc] = {
+        title: entryTitle,
+        content: normalizeArticleContentHtml(entryContent),
+      };
     }
   }
 
@@ -93,7 +101,7 @@ export function normalizeArticleTranslations(
     if (!p && !l) continue;
     out[loc] = {
       title: p?.title?.trim() || l?.title?.trim() || "",
-      content: p?.content?.trim() || l?.content?.trim() || "",
+      content: normalizeArticleContentHtml(p?.content?.trim() || l?.content?.trim() || ""),
     };
   }
   return out;
@@ -109,7 +117,7 @@ export function buildArticleTranslationsWritePayload(
     const t = title[loc]?.trim() ?? "";
     const c = contentHtml[loc]?.trim() ?? "";
     if (t || c) {
-      out[loc] = { title: t, content: c };
+      out[loc] = { title: t, content: normalizeArticleContentHtml(c) };
     }
   }
   return out;
@@ -146,9 +154,12 @@ export function resolveArticleTranslation(
   post: Pick<TravelPost, "translations" | "title" | "description" | "contentHtml">,
   locale: AppLocale,
 ): ResolvedArticle {
-  const translations =
-    post.translations ??
-    buildTranslationsFromLegacyMaps(post.title, post.contentHtml, post.description);
+  const translations = normalizeArticleTranslations(
+    post.translations,
+    post.title,
+    post.contentHtml,
+    post.description,
+  );
 
   const localized = translations[locale];
   const vietnamese = translations[defaultLocale];
@@ -157,7 +168,7 @@ export function resolveArticleTranslation(
   const current = useFallback ? vietnamese : localized;
 
   const title = current?.title?.trim() ?? "";
-  const content = current?.content?.trim() ?? "";
+  const content = normalizeArticleContentHtml(current?.content?.trim() ?? "");
 
   return {
     locale: useFallback ? defaultLocale : locale,
@@ -169,8 +180,11 @@ export function resolveArticleTranslation(
 }
 
 export function listArticleContentLocales(post: TravelPost): AppLocale[] {
-  const translations =
-    post.translations ??
-    buildTranslationsFromLegacyMaps(post.title, post.contentHtml, post.description);
-  return locales.filter((loc) => Boolean(translations[loc]?.content?.trim()));
+  const translations = normalizeArticleTranslations(
+    post.translations,
+    post.title,
+    post.contentHtml,
+    post.description,
+  );
+  return locales.filter((loc) => hasArticleEntry(translations[loc]));
 }

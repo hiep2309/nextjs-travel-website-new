@@ -286,7 +286,14 @@
     "deletedOk": "Post deleted.",
     "deleteErr": "Could not delete post.",
     "approvedToast": "Post «{title}» has been approved!",
-    "rateAria": "Rate 1–5 stars"
+    "rateAria": "Rate 1–5 stars",
+    "translationFallbackNotice": "This article is not available in your language yet — showing Vietnamese.",
+    "translatePost": "AI translate (en/ko)",
+    "translatingPost": "Translating…",
+    "translatePostOk": "Translation complete. Reloading content.",
+    "translatePostErr": "Translation failed. Check GEMINI_API_KEY on the server.",
+    "translateMissing": "Post is missing a title or body to translate.",
+    "translationLocales": "Available translations: {locales}"
   },
   "PostSections": {
     "destinations": "Destinations",
@@ -422,7 +429,20 @@
     "loadEditErr": "Could not load post for editing.",
     "editForbidden": "You can't edit this post.",
     "translating": "Translating content to English and Korean…",
-    "savedViOnly": "Saved Vietnamese version. en/ko translations kept (AI translation failed)."
+    "savingManual": "Saving manual translations…",
+    "savedViOnly": "Saved Vietnamese version. en/ko translations kept (AI translation failed).",
+    "savedManual": "Saved with your EN/KO translations (no AI used).",
+    "savedAiManual": "Saved — manual translations + AI for any missing locales.",
+    "manualSectionTitle": "Ready-made translations (EN / KO)",
+    "manualSectionHint": "Paste editor-provided copy — no AI tokens used.",
+    "manualOnlyLabel": "Manual translations only (skip AI)",
+    "manualOnlyHint": "Enable when you already have both EN and KO title + body.",
+    "manualEn": "English",
+    "manualKo": "Korean",
+    "manualTitle": "Title",
+    "manualContent": "Content (HTML allowed)",
+    "manualTitlePh": "English title…",
+    "manualContentPh": "<p>Translated body HTML…</p>"
   },
   "Profile": {
     "title": "Profile",

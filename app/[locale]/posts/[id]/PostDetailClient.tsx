@@ -10,7 +10,7 @@ const POST_SAVED_TOAST_KEY = "vninsight_post_saved";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import FlexibleImage from "@/components/ui/FlexibleImage";
-import { Bookmark, Eye, Pencil, Star, Trash2 } from "lucide-react";
+import { Bookmark, Eye, Languages, Pencil, Star, Trash2 } from "lucide-react";
 import { deleteDoc, doc, getDoc, increment, updateDoc } from "firebase/firestore";
 import { useRouter } from "@/lib/i18n/navigation";
 import { canDeletePost, canEditPost } from "@/lib/posts/permissions";
@@ -29,7 +29,11 @@ import { absoluteUrl } from "@/lib/siteUrl";
 import { resolvePostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useLocale } from "next-intl";
-import { resolveArticleTranslation } from "@/lib/posts/articleTranslations";
+import { listArticleContentLocales, resolveArticleTranslation } from "@/lib/posts/articleTranslations";
+import {
+  translateExistingPost,
+  TranslateExistingPostError,
+} from "@/lib/posts/translateExistingPost";
 import { normalizeTravelPost } from "@/lib/firestore/multilingual";
 import {
   markPostViewBumped,
@@ -69,6 +73,17 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
   const [myStars, setMyStars] = useState<number | null>(null);
   const [hoverStar, setHoverStar] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [translating, setTranslating] = useState(false);
+
+  const canManagePost = Boolean(
+    post &&
+      (canEditPost(role, user?.uid, post.authorId, post.status) ||
+        canDeletePost(role, user?.uid, post.authorId)),
+  );
+  const missingLocales = post
+    ? (["en", "ko"] as AppLocale[]).filter((loc) => !listArticleContentLocales(post).includes(loc))
+    : [];
+  const showTranslateAction = canManagePost && missingLocales.length > 0;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -196,6 +211,37 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
     showToast(t("rateToast", { stars }));
   };
 
+  const reloadPost = useCallback(async () => {
+    if (!id) return;
+    const snap = await getDoc(doc(db, "posts", id));
+    if (snap.exists()) {
+      setPost(normalizeTravelPost(snap.id, snap.data() as Record<string, unknown>));
+    }
+  }, [id]);
+
+  const handleTranslatePost = async () => {
+    if (!id || translating) return;
+    setTranslating(true);
+    showToast(t("translatingPost"));
+    try {
+      await translateExistingPost(id);
+      await reloadPost();
+      showToast(t("translatePostOk"));
+    } catch (e) {
+      console.error(e);
+      if (e instanceof TranslateExistingPostError && e.code === "missing_source") {
+        showToast(t("translateMissing"));
+      } else {
+        const detail = e instanceof Error ? e.message : "";
+        showToast(detail ? `${t("translatePostErr")} (${detail})` : t("translatePostErr"));
+      }
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const articleLocales = post ? listArticleContentLocales(post) : [];
+
   const postType = post ? resolvePostType(post) : null;
   const backHref =
     postType === "tour_share"
@@ -282,8 +328,20 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
               </div>
             ) : null}
             {(canEditPost(role, user?.uid, post.authorId, post.status) ||
-              canDeletePost(role, user?.uid, post.authorId)) && (
+              canDeletePost(role, user?.uid, post.authorId) ||
+              showTranslateAction) && (
               <div className="mb-4 flex flex-wrap gap-2">
+                {showTranslateAction ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleTranslatePost()}
+                    disabled={translating}
+                    className="inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 py-2 text-sm font-semibold text-violet-100 hover:bg-violet-500/25 disabled:opacity-50"
+                  >
+                    <Languages className={`size-4 ${translating ? "animate-pulse" : ""}`} />
+                    {translating ? t("translatingPost") : t("translatePost")}
+                  </button>
+                ) : null}
                 {canEditPost(role, user?.uid, post.authorId, post.status) ? (
                   <Link
                     href={`/create-post?edit=${id}`}
@@ -305,6 +363,23 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
                 ) : null}
               </div>
             )}
+            {currentArticle.usedFallback && locale !== "vi" ? (
+              <div
+                className="mb-4 rounded-xl border border-sky-500/35 bg-sky-500/10 px-4 py-3 text-sm text-sky-100"
+                role="status"
+              >
+                <p>{t("translationFallbackNotice")}</p>
+                {canManagePost && missingLocales.length > 0 ? (
+                  <p className="mt-2 text-xs text-sky-200/80">
+                    {t("translationLocales", {
+                      locales: (["vi", "en", "ko"] as AppLocale[])
+                        .map((loc) => `${loc.toUpperCase()}${articleLocales.includes(loc) ? " ✓" : " ✗"}`)
+                        .join(" · "),
+                    })}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-2xl border border-white/15 bg-slate-800">
               {coverSrc ? (
                 <FlexibleImage

@@ -51,8 +51,7 @@ import { db } from "@/lib/firebase";
 import FlexibleImage from "@/components/ui/FlexibleImage";
 import { useAuth } from "@/hooks/useAuth";
 import { notifyPostApproved } from "@/lib/posts/notifyAuthor";
-import { extractPostSourceFields } from "@/lib/translation/extractPostSource";
-import { requestPostTranslation } from "@/lib/translation/requestPostTranslation";
+import { translateExistingPost, TranslateExistingPostError } from "@/lib/posts/translateExistingPost";
 
 type PostRow = {
   id: string;
@@ -220,27 +219,10 @@ export default function DashboardPage() {
   );
 
   const handleTranslatePost = async (postId: string) => {
-    const target = allPosts.find((p) => p.id === postId);
-    if (!target) return;
     setTranslatingId(postId);
     setBanner(null);
     try {
-      const source = extractPostSourceFields(postId, target as Record<string, unknown>);
-      if (!source.title.trim() || !source.contentHtml.trim()) {
-        setBanner({ type: "err", text: t("translateMissing") });
-        return;
-      }
-      const payload = await requestPostTranslation({
-        title: source.title,
-        description: source.description,
-        contentHtml: source.contentHtml,
-        sourceLocale: source.sourceLocale,
-        existingSlugs: source.existingSlugs,
-      });
-      await updateDoc(doc(db, "posts", postId), {
-        ...payload,
-        updatedAt: serverTimestamp(),
-      });
+      const payload = await translateExistingPost(postId);
       setAllPosts((prev) =>
         prev.map((p) =>
           p.id === postId
@@ -259,7 +241,15 @@ export default function DashboardPage() {
       setBanner({ type: "ok", text: t("translateOk") });
     } catch (err) {
       console.error(err);
-      setBanner({ type: "err", text: t("translateErr") });
+      if (err instanceof TranslateExistingPostError && err.code === "missing_source") {
+        setBanner({ type: "err", text: t("translateMissing") });
+      } else {
+        const detail = err instanceof Error ? err.message : "";
+        setBanner({
+          type: "err",
+          text: detail ? `${t("translateErr")} — ${detail}` : t("translateErr"),
+        });
+      }
     } finally {
       setTranslatingId(null);
     }

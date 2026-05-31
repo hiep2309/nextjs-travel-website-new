@@ -4,40 +4,15 @@
  * Usage:
  *   node scripts/backfill-post-translations.mjs [--dry-run] [--id POST_ID]
  *
- * Requires Firebase config in `.env.local` (client SDK — rules must allow writes).
- * For production, prefer Admin SDK credentials via FIREBASE_SERVICE_ACCOUNT_JSON.
+ * Firebase config: `.env.local` → `.env` → `lib/firebaseConfig.ts` defaults.
+ * Writes: Admin SDK if `FIREBASE_SERVICE_ACCOUNT_JSON` is set, else client SDK.
  */
-import { readFileSync } from "node:fs";
-import { initializeApp } from "firebase/app";
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  updateDoc,
-  writeBatch,
-  serverTimestamp,
-} from "firebase/firestore";
+import { getScriptFirestore } from "./lib/firebase-script.mjs";
 
 const LOCALES = ["vi", "en", "ko"];
 const DRY_RUN = process.argv.includes("--dry-run");
 const idArgIndex = process.argv.indexOf("--id");
 const SINGLE_ID = idArgIndex >= 0 ? process.argv[idArgIndex + 1]?.trim() : "";
-
-function loadEnvLocal() {
-  try {
-    const raw = readFileSync(".env.local", "utf8");
-    for (const line of raw.split(/\r?\n/)) {
-      const m = line.match(/^([^#=]+)=(.*)$/);
-      if (m && !process.env[m[1].trim()]) {
-        process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-}
 
 function normalizeLocalizedString(raw, legacyFallback) {
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
@@ -154,7 +129,7 @@ function translationsNeedUpdate(existing, canonical) {
   return Object.keys(canonical).length > 0 && !existing.vi;
 }
 
-function buildPatch(data) {
+function buildPatch(data, serverTimestamp) {
   const legacyName = typeof data.name === "string" ? data.name : undefined;
   const title = normalizeLocalizedString(data.title, legacyName);
   if (!title.vi && legacyName) title.vi = legacyName;
@@ -184,48 +159,54 @@ function buildPatch(data) {
   };
 }
 
-async function main() {
-  loadEnvLocal();
-  const config = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  };
+async function loadPostDocs(db, mode, singleId) {
+  if (mode === "admin") {
+    if (singleId) {
+      const snap = await db.collection("posts").doc(singleId).get();
+      if (!snap.exists) return null;
+      return [{ id: snap.id, data: () => snap.data() }];
+    }
+    const snap = await db.collection("posts").get();
+    return snap.docs.map((d) => ({ id: d.id, data: () => d.data() }));
+  }
 
-  if (!config.projectId) {
-    console.error("Missing Firebase config in .env.local");
+  const { collection, getDocs, doc, getDoc } = await import("firebase/firestore");
+  if (singleId) {
+    const snap = await getDoc(doc(db, "posts", singleId));
+    if (!snap.exists()) return null;
+    return [{ id: snap.id, data: () => snap.data() }];
+  }
+  const snap = await getDocs(collection(db, "posts"));
+  return snap.docs.map((d) => ({ id: d.id, data: () => d.data() }));
+}
+
+async function main() {
+  const { db, mode, serverTimestamp } = await getScriptFirestore();
+  console.info(`[backfill] mode=${mode} dry-run=${DRY_RUN}`);
+
+  const rawDocs = await loadPostDocs(db, mode, SINGLE_ID);
+  if (rawDocs === null) {
+    console.error(`Post not found: ${SINGLE_ID}`);
     process.exit(1);
   }
 
-  const app = initializeApp(config);
-  const db = getFirestore(app);
+  console.log(`Scanning ${rawDocs.length} post(s).`);
 
-  const docs = [];
-  if (SINGLE_ID) {
-    const snap = await getDoc(doc(db, "posts", SINGLE_ID));
-    if (!snap.exists()) {
-      console.error(`Post not found: ${SINGLE_ID}`);
-      process.exit(1);
-    }
-    docs.push(snap);
-  } else {
-    const snap = await getDocs(collection(db, "posts"));
-    docs.push(...snap.docs);
-  }
-
-  console.log(`Scanning ${docs.length} post(s). dry-run=${DRY_RUN}`);
-
-  let batch = writeBatch(db);
+  let batch = null;
   let batchCount = 0;
   let updated = 0;
   let skipped = 0;
 
-  for (const d of docs) {
+  if (mode === "admin" && !DRY_RUN) {
+    batch = db.batch();
+  } else if (mode === "client" && !DRY_RUN) {
+    const { writeBatch } = await import("firebase/firestore");
+    batch = writeBatch(db);
+  }
+
+  for (const d of rawDocs) {
     const data = d.data();
-    const patch = buildPatch(data);
+    const patch = buildPatch(data, serverTimestamp);
     if (!patch) {
       skipped += 1;
       continue;
@@ -240,11 +221,21 @@ async function main() {
     updated += 1;
 
     if (!DRY_RUN) {
-      batch.update(doc(db, "posts", d.id), patch);
+      if (mode === "admin") {
+        batch.update(db.collection("posts").doc(d.id), patch);
+      } else {
+        const { doc } = await import("firebase/firestore");
+        batch.update(doc(db, "posts", d.id), patch);
+      }
       batchCount += 1;
       if (batchCount >= 400) {
         await batch.commit();
-        batch = writeBatch(db);
+        if (mode === "admin") {
+          batch = db.batch();
+        } else {
+          const { writeBatch } = await import("firebase/firestore");
+          batch = writeBatch(db);
+        }
         batchCount = 0;
       }
     }
@@ -257,6 +248,19 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e);
+  if (e?.code === "permission-denied") {
+    console.error(
+      "\nFirestore permission denied.\n" +
+        "Scripts need Admin credentials to read/write all posts.\n\n" +
+        "1. Firebase Console → Project Settings → Service accounts → Generate new private key\n" +
+        "2. Create `.env.local` in project root with either:\n" +
+        "   FIREBASE_SERVICE_ACCOUNT_PATH=./your-service-account.json\n" +
+        "   — or —\n" +
+        "   FIREBASE_SERVICE_ACCOUNT_JSON={\"type\":\"service_account\",...}\n\n" +
+        "3. Re-run: npm run backfill:translations:dry\n",
+    );
+  } else {
+    console.error(e);
+  }
   process.exit(1);
 });

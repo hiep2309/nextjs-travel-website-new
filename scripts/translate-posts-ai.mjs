@@ -1,146 +1,62 @@
 /**
- * Batch AI translation for Firestore posts via /api/translate/post.
+ * Batch-translate existing posts missing en/ko via server Admin API.
  *
  * Usage:
- *   npm run dev   # in another terminal
- *   node scripts/translate-posts-ai.mjs [--dry-run] [--id=POST_ID]
+ *   npm run dev                                    # terminal 1
+ *   npm run translate:posts:dry                    # terminal 2
+ *   npm run translate:posts
+ *   node scripts/translate-posts-ai.mjs --id=POST_ID
  *
- * Env (from .env.local):
+ * `.env.local`:
+ *   GEMINI_API_KEY=...
+ *   FIREBASE_SERVICE_ACCOUNT_PATH=./service-account.json
  *   NEXT_PUBLIC_SITE_URL=http://localhost:3000
- *   Firebase client config (same as migrate script)
+ *   ADMIN_SCRIPT_KEY=your-secret-key               # optional in dev
  */
-import { readFileSync } from "node:fs";
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { loadScriptEnv } from "./lib/firebase-script.mjs";
 
 const DRY_RUN = process.argv.includes("--dry-run");
-const ID_FILTER = process.argv.find((a) => a.startsWith("--id="))?.slice(5);
-
-function loadEnvLocal() {
-  try {
-    const raw = readFileSync(".env.local", "utf8");
-    for (const line of raw.split(/\r?\n/)) {
-      const m = line.match(/^([^#=]+)=(.*)$/);
-      if (m && !process.env[m[1].trim()]) {
-        process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-function stripHtml(html) {
-  return String(html || "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function pickVi(field, legacy) {
-  if (field && typeof field === "object" && !Array.isArray(field)) {
-    return field.vi?.trim() || field.en?.trim() || "";
-  }
-  return (typeof field === "string" ? field : legacy)?.trim() || "";
-}
-
-function needsTranslation(data) {
-  const title = data.title;
-  if (!title || typeof title !== "object") return true;
-  return !title.en?.trim() || !title.ko?.trim();
-}
-
-async function translateViaApi(baseUrl, body) {
-  const res = await fetch(`${baseUrl}/api/translate/post`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || res.statusText);
-  return json.payload;
-}
+const ID_FILTER = process.argv.find((a) => a.startsWith("--id="))?.slice(5)?.trim();
 
 async function main() {
-  loadEnvLocal();
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  loadScriptEnv();
 
-  const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  };
-
-  if (!firebaseConfig.projectId) {
-    console.error("Missing Firebase config in .env.local");
+  if (!process.env.GEMINI_API_KEY?.trim()) {
+    console.error("Missing GEMINI_API_KEY in .env.local");
     process.exit(1);
   }
+
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const scriptKey = process.env.ADMIN_SCRIPT_KEY?.trim() ?? "";
 
   console.log(`Site: ${baseUrl}`);
   console.log(DRY_RUN ? "[DRY RUN]" : "[LIVE]");
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const snap = await getDocs(collection(db, "posts"));
+  const headers = { "Content-Type": "application/json" };
+  if (scriptKey) headers["x-admin-script-key"] = scriptKey;
 
-  let updated = 0;
-  let skipped = 0;
+  const res = await fetch(`${baseUrl}/api/admin/batch-translate-posts`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      dryRun: DRY_RUN,
+      postId: ID_FILTER || undefined,
+    }),
+  });
 
-  for (const d of snap.docs) {
-    if (ID_FILTER && d.id !== ID_FILTER) continue;
-    const data = d.data();
-    if (!needsTranslation(data)) {
-      skipped += 1;
-      continue;
-    }
-
-    const title = pickVi(data.title, data.name);
-    const description = pickVi(data.description, "") || title;
-    const contentHtml = pickVi(data.contentHtml, "");
-    const plain = stripHtml(contentHtml);
-
-    if (!title || !plain) {
-      console.warn(`Skip ${d.id}: missing title or content`);
-      skipped += 1;
-      continue;
-    }
-
-    console.log(`Translating ${d.id}: ${title.slice(0, 50)}…`);
-
-    if (DRY_RUN) {
-      updated += 1;
-      continue;
-    }
-
-    try {
-      const payload = await translateViaApi(baseUrl, {
-        title,
-        description,
-        contentHtml,
-        sourceLocale: data.sourceLocale || "vi",
-        existingSlugs: data.slugs,
-      });
-
-      await updateDoc(doc(db, "posts", d.id), {
-        ...payload,
-        updatedAt: serverTimestamp(),
-      });
-      updated += 1;
-      console.log(`  ✓ ${d.id}`);
-    } catch (err) {
-      console.error(`  ✗ ${d.id}:`, err.message || err);
-    }
-
-    await new Promise((r) => setTimeout(r, 1500));
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json.error || res.statusText || `HTTP ${res.status}`);
   }
 
-  console.log(`Done. translated=${updated} skipped=${skipped}`);
+  console.log(JSON.stringify(json, null, 2));
 }
 
 main().catch((err) => {
-  console.error(err);
+  if (err?.cause?.code === "ECONNREFUSED" || String(err?.message).includes("fetch failed")) {
+    console.error("\nCannot reach Next.js. Run `npm run dev` in another terminal first.");
+  } else {
+    console.error(err.message || err);
+  }
   process.exit(1);
 });
