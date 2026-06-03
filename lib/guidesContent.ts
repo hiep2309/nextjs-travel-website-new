@@ -29,8 +29,16 @@ export const MOCK_GUIDES: GuideEntry[] = [
   {
     id: "g1",
     source: "mock",
-    title: viText("Pù Luông & Thanh Hóa"),
-    excerpt: viText("Ruộng bậc thang, bản làng và gợi ý lịch trình 2 ngày."),
+    title: {
+      vi: "Pù Luông & Thanh Hóa",
+      en: "Pu Luong & Thanh Hoa",
+      ko: "푸루옹 & 타인호아",
+    },
+    excerpt: {
+      vi: "Ruộng bậc thang, bản làng và gợi ý lịch trình 2 ngày.",
+      en: "Rice terraces, ethnic villages and a suggested 2-day itinerary.",
+      ko: "계단식 논, 소수민족 마을과 추천 2일 일정.",
+    },
     category: "handbook",
     readMinutes: 12,
     dateDisplay: "20/05/2026",
@@ -40,8 +48,16 @@ export const MOCK_GUIDES: GuideEntry[] = [
   {
     id: "g2",
     source: "mock",
-    title: viText("Mẹo đặt homestay Hội An"),
-    excerpt: viText("So sánh khu phố cổ và biển An Bàng, thời điểm đặt phòng rẻ hơn."),
+    title: {
+      vi: "Mẹo đặt homestay Hội An",
+      en: "Tips for booking Hoi An homestays",
+      ko: "호이안 홈스테이 예약 팁",
+    },
+    excerpt: {
+      vi: "So sánh khu phố cổ và biển An Bàng, thời điểm đặt phòng rẻ hơn.",
+      en: "Old town vs An Bang beach, and when rooms are cheaper.",
+      ko: "구시가지와 안방 해변 비교, 저렴하게 예약하는 시기.",
+    },
     category: "hotel",
     readMinutes: 8,
     dateDisplay: "12/05/2026",
@@ -51,8 +67,16 @@ export const MOCK_GUIDES: GuideEntry[] = [
   {
     id: "g3",
     source: "mock",
-    title: viText("Huế trong một ngày"),
-    excerpt: viText("Đại Nội, lăng tẩm và đồ ăn dân dã."),
+    title: {
+      vi: "Huế trong một ngày",
+      en: "Hue in one day",
+      ko: "후에 1일 코스",
+    },
+    excerpt: {
+      vi: "Đại Nội, lăng tẩm và đồ ăn dân dã.",
+      en: "The Imperial City, royal tombs and humble local food.",
+      ko: "황성, 왕릉과 소박한 현지 음식.",
+    },
     category: "handbook",
     readMinutes: 10,
     dateDisplay: "02/05/2026",
@@ -62,8 +86,16 @@ export const MOCK_GUIDES: GuideEntry[] = [
   {
     id: "g4",
     source: "mock",
-    title: viText("Đi Sapa mùa đông — lưu ý sức khỏe"),
-    excerpt: viText("Trang phục, độ cao và cách tránh say xe trên đèo."),
+    title: {
+      vi: "Đi Sapa mùa đông — lưu ý sức khỏe",
+      en: "Sapa in winter — health notes",
+      ko: "겨울 사파 — 건강 주의사항",
+    },
+    excerpt: {
+      vi: "Trang phục, độ cao và cách tránh say xe trên đèo.",
+      en: "Clothing, altitude and avoiding motion sickness on mountain passes.",
+      ko: "복장, 고도와 산길 멀미 예방법.",
+    },
     category: "notes",
     readMinutes: 7,
     dateDisplay: "28/04/2026",
@@ -73,8 +105,16 @@ export const MOCK_GUIDES: GuideEntry[] = [
   {
     id: "g5",
     source: "mock",
-    title: viText("Di chuyển Hà Nội — Ninh Bình"),
-    excerpt: viText("Tàu, xe khách và thuê xe máy — ưu nhược từng cách."),
+    title: {
+      vi: "Di chuyển Hà Nội — Ninh Bình",
+      en: "Getting from Hanoi to Ninh Binh",
+      ko: "하노이–닌빈 이동",
+    },
+    excerpt: {
+      vi: "Tàu, xe khách và thuê xe máy — ưu nhược từng cách.",
+      en: "Train, coach and motorbike rental — the pros and cons of each.",
+      ko: "기차, 시외버스, 오토바이 렌탈 — 각 방법의 장단점.",
+    },
     category: "transport",
     readMinutes: 9,
     dateDisplay: "15/04/2026",

@@ -1,19 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, Loader2, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
-const STEP_KEYS = ["step1", "step2", "step3"] as const;
-const STEP_INTERVAL_MS = 1300;
+const STEP_KEYS = ["loadingStep1", "loadingStep2", "loadingStep3"] as const;
+const STEP_INTERVAL_MS = 650;
 
-type Props = {
-  streamPreview?: string;
-};
-
-export default function PlannerLoading({ streamPreview }: Props) {
-  const t = useTranslations("AiPlanner");
+export default function FoodLoading() {
+  const t = useTranslations("FoodExplorer");
   const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(0);
 
@@ -24,7 +20,7 @@ export default function PlannerLoading({ streamPreview }: Props) {
   }, [step]);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:rounded-3xl sm:p-8">
+    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl sm:p-8">
       <div className="flex items-center gap-3">
         <span className="relative flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 shadow-lg shadow-violet-900/30">
           {!reduceMotion ? (
@@ -33,11 +29,12 @@ export default function PlannerLoading({ streamPreview }: Props) {
           <Sparkles className="relative size-5 text-white" aria-hidden />
         </span>
         <div>
-          <p className="font-bold text-white">{t("generating")}</p>
-          <p className="text-sm text-white/55">{t("emptyDesc")}</p>
+          <p className="font-bold text-white">{t("loadingTitle")}</p>
+          <p className="text-sm text-white/55">{t("loadingDesc")}</p>
         </div>
       </div>
 
+      {/* Sequential AI status steps */}
       <ol className="mt-6 space-y-3" aria-live="polite">
         {STEP_KEYS.map((key, i) => {
           const done = i < step;
@@ -79,12 +76,12 @@ export default function PlannerLoading({ streamPreview }: Props) {
         })}
       </ol>
 
+      {/* Skeleton preview of the upcoming result */}
       <div className="mt-6 space-y-4">
-        <div className="h-40 w-full animate-pulse rounded-2xl bg-white/5" />
-        <div className="grid grid-cols-3 gap-3">
-          <div className="h-14 animate-pulse rounded-2xl bg-white/5" />
-          <div className="h-14 animate-pulse rounded-2xl bg-white/5" />
-          <div className="h-14 animate-pulse rounded-2xl bg-white/5" />
+        <div className="h-48 w-full animate-pulse rounded-2xl bg-white/5" />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="h-16 animate-pulse rounded-2xl bg-white/5" />
+          <div className="h-16 animate-pulse rounded-2xl bg-white/5" />
         </div>
       </div>
 
@@ -98,12 +95,6 @@ export default function PlannerLoading({ streamPreview }: Props) {
             style={{ width: "50%" }}
           />
         </div>
-      ) : null}
-
-      {streamPreview ? (
-        <p className="mt-4 max-w-full truncate font-mono text-[10px] text-violet-300/70 sm:text-xs">
-          {streamPreview}
-        </p>
       ) : null}
     </div>
   );

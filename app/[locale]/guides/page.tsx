@@ -245,7 +245,7 @@ export default function GuidesPage() {
 
 
 
-        {loading && <p className="mt-8 text-center text-[#8892a8]">Đang tải bài từ cộng đồng…</p>}
+        {loading && <p className="mt-8 text-center text-[#8892a8]">{t("loadingCommunity")}</p>}
 
 
 
@@ -288,7 +288,7 @@ export default function GuidesPage() {
 
             <p className="rounded-2xl border border-white/10 py-14 text-center text-[#9aa5bc]">
 
-              Chưa có bài cẩm nang trong mục này.
+              {t("empty")}
 
             </p>
 

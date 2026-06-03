@@ -13,6 +13,8 @@ import {
   Bike,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import DestinationSelect from "@/components/ui/DestinationSelect";
+import { DESTINATION_OPTIONS } from "@/lib/destinations";
 import { fadeUp } from "@/lib/planner/motionPresets";
 import {
   FREE_MAX_DAYS,
@@ -101,15 +103,21 @@ export default function PlannerForm({ value, onChange, onSubmit, loading, usage 
           onSubmit();
         }}
       >
-        <Field label={t("destination")} icon={MapPin}>
-          <input
-            required
+        <div>
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/50">
+            {t("destination")}
+          </span>
+          <DestinationSelect
             value={value.destination}
-            onChange={(e) => set("destination", e.target.value)}
-            className={inputCls}
-            placeholder={t("destinationPh")}
+            onChange={(d) => set("destination", d)}
+            options={DESTINATION_OPTIONS}
+            placeholder={t("selectDestination")}
+            searchPlaceholder={t("searchDestination")}
+            noResultText={t("noDestination")}
+            clearLabel={t("clearDestination")}
+            allowCustom
           />
-        </Field>
+        </div>
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <Field label={t("days")} icon={Calendar}>

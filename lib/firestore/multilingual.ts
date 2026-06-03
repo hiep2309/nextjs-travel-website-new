@@ -16,6 +16,12 @@ import {
   deriveLocalizedMapsFromTranslations,
   normalizeArticleTranslations,
 } from "@/lib/posts/articleTranslations";
+import {
+  ARTICLE_SECTIONS_VERSION,
+  deriveSectionsFromHtmlMap,
+  normalizeStoredSections,
+  type ArticleSection,
+} from "@/lib/posts/articleSections";
 import type { TravelPost } from "@/lib/travelPost";
 
 /** Coerce legacy plain string or partial map into LocalizedString. */
@@ -141,12 +147,22 @@ export function normalizeTravelPost(id: string, raw: Record<string, unknown>): T
     (raw.translationStatus as TranslationStatusMap | undefined) ??
     defaultTranslationStatus((raw.sourceLocale as AppLocale) ?? defaultLocale);
 
+  // Structured body: prefer stored `sections`, otherwise derive from the
+  // per-locale HTML so rendering is consistent even before migration runs.
+  const storedSections = normalizeStoredSections(raw.sections);
+  const sections: ArticleSection[] =
+    storedSections.length > 0 ? storedSections : deriveSectionsFromHtmlMap(contentHtml);
+  const sectionsVersion =
+    typeof raw.sectionsVersion === "number" ? raw.sectionsVersion : undefined;
+
   return {
     id,
     title,
     description,
     contentHtml,
     translations,
+    sections,
+    sectionsVersion,
     slugs,
     seo,
     translationStatus,

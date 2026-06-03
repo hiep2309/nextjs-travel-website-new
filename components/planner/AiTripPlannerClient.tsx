@@ -20,10 +20,12 @@ import type { PlannerFormData, TripPlan, TripPlanMeta } from "@/lib/planner/type
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { usePlannerCooldown } from "@/hooks/usePlannerCooldown";
+import { formatPlannerBudget, type PlannerTemplate } from "@/lib/planner/templates";
 import PlannerAuthGate from "./PlannerAuthGate";
 import PlannerForm from "./PlannerForm";
 import PlannerFallbackBanner from "./PlannerFallbackBanner";
 import PlannerLoading from "./PlannerLoading";
+import PlannerTemplates from "./PlannerTemplates";
 import TripResults from "./TripResults";
 
 type UsageInfo = {
@@ -185,6 +187,22 @@ export default function AiTripPlannerClient() {
     }
   };
 
+  const applyTemplate = useCallback(
+    (tpl: PlannerTemplate) => {
+      setForm((prev) => ({
+        ...prev,
+        destination: tpl.destination[locale] ?? tpl.destination.vi,
+        days: tpl.days,
+        travelStyle: tpl.travelStyle,
+        budget: formatPlannerBudget(tpl.budgetVnd, locale),
+      }));
+      if (isMobile) {
+        window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+      }
+    },
+    [locale, isMobile, reduceMotion],
+  );
+
   const submitDisabled = loading || isCoolingDown;
 
   if (authLoading) {
@@ -296,10 +314,8 @@ export default function AiTripPlannerClient() {
                 <motion.div
                   key="empty"
                   {...(reduceMotion ? {} : { variants: panelEnter, initial: "hidden", animate: "show" })}
-                  className="flex min-h-[min(360px,55dvh)] flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-6 text-center backdrop-blur-sm sm:min-h-[420px] sm:rounded-3xl sm:p-10"
                 >
-                  <p className="max-w-md text-base font-semibold text-white/80 sm:text-lg">{t("emptyTitle")}</p>
-                  <p className="mt-2 max-w-sm text-sm text-white/50">{t("emptyDesc")}</p>
+                  <PlannerTemplates onApply={applyTemplate} />
                 </motion.div>
               )}
             </AnimatePresence>

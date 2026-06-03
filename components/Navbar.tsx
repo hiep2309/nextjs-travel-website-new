@@ -56,6 +56,7 @@ const NAV_ITEMS = [
   { key: "guides", href: "/guides" },
   { key: "blog", href: "/explore" },
   { key: "aiPlanner", href: "/ai-trip-planner", badge: true },
+  { key: "aiFood", href: "/ai-food-explorer", badge: true },
 ] as const;
 
 const Navbar = () => {

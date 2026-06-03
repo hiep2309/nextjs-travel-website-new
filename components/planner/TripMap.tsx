@@ -61,7 +61,7 @@ export default function TripMap({ days, activeDay }: Props) {
           {t("mapHint")}
         </p>
       </div>
-      <ul className="max-h-40 space-y-1 overflow-y-auto border-t border-white/10 p-3 text-xs text-white/70">
+      <ul className="custom-scrollbar max-h-40 space-y-1 overflow-y-auto border-t border-white/10 p-3 text-xs text-white/70">
         {stops.map((s, i) => (
           <li key={i} className="flex gap-2">
             <span className="font-bold text-violet-300">{i + 1}.</span>

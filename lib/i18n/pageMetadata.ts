@@ -45,6 +45,12 @@ export const PAGE_META = {
     titleKey: "title",
     descriptionKey: "subtitle",
   },
+  aiFood: {
+    namespace: "FoodExplorer",
+    path: "/ai-food-explorer",
+    titleKey: "title",
+    descriptionKey: "subtitle",
+  },
   savedItineraries: {
     namespace: "SavedItineraries",
     path: "/saved-itineraries",

@@ -43,6 +43,7 @@ import {
 import type { AppLocale } from "@/i18n/routing";
 import type { TravelPost } from "@/lib/travelPost";
 import CommentSection from "@/components/comments/CommentSection";
+import ArticleRenderer from "@/components/posts/ArticleRenderer";
 
 function resolvePostId(postIdProp: string | undefined, params: ReturnType<typeof useParams>) {
   if (postIdProp?.trim()) return postIdProp.trim();
@@ -419,7 +420,9 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
               </button>
             </div>
             <h1 className="mt-2 text-3xl font-bold">{currentArticle.title || t("defaultTitle")}</h1>
-            {currentArticle.content ? (
+            {post.sections?.length ? (
+              <ArticleRenderer sections={post.sections} locale={locale} />
+            ) : currentArticle.content ? (
               <div
                 className="post-body-html mt-4 text-[15px] leading-relaxed text-white/[0.88]"
                 dangerouslySetInnerHTML={{ __html: currentArticle.content }}

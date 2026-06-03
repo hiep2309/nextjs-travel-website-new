@@ -12,6 +12,7 @@ import type {
   LegacyPostFields,
   PostTranslations,
 } from "@/lib/i18n/types";
+import type { ArticleSection } from "@/lib/posts/articleSections";
 
 export type TravelPost = LocalizedDocumentBase &
   LegacyPostFields & {
@@ -21,6 +22,13 @@ export type TravelPost = LocalizedDocumentBase &
     description: LocalizedString;
     contentHtml: LocalizedHtml;
     translations?: PostTranslations;
+    /**
+     * Structured, language-neutral body. Layout is shared across locales; only
+     * block text changes per language. Always populated on read (stored or
+     * derived from `contentHtml`). Preferred over `contentHtml` for rendering.
+     */
+    sections?: ArticleSection[];
+    sectionsVersion?: number;
     image?: string;
     images?: string[];
     thumb?: string;
