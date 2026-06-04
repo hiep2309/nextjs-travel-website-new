@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { resolvePostCoverImage } from "@/lib/posts/coverImage";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { absoluteUrl } from "@/lib/siteUrl";
+import { DEFAULT_COVER_IMAGE } from "@/lib/publicAssets";
 import { resolvePostType } from "@/lib/postCategories";
 import { usePostTypeLabels } from "@/hooks/usePostTypeLabels";
 import { useLocale } from "next-intl";
@@ -264,7 +265,7 @@ export default function PostDetailClient({ postId: postIdProp }: { postId?: stri
           "@type": "Article",
           headline: currentArticle.title,
           description: (currentArticle.description || "").slice(0, 500),
-          image: post.image?.startsWith("http") ? post.image : absoluteUrl("/signup_pic.jpg"),
+          image: post.image?.startsWith("http") ? post.image : absoluteUrl(DEFAULT_COVER_IMAGE),
           mainEntityOfPage: absoluteUrl(`/posts/${id}`),
         }
       : null;

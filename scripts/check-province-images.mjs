@@ -1,15 +1,21 @@
 import fs from "fs";
 
-const src = fs.readFileSync("lib/vietnamProvinces.ts", "utf8");
-const block = src.match(/LOCAL_PROVINCE_IMAGE_BY_NAME[\s\S]*?\n};/)[0];
+const src = fs.readFileSync("lib/provinceDestinationImages.ts", "utf8");
+const block = src.match(/PROVINCE_DESTINATION_FILE[\s\S]*?\};/)[0];
 const re = /"([^"]+)":\s*"([^"]+)"/g;
 const missing = [];
 let m;
 while ((m = re.exec(block))) {
-  const [, name, url] = m;
-  if (!url.startsWith("/")) continue;
-  const rel = url.slice(1);
-  if (!fs.existsSync(`public/${rel}`)) missing.push({ name, url });
+  const [, name, file] = m;
+  const path = `public/destinations/${file}`;
+  if (!fs.existsSync(path)) missing.push({ name, file });
 }
+const onDisk = fs.readdirSync("public/destinations").filter((f) => !f.startsWith("."));
+const mapped = new Set([...block.matchAll(/:\s*"([^"]+)"/g)].map((x) => x[1]));
+const unmapped = onDisk.filter((f) => !mapped.has(f));
+
 console.log(`Missing province images: ${missing.length}`);
-for (const x of missing) console.log(` - ${x.name} -> ${x.url}`);
+for (const x of missing) console.log(` - ${x.name} -> ${x.file}`);
+if (unmapped.length) {
+  console.log(`Unmapped on disk: ${unmapped.join(", ")}`);
+}

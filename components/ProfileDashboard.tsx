@@ -47,6 +47,7 @@ import { buildDestinationModelForProvince } from "@/hooks/useDestinationPageMode
 import { getProvinceBySlug } from "@/lib/provinceSlug";
 import { useAuth } from "@/hooks/useAuth";
 import type { MergedProfile } from "@/hooks/useUserProfile";
+import { DEFAULT_COVER_IMAGE } from "@/lib/publicAssets";
 import {
   getDestinationHistory,
   getPostHistory,
@@ -75,7 +76,7 @@ type ContentRow = {
 };
 
 function defaultPostImage() {
-  return "/signup_pic.jpg";
+  return DEFAULT_COVER_IMAGE;
 }
 
 type ActivityItem = { label: string; title: string; href: string; at: number; thumb: string };

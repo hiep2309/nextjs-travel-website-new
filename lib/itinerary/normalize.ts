@@ -2,6 +2,7 @@ import type { DocumentData, Timestamp } from "firebase/firestore";
 import type { AppLocale } from "@/i18n/routing";
 import { routing } from "@/i18n/routing";
 import type { SavedItineraryRecord } from "@/lib/itinerary/types";
+import { DEFAULT_COVER_IMAGE } from "@/lib/publicAssets";
 
 function toDate(value: unknown): Date {
   if (value && typeof value === "object" && "toDate" in value) {
@@ -34,7 +35,7 @@ export function normalizeSavedItinerary(id: string, data: DocumentData): SavedIt
     budget: String(data.budget ?? ""),
     travelers: Number(data.travelers) || 1,
     duration: Number(data.duration) || 1,
-    coverImage: String(data.coverImage ?? "/signup_pic.jpg"),
+    coverImage: String(data.coverImage ?? DEFAULT_COVER_IMAGE),
     tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
     aiGenerated: data.aiGenerated !== false,
     status: (data.status as SavedItineraryRecord["status"]) ?? "planning",

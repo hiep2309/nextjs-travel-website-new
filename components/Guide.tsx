@@ -18,7 +18,9 @@ import { travelPostToContentCard } from "@/lib/cards/adapters";
 import type { TravelPost } from "@/lib/travelPost";
 import type { AppLocale } from "@/i18n/routing";
 
-const TOUR_FALLBACK_IMAGE = "/signup_pic.jpg";
+import { DEFAULT_COVER_IMAGE } from "@/lib/publicAssets";
+
+const TOUR_FALLBACK_IMAGE = DEFAULT_COVER_IMAGE;
 
 function tourPopularityBadge(views: number, t: (key: string) => string): string {
   if (views >= 50) return t("badgeBest");

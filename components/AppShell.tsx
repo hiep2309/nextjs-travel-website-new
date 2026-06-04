@@ -3,6 +3,7 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/sections/Footer";
 import { usePathname } from "@/lib/i18n/navigation";
+import { PUBLIC_HEROES } from "@/lib/publicAssets";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,7 +15,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <>
           <div
             className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: "url('/signup_pic.jpg')" }}
+            style={{ backgroundImage: `url('${PUBLIC_HEROES.appBackground}')` }}
             aria-hidden
           />
           <div

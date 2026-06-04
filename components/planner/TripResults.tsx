@@ -14,6 +14,7 @@ import { useLocalizedTripPlan } from "@/hooks/useLocalizedTripPlan";
 import { saveItinerary, updateItineraryPlan } from "@/lib/itinerary/saveItinerary";
 import type { PlannerFormData, TripPlan, TripPlanMeta } from "@/lib/planner/types";
 import { easeOut } from "@/lib/planner/motionPresets";
+import { PUBLIC_HEROES } from "@/lib/publicAssets";
 import TripTimeline from "./TripTimeline";
 import CostSummary from "./CostSummary";
 import HiddenGems from "./HiddenGems";
@@ -269,7 +270,7 @@ export default function TripResults({
                 <div className="overflow-hidden rounded-xl border border-white/10 sm:rounded-2xl">
                   <div className="relative aspect-[16/10] min-h-[120px] sm:aspect-[21/9] sm:min-h-[140px]">
                     <Image
-                      src="/signup_pic.jpg"
+                      src={PUBLIC_HEROES.appBackground}
                       alt=""
                       fill
                       className="object-cover"

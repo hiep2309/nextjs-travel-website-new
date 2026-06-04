@@ -7,6 +7,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { PUBLIC_ICONS } from "@/lib/publicAssets";
 import {
   ArrowRight,
   ArrowUp,
@@ -239,7 +240,7 @@ const Footer = () => {
           <VietnamSilhouette className="absolute -right-2 top-0 h-36 w-44 sm:h-40 sm:w-52" />
           <Link href="/" className="relative flex items-center gap-2.5">
             <div className="relative h-10 w-10 shrink-0">
-              <Image src="/logo.png" alt="" fill className="object-contain" sizes="40px" />
+              <Image src={PUBLIC_ICONS.logo} alt="" fill className="object-contain" sizes="40px" />
             </div>
             <span className="text-sm font-black tracking-wide text-white">VN INSIGHT</span>
           </Link>

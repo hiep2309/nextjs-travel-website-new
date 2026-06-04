@@ -10,6 +10,7 @@ import { getDishById } from "@/lib/food/dishes";
 import { rankDishes } from "@/lib/food/matchDishes";
 import type { Dish, FoodPreferences, ScoredDish } from "@/lib/food/types";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { PUBLIC_HEROES } from "@/lib/publicAssets";
 import CulturalStory from "./CulturalStory";
 import DishMiniCard from "./DishMiniCard";
 import FoodDiscoveryCard from "./FoodDiscoveryCard";
@@ -95,7 +96,7 @@ export default function FoodExplorerClient() {
       {/* Background matches the AI Trip Planner: signup_pic.jpg dimmed + deep slate gradient. */}
       <div
         className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-40"
-        style={{ backgroundImage: "url('/signup_pic.jpg')" }}
+        style={{ backgroundImage: `url('${PUBLIC_HEROES.appBackground}')` }}
         aria-hidden
       />
       <div

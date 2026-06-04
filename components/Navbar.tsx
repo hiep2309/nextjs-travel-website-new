@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
 import FlexibleImage from "@/components/ui/FlexibleImage";
 import NotificationBell from "@/components/NotificationBell";
+import { PUBLIC_ICONS } from "@/lib/publicAssets";
 
 function userInitials(user: User) {
   const raw = user.displayName?.trim() || user.email?.split("@")[0] || "U";
@@ -92,7 +93,7 @@ const Navbar = () => {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
             <div className="relative h-10 w-10 md:h-12 md:w-12">
-              <Image src="/logo.png" alt="VN Insight" fill className="object-contain" />
+              <Image src={PUBLIC_ICONS.logo} alt="VN Insight" fill className="object-contain" />
             </div>
             <span className="text-sm font-black text-white md:text-base">VN INSIGHT</span>
           </Link>

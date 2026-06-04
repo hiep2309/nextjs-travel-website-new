@@ -127,6 +127,7 @@ export default function ProvinceShowcase() {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const activeIndexRef = useRef(activeIndex);
   const flyDoneTimerRef = useRef<number | null>(null);
+  const flyGenRef = useRef(0);
   const isFirstCenterRef = useRef(true);
 
   const activeProvince = useMemo(() => provinces[activeIndex], [activeIndex]);
@@ -140,31 +141,49 @@ export default function ProvinceShowcase() {
   });
   activeIndexRef.current = activeIndex;
 
-  const startFlyFromThumb = useCallback((index: number) => {
+  const startFlyFromThumb = useCallback((index: number, generation: number) => {
+    const src = provinces[index]?.image ?? "";
+    if (!src.trim()) {
+      setFly(null);
+      return;
+    }
+
     const thumbEl = thumbImgRefs.current[index];
     const heroEl = heroBgRef.current;
-    const src = provinces[index].image;
-    if (!src.trim()) {
-      setHeroSrc("");
-      setFly(null);
-      return;
-    }
     if (!thumbEl || !heroEl) {
-      setHeroSrc(src);
       setFly(null);
       return;
     }
+
     const heroR = heroEl.getBoundingClientRect();
     const from = rectRelativeTo(heroR, thumbEl.getBoundingClientRect());
     const to = { left: 0, top: 0, width: heroR.width, height: heroR.height };
     setFly({ src, from, to });
+
+    if (flyDoneTimerRef.current) clearTimeout(flyDoneTimerRef.current);
+    flyDoneTimerRef.current = window.setTimeout(() => {
+      if (flyGenRef.current !== generation) return;
+      setFly(null);
+      flyDoneTimerRef.current = null;
+    }, FLY_MS + 40);
   }, []);
 
   const pickProvince = useCallback(
     (index: number) => {
       if (index === activeIndexRef.current) return;
+
+      const src = provinces[index]?.image ?? "";
+      const generation = ++flyGenRef.current;
+
       setActiveIndex(index);
-      startFlyFromThumb(index);
+      setHeroSrc(src);
+
+      if (!src.trim()) {
+        setFly(null);
+        return;
+      }
+
+      requestAnimationFrame(() => startFlyFromThumb(index, generation));
     },
     [startFlyFromThumb],
   );
@@ -231,12 +250,6 @@ export default function ProvinceShowcase() {
       });
     });
 
-    flyDoneTimerRef.current = window.setTimeout(() => {
-      setHeroSrc(fly.src);
-      setFly(null);
-      flyDoneTimerRef.current = null;
-    }, FLY_MS + 40);
-
     return () => {
       if (flyDoneTimerRef.current) {
         clearTimeout(flyDoneTimerRef.current);
@@ -282,12 +295,13 @@ export default function ProvinceShowcase() {
           <div ref={heroBgRef} className="relative h-[min(74vh,560px)] sm:h-[580px] lg:h-[620px]">
             {heroSrc.trim() ? (
               <Image
+                key={activeProvince.name}
                 src={heroSrc}
                 alt={activeProvince.name}
                 fill
-                className="object-cover"
+                className={`object-cover transition-opacity duration-300 ${fly ? "opacity-0" : "opacity-100"}`}
                 sizes="(max-width: 1200px) 100vw, 1200px"
-                priority={activeIndex === defaultIndex}
+                priority={activeIndex === defaultIndex && !fly}
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL_LIGHT}
                 onError={() => setHeroSrc("")}
@@ -307,7 +321,10 @@ export default function ProvinceShowcase() {
                   alt=""
                   className="h-full w-full object-cover"
                   draggable={false}
-                  onError={() => setFly(null)}
+                  onError={() => {
+                    setFly(null);
+                    setHeroSrc(fly.src);
+                  }}
                 />
               </div>
             ) : null}

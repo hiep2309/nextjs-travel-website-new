@@ -9,6 +9,7 @@ import { absoluteUrl } from "@/lib/siteUrl";
 import { initPageLocale, isAppLocale } from "@/lib/i18n/server";
 import { getTranslation } from "@/lib/getTranslation";
 import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
+import { DEFAULT_COVER_IMAGE } from "@/lib/publicAssets";
 
 type Props = { params: { locale: string; id: string } };
 
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 
   const ogImage =
-    meta.image && meta.image.startsWith("http") ? meta.image : absoluteUrl("/signup_pic.jpg");
+    meta.image && meta.image.startsWith("http") ? meta.image : absoluteUrl(DEFAULT_COVER_IMAGE);
   return {
     ...seoMeta,
     robots: meta.robotsNoIndex ? { index: false, follow: false } : { index: true, follow: true },

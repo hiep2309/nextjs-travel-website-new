@@ -12,6 +12,7 @@ import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import { Eye, EyeOff, Mail, Lock, Chrome } from "lucide-react";
+import { PUBLIC_HEROES, PUBLIC_ICONS } from "@/lib/publicAssets";
 
 const Login = () => {
   const t = useTranslations("Auth");
@@ -58,7 +59,7 @@ const Login = () => {
           <div className="mb-8 flex items-center gap-3 sm:mb-10">
             <div className="relative h-12 w-12 shrink-0 sm:h-14 sm:w-14">
   <Image
-    src="/VN_insight_logo.png"          // Đường dẫn ảnh trong thư mục public
+    src={PUBLIC_ICONS.brand}
     alt="VietNam Insight Logo"
     fill                     // Để ảnh lấp đầy khung div cha
     className="object-contain" // Giúp logo giữ đúng tỷ lệ, không bị kéo dãn
@@ -141,7 +142,7 @@ const Login = () => {
         {/* RIGHT SIDE: IMAGE (Đồng bộ hoàn toàn với Register - Hoi An Night) */}
         <div className="relative hidden min-h-0 overflow-hidden bg-slate-100 md:block md:h-full md:w-1/2 md:rounded-r-[40px]">
           <Image
-            src="/login_pic.jpg" // Đảm bảo bạn có ảnh này trong folder public
+            src={PUBLIC_HEROES.login}
             alt="SonDoong Cave"
             fill
             priority

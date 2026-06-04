@@ -19,6 +19,7 @@ import {
 import type { PlannerFormData, TripPlan, TripPlanMeta } from "@/lib/planner/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { PUBLIC_HEROES } from "@/lib/publicAssets";
 import { usePlannerCooldown } from "@/hooks/usePlannerCooldown";
 import { formatPlannerBudget, type PlannerTemplate } from "@/lib/planner/templates";
 import PlannerAuthGate from "./PlannerAuthGate";
@@ -222,7 +223,7 @@ export default function AiTripPlannerClient() {
     <div className="relative pb-20 pt-20 text-white sm:pt-24 sm:pb-16">
       <div
         className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-40"
-        style={{ backgroundImage: "url('/signup_pic.jpg')" }}
+        style={{ backgroundImage: `url('${PUBLIC_HEROES.appBackground}')` }}
         aria-hidden
       />
       <div

@@ -11,6 +11,7 @@ import { auth } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { ArrowRight, Check, Gift, X } from "lucide-react";
 import { createUserProfile } from "@/lib/user";
+import { PUBLIC_HEROES, PUBLIC_ICONS } from "@/lib/publicAssets";
 
 function RegisterSuccessModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
@@ -136,7 +137,7 @@ const Register = () => {
             <div className="mb-8 flex items-center gap-2 sm:mb-12">
              <div className="relative h-12 w-12 shrink-0 sm:h-14 sm:w-14">
   <Image
-    src="/VN_insight_logo.png"          // Đường dẫn ảnh trong thư mục public
+    src={PUBLIC_ICONS.brand}
     alt="VietNam Insight Logo"
     fill                     // Để ảnh lấp đầy khung div cha
     className="object-contain" // Giúp logo giữ đúng tỷ lệ, không bị kéo dãn
@@ -186,7 +187,7 @@ const Register = () => {
         {/* BÊN PHẢI: ẢNH NÚI */}
         <div className="relative hidden min-h-0 md:block md:h-full md:w-1/2">
           <Image 
-            src="/signup_pic.jpg" // Đảm bảo bạn có ảnh này trong folder public
+            src={PUBLIC_HEROES.appBackground}
             alt="Mountains" 
             fill 
             className="object-cover"

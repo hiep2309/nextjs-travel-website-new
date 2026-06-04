@@ -9,7 +9,9 @@ import { easeOut } from "@/lib/planner/motionPresets";
 import type { TripActivity, TripDay } from "@/lib/planner/types";
 import { usePlannerCategoryLabel } from "@/hooks/usePlannerCategoryLabel";
 
-const FALLBACK_IMG = "/signup_pic.jpg";
+import { PUBLIC_HEROES } from "@/lib/publicAssets";
+
+const FALLBACK_IMG = PUBLIC_HEROES.appBackground;
 
 type Props = {
   day: TripDay;

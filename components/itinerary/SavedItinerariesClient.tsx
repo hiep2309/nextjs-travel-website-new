@@ -5,6 +5,7 @@ import { LayoutGrid, List, Plus, Sparkles } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
+import { PUBLIC_HEROES } from "@/lib/publicAssets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSavedItineraries } from "@/hooks/useSavedItineraries";
 import {
@@ -63,7 +64,7 @@ export default function SavedItinerariesClient() {
     <div className="relative min-h-[100dvh] pb-20 pt-20 text-white sm:pt-24">
       <div
         className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center opacity-30"
-        style={{ backgroundImage: "url('/signup_pic.jpg')" }}
+        style={{ backgroundImage: `url('${PUBLIC_HEROES.appBackground}')` }}
         aria-hidden
       />
       <div
