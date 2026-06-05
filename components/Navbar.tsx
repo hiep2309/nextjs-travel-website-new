@@ -51,7 +51,6 @@ function UserAvatar({
 }
 
 const NAV_ITEMS = [
-  { key: "home", href: "/" },
   { key: "destinations", href: "/explore" },
   { key: "tours", href: "/tours" },
   { key: "guides", href: "/guides" },

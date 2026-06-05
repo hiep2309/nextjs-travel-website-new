@@ -24,6 +24,8 @@ export const createUserProfile = async (user: User, customName?: string) => {
       email: user.email,
       name: customName || user.displayName || "User",
       role: "user",
+      savedFoods: [],
+      tripFoods: [],
       createdAt: serverTimestamp(),
     });
   }

@@ -5,7 +5,7 @@
  *   public/icons/        — logos & UI glyphs
  *   public/heroes/       — full-page backgrounds & auth imagery
  *   public/destinations/ — province / landmark photos
- *   public/foods/        — dish photos (local; optional — Food Explorer may use CDN)
+ *   public/foods/        — dish photos (AI Food Explorer; filename = tên món)
  */
 
 export const PUBLIC_ICONS = {
@@ -31,8 +31,8 @@ export function destImage(filename: string): string {
   return `/destinations/${encodeURI(name)}`;
 }
 
-/** Food asset file name under `public/foods/`. */
+/** Food asset file name under `public/foods/` (supports Vietnamese names & spaces). */
 export function foodImage(filename: string): string {
   const name = filename.replace(/^\/+/, "").replace(/^foods\//, "");
-  return `/foods/${name}`;
+  return `/foods/${encodeURI(name)}`;
 }

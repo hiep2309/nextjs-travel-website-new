@@ -10,7 +10,19 @@ export const COLLECTIONS = {
   savedItineraries: "saved_itineraries",
   tripPlanCache: "trip_plan_cache",
   plannerDailyUsage: "planner_daily_usage",
+  foodAnalytics: "food_analytics",
 } as const;
+
+/**
+ * `users/{uid}` food ecosystem fields (arrays on user document):
+ *
+ * ```json
+ * {
+ *   "savedFoods": [{ "id", "name", "city", "image", "category", "priceRange", "description", "savedAt" }],
+ *   "tripFoods": [{ "id", "name", "city", "image", "addedAt" }]
+ * }
+ * ```
+ */
 
 /**
  * Canonical `posts/{id}` multilingual shape:

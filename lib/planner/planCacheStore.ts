@@ -23,7 +23,15 @@ export function buildPlanCacheKey(
   data: PlannerFormData,
   locale: AppLocale,
   premiumMode = false,
+  mustIncludeFoods: string[] = [],
 ): string {
+  const foodsKey =
+    mustIncludeFoods.length > 0
+      ? mustIncludeFoods
+          .map((f) => normalize(f))
+          .sort()
+          .join(",")
+      : "none";
   return [
     locale,
     data.travelStyle,
@@ -34,6 +42,7 @@ export function buildPlanCacheKey(
     data.pace,
     String(data.travelers),
     premiumMode ? "premium" : "standard",
+    foodsKey,
   ].join("|");
 }
 

@@ -25,6 +25,8 @@ import {
   Sparkles,
   Star,
   User,
+  UtensilsCrossed,
+  Heart,
 } from "lucide-react";
 import { doc, setDoc } from "firebase/firestore";
 import { reload, updateProfile } from "firebase/auth";
@@ -43,6 +45,8 @@ import { ContentCardOverlay } from "@/components/cards";
 import FlexibleImage from "@/components/ui/FlexibleImage";
 import ProfileItinerariesPanel from "@/components/itinerary/ProfileItinerariesPanel";
 import ProfilePostDraftsPanel from "@/components/create-post/ProfilePostDraftsPanel";
+import ProfileSavedFoodsPanel from "@/components/profile/ProfileSavedFoodsPanel";
+import ProfileTripFoodsPanel from "@/components/profile/ProfileTripFoodsPanel";
 import { buildDestinationModelForProvince } from "@/hooks/useDestinationPageModel";
 import { getProvinceBySlug } from "@/lib/provinceSlug";
 import { useAuth } from "@/hooks/useAuth";
@@ -60,7 +64,14 @@ import { getPostDraft, POST_DRAFTS_CHANGED_EVENT } from "@/lib/postDraftStorage"
 
 const glass = "rounded-2xl border border-white/15 bg-white/[0.06] shadow-xl backdrop-blur-xl";
 
-type TabId = "saved" | "itineraries" | "drafts" | "history" | "reviews";
+type TabId =
+  | "saved"
+  | "itineraries"
+  | "drafts"
+  | "history"
+  | "reviews"
+  | "savedFoods"
+  | "tripFoods";
 type FilterId = "all" | "destination" | "post";
 
 type ContentRow = {
@@ -380,7 +391,7 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         chip: tProfile("chipPost"),
       }));
       list = [...dest, ...posts];
-    } else {
+    } else if (tab === "reviews") {
       const dest = destReviews
         .map((r) => {
           const p = getProvinceBySlug(r.slug);
@@ -411,6 +422,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
         extra: `${r.stars}`,
       }));
       list = [...dest, ...posts];
+    } else {
+      list = [];
     }
 
     if (filter === "destination") list = list.filter((r) => r.kind === "destination");
@@ -459,6 +472,9 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
     setTab(nextTab);
     if (nextTab === "saved" || nextTab === "history" || nextTab === "reviews") {
       setFilter("all");
+    }
+    if (nextTab === "savedFoods" || nextTab === "tripFoods") {
+      scrollToProfileContent();
     }
   };
 
@@ -534,6 +550,8 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
     { id: "saved", label: tProfile("saved"), icon: Bookmark },
     { id: "history", label: tProfile("viewed"), icon: History },
     { id: "reviews", label: tProfile("reviews"), icon: Star },
+    { id: "savedFoods", label: tProfile("savedFoods"), icon: Heart },
+    { id: "tripFoods", label: tProfile("tripFoods"), icon: UtensilsCrossed },
   ];
 
   return (
@@ -768,6 +786,10 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
               <ProfileItinerariesPanel userId={profile.uid} />
             ) : tab === "drafts" ? (
               <ProfilePostDraftsPanel userId={profile.uid} />
+            ) : tab === "savedFoods" ? (
+              <ProfileSavedFoodsPanel userId={profile.uid} />
+            ) : tab === "tripFoods" ? (
+              <ProfileTripFoodsPanel userId={profile.uid} />
             ) : (
               <>
             <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

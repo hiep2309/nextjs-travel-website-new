@@ -37,5 +37,13 @@ export function validateTripPlan(data: unknown): TripPlan {
     }
   }
 
+  const localFood = (plan as TripPlan & { local_food?: unknown }).local_food;
+  if (localFood !== undefined) {
+    if (!Array.isArray(localFood) || !localFood.every((x) => typeof x === "string")) {
+      throw new TripPlanValidationError("local_food must be string[]", "INVALID_PLAN");
+    }
+    return { ...plan, local_food: localFood.map((s) => String(s).trim()).filter(Boolean) };
+  }
+
   return plan;
 }

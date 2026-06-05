@@ -27,6 +27,7 @@ import PlannerForm from "./PlannerForm";
 import PlannerFallbackBanner from "./PlannerFallbackBanner";
 import PlannerLoading from "./PlannerLoading";
 import PlannerTemplates from "./PlannerTemplates";
+import TripFoodPreferences from "./TripFoodPreferences";
 import TripResults from "./TripResults";
 
 type UsageInfo = {
@@ -233,13 +234,16 @@ export default function AiTripPlannerClient() {
 
       <div className="mx-auto max-w-[1400px] px-3 sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(280px,380px)_1fr] lg:items-start lg:gap-8">
-          <PlannerForm
-            value={form}
-            onChange={setForm}
-            onSubmit={() => void generate()}
-            loading={submitDisabled}
-            usage={usage}
-          />
+          <div className="space-y-4">
+            <PlannerForm
+              value={form}
+              onChange={setForm}
+              onSubmit={() => void generate()}
+              loading={submitDisabled}
+              usage={usage}
+            />
+            <TripFoodPreferences />
+          </div>
 
           <div ref={resultsRef} className="min-w-0 scroll-mt-24 lg:scroll-mt-28">
             {planMeta ? (

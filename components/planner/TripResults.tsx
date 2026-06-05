@@ -18,6 +18,7 @@ import { PUBLIC_HEROES } from "@/lib/publicAssets";
 import TripTimeline from "./TripTimeline";
 import CostSummary from "./CostSummary";
 import HiddenGems from "./HiddenGems";
+import TripLocalFoods from "./TripLocalFoods";
 import TripMap from "./TripMap";
 
 const glass =
@@ -307,6 +308,7 @@ export default function TripResults({
                   <TripMap days={days} activeDay={days[0]?.day} />
                 </div>
                 <HiddenGems gems={(viewPlan ?? plan).hidden_gems} limit={2} />
+                <TripLocalFoods foods={(viewPlan ?? plan).local_food ?? []} />
               </div>
             </div>
           )}

@@ -1,16 +1,14 @@
 /**
  * Curated Vietnamese cuisine dataset for the AI Food Explorer.
- * Images served from Unsplash (whitelisted in next.config.js).
+ * Images: `public/foods/{tên món}.jpg` when available; else Unsplash fallback.
  */
 import type { AppLocale } from "@/i18n/routing";
+import { getDishFoodImage } from "@/lib/food/dishImages";
 import type { Dish, LocalizedText } from "@/lib/food/types";
 
 export function pickFoodText(text: LocalizedText, locale: AppLocale): string {
   return text[locale]?.trim() || text.vi;
 }
-
-const img = (id: string) =>
-  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=80`;
 
 export const DISHES: Dish[] = [
   {
@@ -26,7 +24,7 @@ export const DISHES: Dish[] = [
       en: "A 12-hour beef bone broth perfumed with cinnamon, star anise and charred ginger, served with silky rice noodles, thin-sliced beef and fresh herbs.",
       ko: "계피·팔각·구운 생강으로 12시간 우린 소고기 육수에 부드러운 쌀국수와 얇게 썬 소고기, 신선한 허브를 올린 한 그릇.",
     },
-    image: img("photo-1582878826629-29b7ad1cdc43"),
+    image: getDishFoodImage("pho-bo"),
     category: "local_specialties",
     region: "north",
     destinations: ["Hà Nội", "Hanoi"],
@@ -77,7 +75,7 @@ export const DISHES: Dish[] = [
       en: "A shatteringly crisp baguette filled with pâté, cold cuts, pickled vegetables, cilantro and chili — fast, bold street-food breakfast.",
       ko: "바삭한 바게트에 파테, 햄, 절임 채소, 고수, 칠리를 넣은 빠르고 풍부한 길거리 아침 식사.",
     },
-    image: img("photo-1600688640154-9619e002df30"),
+    image: getDishFoodImage("banh-mi"),
     category: "street_food",
     region: "south",
     destinations: ["Hồ Chí Minh", "Ho Chi Minh", "Hội An", "Hoi An"],
@@ -128,7 +126,7 @@ export const DISHES: Dish[] = [
       en: "Charcoal-grilled pork patties and belly steeped in sweet-sour fish sauce, served with fresh vermicelli and herbs.",
       ko: "숯불에 구운 돼지고기를 새콤달콤한 느억맘 소스에 담가 신선한 쌀국수, 허브와 함께 즐기는 요리.",
     },
-    image: img("photo-1632789395770-20e6f63be806"),
+    image: getDishFoodImage("bun-cha"),
     category: "local_specialties",
     region: "north",
     destinations: ["Hà Nội", "Hanoi"],
@@ -177,7 +175,7 @@ export const DISHES: Dish[] = [
       en: "Chewy golden noodles made with Ba Le well water, topped with char siu pork, herbs and crispy croutons.",
       ko: "바레 우물물로 만든 쫄깃한 황금빛 면에 차슈 돼지고기, 허브, 바삭한 크루통을 올린 요리.",
     },
-    image: img("photo-1604908176997-125f25cc6f3d"),
+    image: getDishFoodImage("cao-lau"),
     category: "local_specialties",
     region: "central",
     destinations: ["Hội An", "Hoi An", "Quảng Nam"],
@@ -226,7 +224,7 @@ export const DISHES: Dish[] = [
       en: "Lobster, crab, scallops with scallion oil and ginger-steamed squid — day-boat seafood from Nha Trang bay.",
       ko: "랍스터, 게, 파기름 가리비, 생강 찐 오징어 등 나트랑 만에서 당일 잡은 해산물.",
     },
-    image: img("photo-1559737558-2f5a35f4523b"),
+    image: getDishFoodImage("hai-san-nha-trang"),
     category: "seafood",
     region: "central",
     destinations: ["Nha Trang", "Khánh Hòa"],
@@ -275,7 +273,7 @@ export const DISHES: Dish[] = [
       en: "Refined vegetarian platters mimicking meat dishes, crafted from vegetables, mushrooms and tofu in Buddhist tradition.",
       ko: "채소·버섯·두부로 고기 요리를 본떠 만든 정교한 채식 한 상, 불교 전통을 담았습니다.",
     },
-    image: img("photo-1512621776951-a57141f2eefd"),
+    image: getDishFoodImage("com-chay-hue"),
     category: "vegetarian",
     region: "central",
     destinations: ["Huế", "Hue", "Thừa Thiên Huế"],
@@ -324,7 +322,7 @@ export const DISHES: Dish[] = [
       en: "A bold broth from fermented linh fish, served with dozens of wild greens, fish, prawns and roast pork.",
       ko: "린 생선 젓갈로 낸 진한 육수에 수십 가지 들나물, 생선, 새우, 돼지고기 구이를 곁들입니다.",
     },
-    image: img("photo-1569718212165-3a8278d5f624"),
+    image: getDishFoodImage("lau-mam"),
     category: "local_specialties",
     region: "south",
     destinations: ["Cần Thơ", "Can Tho", "Miền Tây"],
@@ -373,7 +371,7 @@ export const DISHES: Dish[] = [
       en: "Multi-course tasting menus reimagining traditional Vietnamese dishes with modern technique and exquisite plating.",
       ko: "현대 기법과 정교한 플레이팅으로 전통 베트남 요리를 재해석한 다채로운 테이스팅 메뉴.",
     },
-    image: img("photo-1414235077428-338989a2e8c0"),
+    image: getDishFoodImage("fine-dining-saigon"),
     category: "fine_dining",
     region: "south",
     destinations: ["Hồ Chí Minh", "Ho Chi Minh", "Hà Nội", "Hanoi"],

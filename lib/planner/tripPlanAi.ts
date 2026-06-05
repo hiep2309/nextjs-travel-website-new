@@ -44,22 +44,47 @@ export type AiStreamHandlers = {
   onUsage?: (usage: AiUsage) => void;
 };
 
-function buildPrompt(data: PlannerFormData, locale: AppLocale, premiumMode: boolean): string {
-  const categoryList = PLANNER_CATEGORIES.join(", ");
-  const maxActivities = premiumMode ? 3 : 2;
+function buildMustIncludeFoodBlock(names: string[]): string {
+  if (!names.length) return "";
+  const list = names.map((n) => `- ${n}`).join("\n");
+  return `
+Traveler must include these dishes (schedule as Food category meals — breakfast/lunch/dinner):
+${list}
+Weave each dish into activities (place_name mentions the dish; category "Food" for meal stops).
+`;
+}
 
-  return `You are an expert Vietnam travel planner. Output ONLY valid JSON. No markdown. No story. Short text only.
+function buildPrompt(
+  data: PlannerFormData,
+  locale: AppLocale,
+  premiumMode: boolean,
+  mustIncludeFoods: string[] = [],
+): string {
+  const categoryList = PLANNER_CATEGORIES.join(", ");
+  const maxActivities = premiumMode ? 4 : 3;
+  const foodBlock = buildMustIncludeFoodBlock(mustIncludeFoods);
+
+  return `You are an expert Vietnam travel planner. Output ONLY valid JSON. No markdown. No story.
 
 Schema: ${JSON_SHAPE}
 
-Trip: ${data.destination} | ${data.days} days | ${data.budget} | ${getStyleLabel(locale, data.travelStyle)} | ${data.travelers} travelers | ${getTransportLabel(locale, data.transportation)} | ${getPaceLabel(locale, data.pace)} | lang=${locale}
+Create a ${data.days}-day itinerary for ${data.destination}.
 
+Traveler preferences:
+- Budget: ${data.budget}
+- Style: ${getStyleLabel(locale, data.travelStyle)}
+- Travelers: ${data.travelers}
+- Transport: ${getTransportLabel(locale, data.transportation)}
+- Pace: ${getPaceLabel(locale, data.pace)}
+- Language: ${locale}
+${foodBlock}
 Rules:
 - Real places in Vietnam only
-- Exactly ${data.days} day(s), max ${maxActivities} activities/day
+- Exactly ${data.days} day(s); ${maxActivities} activities/day covering morning, lunch, afternoon, dinner rhythm
+- For food experiences use category "Food" and descriptive place_name (e.g. "Phở bò breakfast")
 - Descriptions: 1 short sentence each
 - 2 hidden_gems (short)
-- local_food: 2-3 dish names
+- local_food: array of all featured dish names (${mustIncludeFoods.length ? "include must-include list" : "2-3 iconic dishes"})
 - category: one of ${categoryList}
 - ${costFormatInstruction(locale)}
 - Stay within budget
@@ -262,6 +287,8 @@ export type GenerateTripPlanOptions = {
   premiumMode?: boolean;
   skipCache?: boolean;
   onToken?: (chunk: string) => void;
+  /** User-selected dishes from AI Food Explorer → profile tripFoods */
+  mustIncludeFoods?: string[];
 };
 
 export async function generateTripPlan(
@@ -271,7 +298,8 @@ export async function generateTripPlan(
 ): Promise<TripPlanResult> {
   const loc = locale ?? data.locale ?? "vi";
   const premiumMode = options.premiumMode ?? data.premiumMode ?? false;
-  const cacheKey = buildPlanCacheKey(data, loc, premiumMode);
+  const mustIncludeFoods = (options.mustIncludeFoods ?? []).map((s) => s.trim()).filter(Boolean);
+  const cacheKey = buildPlanCacheKey(data, loc, premiumMode, mustIncludeFoods);
 
   if (!options.skipCache) {
     const cached = await getCachedTripPlan(cacheKey);
@@ -292,7 +320,7 @@ export async function generateTripPlan(
   }
 
   try {
-    const prompt = buildPrompt(data, loc, premiumMode);
+    const prompt = buildPrompt(data, loc, premiumMode, mustIncludeFoods);
     const selectedModel = selectGeminiModel(premiumMode);
     const { text, model, usage } = await generateRawText(prompt, premiumMode, data.days, {
       onUsage: (u) =>

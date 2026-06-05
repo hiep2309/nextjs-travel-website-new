@@ -18,6 +18,8 @@ import {
   type Transportation,
   type TravelStyle,
 } from "@/lib/planner/types";
+import { trackFoodEventAdmin } from "@/lib/server/foodAnalyticsAdmin";
+import { getUserTripFoodNames } from "@/lib/server/userTripFoods";
 import { extractBearerToken, verifyIdToken } from "@/lib/server/verifyIdToken";
 
 export const runtime = "nodejs";
@@ -113,7 +115,8 @@ export async function POST(req: Request) {
       (body as Record<string, unknown>).stream === true;
 
     const locale = data.locale ?? "vi";
-    const cacheKey = buildPlanCacheKey(data, locale, Boolean(data.premiumMode));
+    const mustIncludeFoods = await getUserTripFoodNames(user.uid);
+    const cacheKey = buildPlanCacheKey(data, locale, Boolean(data.premiumMode), mustIncludeFoods);
     const cached = await getCachedTripPlan(cacheKey);
 
     if (cached) {
@@ -175,10 +178,15 @@ export async function POST(req: Request) {
 
             const result = await generateTripPlan(data, locale, {
               premiumMode: data.premiumMode,
+              mustIncludeFoods,
             });
 
             if (result.meta.source === "ai") {
               await consumePlannerGeneration(user.uid);
+              void trackFoodEventAdmin(user.uid, "ai_generation", {
+                destination: data.destination,
+                locale,
+              });
             }
 
             const usage = await getPlannerUsage(user.uid);
@@ -205,10 +213,17 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = await generateTripPlan(data, locale, { premiumMode: data.premiumMode });
+    const result = await generateTripPlan(data, locale, {
+      premiumMode: data.premiumMode,
+      mustIncludeFoods,
+    });
 
     if (result.meta.source === "ai") {
       await consumePlannerGeneration(user.uid);
+      void trackFoodEventAdmin(user.uid, "ai_generation", {
+        destination: data.destination,
+        locale,
+      });
     }
 
     const usage = await getPlannerUsage(user.uid);

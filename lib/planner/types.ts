@@ -43,6 +43,8 @@ export type TripPlan = {
   total_estimated_cost: string;
   days: TripDay[];
   hidden_gems: HiddenGem[];
+  /** Dish names woven into the itinerary (from AI + user tripFoods). */
+  local_food?: string[];
 };
 
 /** How the itinerary was produced. */

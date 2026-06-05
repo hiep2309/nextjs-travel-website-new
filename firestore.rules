@@ -213,6 +213,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /food_analytics/{eventId} {
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.event in ['food_save', 'trip_add', 'ai_generation'];
+      allow read: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if false;
+    }
+
     match /translations/{cacheId} {
       allow read, write: if false;
     }
