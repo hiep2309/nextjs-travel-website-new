@@ -262,7 +262,6 @@ Object.assign(ko.Nav, {
   destinations: "여행지",
   tours: "투어",
   guides: "가이드",
-  blog: "블로그",
   dashboard: "대시보드",
   login: "로그인",
   getStarted: "시작하기",

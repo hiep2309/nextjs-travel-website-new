@@ -289,7 +289,6 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     await logout();
-    router.push("/");
   };
 
   useEffect(() => {

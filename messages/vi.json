@@ -115,6 +115,7 @@
     "reasonBudget": "Phù hợp ngân sách {value}",
     "reasonMeal": "Ngon nhất vào {value}",
     "reasonTrending": "Đang thịnh hành",
+    "reasonRegional": "Đặc sản vùng gần {value}",
     "reasonPopular": "Được yêu thích khắp cả nước"
   },
   "Meta": {
@@ -127,7 +128,6 @@
     "destinations": "Điểm đến",
     "tours": "Tour",
     "guides": "Cẩm nang",
-    "blog": "Blog",
     "aiPlanner": "AI Trip Planner",
     "aiFood": "AI Food Explorer",
     "new": "Mới",

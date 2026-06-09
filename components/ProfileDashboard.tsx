@@ -461,7 +461,6 @@ export default function ProfileDashboard({ profile }: { profile: MergedProfile }
 
   const handleLogout = async () => {
     await logout();
-    router.push("/");
   };
 
   const scrollToProfileContent = () => {

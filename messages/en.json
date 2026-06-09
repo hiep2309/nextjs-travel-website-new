@@ -115,6 +115,7 @@
     "reasonBudget": "Fits your {value} budget",
     "reasonMeal": "Best enjoyed at {value}",
     "reasonTrending": "Trending right now",
+    "reasonRegional": "Regional specialty near {value}",
     "reasonPopular": "Beloved nationwide"
   },
   "Meta": {
@@ -127,7 +128,6 @@
     "destinations": "Destinations",
     "tours": "Tours",
     "guides": "Guides",
-    "blog": "Blog",
     "aiPlanner": "AI Trip Planner",
     "aiFood": "AI Food Explorer",
     "new": "New",

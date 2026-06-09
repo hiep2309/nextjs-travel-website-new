@@ -7,6 +7,7 @@
  * Gemini quota used by the AI Trip Planner.
  */
 import { DISHES } from "@/lib/food/dishes";
+import { destinationToFoodRegion } from "@/lib/food/destinationRegion";
 import { normalizeVietnameseText } from "@/lib/normalizeVn";
 import type {
   BudgetTier,
@@ -17,13 +18,32 @@ import type {
 
 const BUDGET_ORDER: Record<BudgetTier, number> = { budget: 0, mid: 1, premium: 2 };
 
-function destinationMatches(dish: Dish, destination: string): boolean {
+export function destinationMatches(dish: Dish, destination: string): boolean {
   if (!destination.trim()) return false;
   const target = normalizeVietnameseText(destination);
   return dish.destinations.some((d) => {
     const norm = normalizeVietnameseText(d);
-    return norm.includes(target) || target.includes(norm);
+    return norm === target || norm.includes(target) || target.includes(norm);
   });
+}
+
+type CandidateMode = "all" | "exact" | "regional";
+
+/** Limit ranking pool so Hải Phòng does not surface Hà Nội-only dishes. */
+function getCandidateDishes(prefs: FoodPreferences): { pool: Dish[]; mode: CandidateMode } {
+  const dest = prefs.destination.trim();
+  if (!dest) return { pool: DISHES, mode: "all" };
+
+  const exact = DISHES.filter((d) => destinationMatches(d, dest));
+  if (exact.length > 0) return { pool: exact, mode: "exact" };
+
+  const region = destinationToFoodRegion(dest);
+  if (region) {
+    const regional = DISHES.filter((d) => d.region === region);
+    if (regional.length > 0) return { pool: regional, mode: "regional" };
+  }
+
+  return { pool: DISHES, mode: "all" };
 }
 
 function budgetDelta(dish: Dish, budget: BudgetTier): number {
@@ -31,7 +51,11 @@ function budgetDelta(dish: Dish, budget: BudgetTier): number {
 }
 
 /** Score a single dish against the traveler's preferences (0–100). */
-export function scoreDish(dish: Dish, prefs: FoodPreferences): ScoredDish {
+export function scoreDish(
+  dish: Dish,
+  prefs: FoodPreferences,
+  mode: CandidateMode = "all",
+): ScoredDish {
   const reasons: ScoredDish["reasons"] = [];
 
   // Base popularity contributes up to 40 points.
@@ -41,6 +65,9 @@ export function scoreDish(dish: Dish, prefs: FoodPreferences): ScoredDish {
   if (destinationMatches(dish, prefs.destination)) {
     score += 30;
     reasons.push({ key: "reasonDestination", value: prefs.destination.trim() });
+  } else if (mode === "regional" && prefs.destination.trim()) {
+    score += 12;
+    reasons.push({ key: "reasonRegional", value: prefs.destination.trim() });
   }
 
   // Food-preference overlap (up to 22).
@@ -81,12 +108,15 @@ export function scoreDish(dish: Dish, prefs: FoodPreferences): ScoredDish {
   return { dish, score: normalized, reasons };
 }
 
-/** Rank all dishes for the given preferences, best first. */
+/** Rank dishes for the given preferences, best first (destination-aware pool). */
 export function rankDishes(prefs: FoodPreferences): ScoredDish[] {
-  return DISHES.map((dish) => scoreDish(dish, prefs)).sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return b.dish.popularity - a.dish.popularity;
-  });
+  const { pool, mode } = getCandidateDishes(prefs);
+  return pool
+    .map((dish) => scoreDish(dish, prefs, mode))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.dish.popularity - a.dish.popularity;
+    });
 }
 
 export function getPopularDishes(limit = 5): Dish[] {

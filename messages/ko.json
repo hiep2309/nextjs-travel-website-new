@@ -115,6 +115,7 @@
     "reasonBudget": "{value} 예산에 적합",
     "reasonMeal": "{value}에 가장 좋음",
     "reasonTrending": "지금 인기 상승 중",
+    "reasonRegional": "{value} 인근 지역 특산",
     "reasonPopular": "전국적으로 사랑받는 음식"
   },
   "Meta": {
@@ -127,7 +128,6 @@
     "destinations": "여행지",
     "tours": "투어",
     "guides": "가이드",
-    "blog": "블로그",
     "aiPlanner": "AI Trip Planner",
     "aiFood": "AI Food Explorer",
     "new": "신규",

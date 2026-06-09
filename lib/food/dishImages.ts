@@ -21,6 +21,8 @@ const unsplash = (id: string) =>
 /** CDN fallback khi chưa có ảnh local (vd. fine dining). */
 const DISH_UNSPLASH_FALLBACK: Record<string, string> = {
   "fine-dining-saigon": "photo-1414235077428-338989a2e8c0",
+  "cha-muc-hai-phong": "photo-1559737558-2f5a35f4523b",
+  "banh-da-cua": "photo-1569718212165-3a8278d5f624",
 };
 
 export function getDishFoodImage(dishId: string): string {

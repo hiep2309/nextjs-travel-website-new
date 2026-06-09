@@ -25,6 +25,8 @@ function reasonText(
       return t("reasonMeal", { value: t(`meal_${reason.value}`) });
     case "reasonTrending":
       return t("reasonTrending");
+    case "reasonRegional":
+      return t("reasonRegional", { value: reason.value ?? "" });
     default:
       return t("reasonPopular");
   }

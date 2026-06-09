@@ -408,6 +408,106 @@ export const DISHES: Dish[] = [
       { vi: "Bưu điện Trung tâm", en: "Central Post Office", ko: "중앙우체국" },
     ],
   },
+  {
+    id: "cha-muc-hai-phong",
+    name: { vi: "Chả mực Hải Phòng", en: "Hai Phong squid cake", ko: "하이퐁 오징어 어묵" },
+    tagline: {
+      vi: "Đặc sản biển giòn sần sật",
+      en: "Crispy-springy seaside specialty",
+      ko: "바삭하고 쫄깃한 해안 특산",
+    },
+    description: {
+      vi: "Mực tươi giã tay, áo bột chiên vàng — ăn kèm bún, rau thơm và nước mắm pha chua ngọt.",
+      en: "Hand-pounded fresh squid, lightly battered and fried golden — served with rice noodles, herbs and sweet-sour fish sauce.",
+      ko: "손으로 다진 싱싱한 오징어를 살짝 튀겨 황금빛으로 — 쌀국수, 허브, 새콤달콤한 어무스와 함께.",
+    },
+    image: getDishFoodImage("cha-muc-hai-phong"),
+    category: "seafood",
+    region: "north",
+    destinations: ["Hải Phòng", "Hai Phong"],
+    priceVnd: 65000,
+    budgetTier: "mid",
+    bestTime: ["lunch", "dinner"],
+    season: "all_year",
+    popularity: 92,
+    trending: true,
+    map: { x: 30, y: 20 },
+    culture: {
+      history: {
+        vi: "Chả mực Hải Phòng nổi tiếng từ những làng chài ven biển, nơi ngư dân giã mực bằng chày gỗ truyền thống.",
+        en: "Hai Phong squid cake rose to fame in fishing villages where cooks traditionally pounded squid with wooden pestles.",
+        ko: "하이퐁 오징어 어묵은 나무 절굿으로 오징어를 다지던 어촌 마을에서 유명해졌습니다.",
+      },
+      significance: {
+        vi: "Món quà đặc trưng khi về từ Hải Phòng, biểu tượng ẩm thực cảng biển phía Bắc.",
+        en: "The iconic edible souvenir from Hai Phong and a symbol of the northern port city's cuisine.",
+        ko: "하이퐁에서 가져오는 대표 기념 음식이자 북부 항구 도시 미식의 상징입니다.",
+      },
+      traditions: {
+        vi: "Thường mua tại Lê Chân hoặc Đồ Sơn, ăn nóng ngay sau khi chiên.",
+        en: "Often bought in Le Chan or Do Son and eaten hot right after frying.",
+        ko: "레찬이나 도선에서 사 와 튀긴 직후 뜨겁게 먹습니다.",
+      },
+    },
+    restaurants: [
+      { name: "Chả Mực Bà Cuội", area: { vi: "Lê Chân, Hải Phòng", en: "Le Chan, Hai Phong", ko: "레찬, 하이퐁" }, distanceKm: 2.1, priceRange: "mid", rating: 4.8, reviews: 4200 },
+      { name: "Chả Mực Hạ Long", area: { vi: "Ngô Quyền, Hải Phòng", en: "Ngo Quyen, Hai Phong", ko: "응오꾸옌, 하이퐁" }, distanceKm: 1.4, priceRange: "mid", rating: 4.6, reviews: 3100 },
+    ],
+    nearbyAttractions: [
+      { vi: "Cầu Bạch Đằng", en: "Bach Dang Bridge", ko: "박당 다리" },
+      { vi: "Đồ Sơn", en: "Do Son Beach", ko: "도선 해변" },
+    ],
+  },
+  {
+    id: "banh-da-cua",
+    name: { vi: "Bánh đa cua", en: "Hai Phong crab noodle soup", ko: "하이퐁 게 국수" },
+    tagline: {
+      vi: "Nước dùng cua đậm đà đất Cảng",
+      en: "Bold crab broth of the Port City",
+      ko: "항구 도시의 진한 게 육수",
+    },
+    description: {
+      vi: "Bánh đa đỏ, rau muống, cua đồng, tôm rim và chả cua — hương vị đậm đặc trưng Hải Phòng.",
+      en: "Red rice crackers, water spinach, field crab, braised shrimp and crab cake — unmistakably Hai Phong.",
+      ko: "붉은 쌀국수, 공심채, 민물게, 조린 새우, 게 어묵 — 하이퐁만의 깊은 맛.",
+    },
+    image: getDishFoodImage("banh-da-cua"),
+    category: "local_specialties",
+    region: "north",
+    destinations: ["Hải Phòng", "Hai Phong"],
+    priceVnd: 50000,
+    budgetTier: "budget",
+    bestTime: ["breakfast", "lunch"],
+    season: "all_year",
+    popularity: 90,
+    trending: true,
+    map: { x: 28, y: 24 },
+    culture: {
+      history: {
+        vi: "Bánh đa cua hình thành từ ẩm thực làng chài ven sông Cấm và vùng đồng bằng Hải Phòng.",
+        en: "Crab noodle soup grew from fishing communities along the Cam River and Hai Phong delta.",
+        ko: "게 국수는 깜 강과 하이퐁 평야 어촌의 음식 문화에서 발전했습니다.",
+      },
+      significance: {
+        vi: "Một trong những món ăn sáng được người Hải Phòng yêu thích nhất.",
+        en: "One of the most beloved breakfast dishes among Hai Phong locals.",
+        ko: "하이퐁 사람들이 가장 사랑하는 아침 메뉴 중 하나입니다.",
+      },
+      traditions: {
+        vi: "Ăn sáng tại quán ven chợ Cầu Đất hoặc phố Lê Chân.",
+        en: "Breakfast at stalls near Cau Dat Market or Le Chan street.",
+        ko: "까우닷 시장 근처나 레찬 거리 노점에서 아침으로 먹습니다.",
+      },
+    },
+    restaurants: [
+      { name: "Bánh Đa Cua Cô Năm", area: { vi: "Cầu Đất, Hải Phòng", en: "Cau Dat, Hai Phong", ko: "까우닷, 하이퐁" }, distanceKm: 0.9, priceRange: "budget", rating: 4.7, reviews: 2800 },
+      { name: "Bánh Đa Cua Lê Chân", area: { vi: "Lê Chân, Hải Phòng", en: "Le Chan, Hai Phong", ko: "레찬, 하이퐁" }, distanceKm: 1.8, priceRange: "budget", rating: 4.5, reviews: 1900 },
+    ],
+    nearbyAttractions: [
+      { vi: "Chợ Cầu Đất", en: "Cau Dat Market", ko: "까우닷 시장" },
+      { vi: "Nhà hát Lớn Hải Phòng", en: "Hai Phong Opera House", ko: "하이퐁 오페라 하우스" },
+    ],
+  },
 ];
 
 export function getDishById(id: string): Dish | undefined {
