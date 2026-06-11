@@ -20,6 +20,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import {
   formatItineraryDate,
+  getItineraryCoverImage,
   getItineraryDestination,
   getItinerarySummary,
   getItineraryTitle,
@@ -48,6 +49,7 @@ export default function SavedItineraryCard({ item, index, view, onDelete }: Prop
   const title = getItineraryTitle(item, locale);
   const destination = getItineraryDestination(item, locale);
   const summary = getItinerarySummary(item, locale);
+  const coverImage = getItineraryCoverImage(item);
   const styleLabel = t(`style_${item.travelStyle}` as "style_Chill");
   const statusStyle = STATUS_STYLES[item.status] ?? STATUS_STYLES.planning;
 
@@ -99,7 +101,7 @@ export default function SavedItineraryCard({ item, index, view, onDelete }: Prop
       >
         <div className={`relative ${isList ? "aspect-[16/10] sm:h-full sm:min-h-[200px]" : "aspect-[16/10]"}`}>
           <FlexibleImage
-            src={item.coverImage}
+            src={coverImage}
             alt=""
             className="object-cover transition duration-700 group-hover:scale-105"
             sizes={isList ? "288px" : "(max-width:768px) 100vw, 33vw"}

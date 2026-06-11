@@ -23,3 +23,29 @@ export function resolveItineraryCoverImage(destination: string, planDestination?
   }
   return DEFAULT_COVER_IMAGE;
 }
+
+const STABLE_COVER_PREFIXES = ["/destinations/", "/heroes/", "/icons/", "/foods/"] as const;
+
+/** Paths under reorganized `public/` folders — safe to persist long-term. */
+export function isStableItineraryCoverPath(src: string): boolean {
+  const value = src.trim();
+  if (!value || !value.startsWith("/")) return false;
+  return STABLE_COVER_PREFIXES.some((prefix) => value.startsWith(prefix));
+}
+
+/**
+ * Use stored cover when still valid; otherwise re-resolve from destination.
+ * Fixes legacy records that still point at deleted root-level files
+ * (e.g. `/Đà Nẵng — Biển Mỹ Khê.jpg` → `/destinations/Đà Nẵng.jpg`).
+ */
+export function getEffectiveItineraryCover(
+  storedCover: string,
+  destination: string,
+  planDestination?: string,
+): string {
+  const trimmed = storedCover.trim();
+  if (trimmed && isStableItineraryCoverPath(trimmed)) return trimmed;
+
+  const resolved = resolveItineraryCoverImage(destination, planDestination);
+  return resolved.trim() || DEFAULT_COVER_IMAGE;
+}

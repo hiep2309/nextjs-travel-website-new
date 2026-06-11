@@ -1,5 +1,6 @@
 import type { AppLocale } from "@/i18n/routing";
 import { getTranslation } from "@/lib/getTranslation";
+import { getEffectiveItineraryCover } from "@/lib/itinerary/coverImage";
 import type { SavedItineraryRecord } from "@/lib/itinerary/types";
 
 export function getItineraryTitle(record: SavedItineraryRecord, locale: AppLocale): string {
@@ -16,6 +17,14 @@ export function getItineraryDestination(record: SavedItineraryRecord, locale: Ap
 
 export function getItinerarySummary(record: SavedItineraryRecord, locale: AppLocale): string {
   return getTranslation(record.summary, locale) || getTranslation(record.summary, record.locale);
+}
+
+export function getItineraryCoverImage(record: SavedItineraryRecord): string {
+  const destination =
+    record.form.destination ||
+    record.plan.destination ||
+    getTranslation(record.destination, record.locale);
+  return getEffectiveItineraryCover(record.coverImage, destination, record.plan.destination);
 }
 
 export function formatItineraryDate(date: Date, locale: AppLocale): string {

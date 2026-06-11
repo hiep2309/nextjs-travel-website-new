@@ -121,15 +121,15 @@ export async function addFoodToTrip(
 export async function removeSavedFood(userId: string, foodId: string): Promise<void> {
   const ref = doc(db, COLLECTIONS.users, userId);
   const snap = await getDoc(ref);
-  const { savedFoods, tripFoods } = normalizeUserFoodCollections(snap.data());
-  await updateDoc(ref, { savedFoods: savedFoods.filter((f) => f.id !== foodId), tripFoods });
+  const { savedFoods } = normalizeUserFoodCollections(snap.data());
+  await updateDoc(ref, { savedFoods: savedFoods.filter((f) => f.id !== foodId) });
 }
 
 export async function removeTripFood(userId: string, foodId: string): Promise<void> {
   const ref = doc(db, COLLECTIONS.users, userId);
   const snap = await getDoc(ref);
-  const { savedFoods, tripFoods } = normalizeUserFoodCollections(snap.data());
-  await updateDoc(ref, { tripFoods: tripFoods.filter((f) => f.id !== foodId), savedFoods });
+  const { tripFoods } = normalizeUserFoodCollections(snap.data());
+  await updateDoc(ref, { tripFoods: tripFoods.filter((f) => f.id !== foodId) });
 }
 
 export async function moveSavedFoodToTrip(

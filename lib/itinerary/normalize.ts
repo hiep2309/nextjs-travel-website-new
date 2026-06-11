@@ -1,8 +1,9 @@
 import type { DocumentData, Timestamp } from "firebase/firestore";
 import type { AppLocale } from "@/i18n/routing";
 import { routing } from "@/i18n/routing";
+import { getEffectiveItineraryCover } from "@/lib/itinerary/coverImage";
+import { getTranslation } from "@/lib/getTranslation";
 import type { SavedItineraryRecord } from "@/lib/itinerary/types";
-import { DEFAULT_COVER_IMAGE } from "@/lib/publicAssets";
 
 function toDate(value: unknown): Date {
   if (value && typeof value === "object" && "toDate" in value) {
@@ -20,6 +21,9 @@ function asLocale(raw: unknown): AppLocale {
 export function normalizeSavedItinerary(id: string, data: DocumentData): SavedItineraryRecord | null {
   if (!data.userId || !data.plan || !data.form) return null;
 
+  const form = data.form as SavedItineraryRecord["form"];
+  const plan = data.plan as SavedItineraryRecord["plan"];
+
   return {
     id,
     userId: String(data.userId),
@@ -29,13 +33,22 @@ export function normalizeSavedItinerary(id: string, data: DocumentData): SavedIt
     destination: (data.destination as SavedItineraryRecord["destination"]) ?? {},
     title: (data.title as SavedItineraryRecord["title"]) ?? {},
     summary: (data.summary as SavedItineraryRecord["summary"]) ?? {},
-    plan: data.plan as SavedItineraryRecord["plan"],
-    form: data.form as SavedItineraryRecord["form"],
+    plan,
+    form,
     travelStyle: data.travelStyle as SavedItineraryRecord["travelStyle"],
     budget: String(data.budget ?? ""),
     travelers: Number(data.travelers) || 1,
     duration: Number(data.duration) || 1,
-    coverImage: String(data.coverImage ?? DEFAULT_COVER_IMAGE),
+    coverImage: getEffectiveItineraryCover(
+      String(data.coverImage ?? ""),
+      form.destination ||
+        plan.destination ||
+        getTranslation(
+          (data.destination as SavedItineraryRecord["destination"]) ?? {},
+          asLocale(data.locale),
+        ),
+      plan.destination,
+    ),
     tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
     aiGenerated: data.aiGenerated !== false,
     status: (data.status as SavedItineraryRecord["status"]) ?? "planning",

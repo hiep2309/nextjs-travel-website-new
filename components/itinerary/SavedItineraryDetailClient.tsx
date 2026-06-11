@@ -16,6 +16,7 @@ import { useLocalizedTripPlan } from "@/hooks/useLocalizedTripPlan";
 import { deleteItinerary } from "@/lib/itinerary/deleteItinerary";
 import {
   formatItineraryDate,
+  getItineraryCoverImage,
   getItineraryDestination,
   getItinerarySummary,
   getItineraryTitle,
@@ -126,6 +127,7 @@ export default function SavedItineraryDetailClient({ id }: Props) {
     displayPlan?.trip_title ||
     getItinerarySummary(item, locale);
   const plan = displayPlan ?? item.plan;
+  const coverImage = getItineraryCoverImage(item);
 
   return (
     <div className="relative min-h-[100dvh] pb-20 pt-20 text-white sm:pt-24">
@@ -149,7 +151,7 @@ export default function SavedItineraryDetailClient({ id }: Props) {
           style={localizing ? { opacity: 0.85 } : undefined}
         >
           <div className="relative aspect-[21/9] min-h-[180px]">
-            <FlexibleImage src={item.coverImage} alt="" className="object-cover" priority sizes="100vw" />
+            <FlexibleImage src={coverImage} alt="" className="object-cover" priority sizes="100vw" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6">
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-600/40 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-100 ring-1 ring-violet-400/40">
